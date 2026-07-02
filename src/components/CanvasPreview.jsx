@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as Lucide from 'lucide-react';
+import * as Phosphor from '@phosphor-icons/react';
 
 export default function CanvasPreview({
   canvasSettings,
@@ -148,9 +149,17 @@ export default function CanvasPreview({
             // Render specific components
             let content = null;
             if (el.type === 'icon') {
-              const IconComponent = Lucide[el.name];
+              const isPhosphor = el.iconType === 'phosphor';
+              const IconComponent = isPhosphor ? Phosphor[el.name] : Lucide[el.name];
               if (IconComponent) {
-                content = (
+                content = isPhosphor ? (
+                  <IconComponent
+                    size={size}
+                    color={el.color || '#000000'}
+                    weight={el.weight || 'regular'}
+                    style={{ width: '100%', height: '100%', display: 'block' }}
+                  />
+                ) : (
                   <IconComponent
                     size={size}
                     color={el.color || '#000000'}

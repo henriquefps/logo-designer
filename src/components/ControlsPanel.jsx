@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import * as Lucide from 'lucide-react';
+import * as Phosphor from '@phosphor-icons/react';
 import { svgToPngBlob, svgToDataUrl, generateIconPack } from '../utils/exportHelper';
 
 const EXCLUDED_KEYS = ['createLucideIcon', 'default', 'LucideIcon', 'icons'];
 const ALL_ICONS = Object.keys(Lucide).filter(
-  key => !EXCLUDED_KEYS.includes(key) && /^[A-Z]/.test(key)
+  key => !EXCLUDED_KEYS.includes(key) && 
+         /^[A-Z]/.test(key) && 
+         !key.startsWith('Lucide') && 
+         !key.endsWith('Icon')
+);
+
+const EXCLUDED_PHOSPHOR = ['IconContext', 'IconBase', 'Icon'];
+const ALL_PHOSPHOR_ICONS = Object.keys(Phosphor).filter(
+  key => !EXCLUDED_PHOSPHOR.includes(key) && 
+         /^[A-Z]/.test(key) && 
+         !key.endsWith('Icon')
 );
 
 export default function ControlsPanel({
@@ -17,6 +28,7 @@ export default function ControlsPanel({
   svgRef
 }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [phosphorSearchTerm, setPhosphorSearchTerm] = useState('');
   const [textInput, setTextInput] = useState('Text');
   const [activeTab, setActiveTab] = useState('canvas'); // canvas, elements, add
   const [exportSize, setExportSize] = useState(512); // 256, 512, 1024
@@ -28,17 +40,40 @@ export default function ControlsPanel({
     name.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 48); // limit to 48 for performance
 
+  const filteredPhosphorIcons = ALL_PHOSPHOR_ICONS.filter(name =>
+    name.toLowerCase().includes(phosphorSearchTerm.toLowerCase())
+  ).slice(0, 48); // limit to 48 for performance
+
   // Add elements
   const addIcon = (iconName) => {
     const newEl = {
       id: Date.now().toString(),
       type: 'icon',
+      iconType: 'lucide',
       name: iconName,
       x: 256,
       y: 256,
       size: 120,
       color: '#172e37',
       strokeWidth: 2,
+      rotation: 0,
+      opacity: 100
+    };
+    setElements([...elements, newEl]);
+    setSelectedElementId(newEl.id);
+  };
+
+  const addPhosphorIcon = (iconName) => {
+    const newEl = {
+      id: Date.now().toString(),
+      type: 'icon',
+      iconType: 'phosphor',
+      name: iconName,
+      x: 256,
+      y: 256,
+      size: 120,
+      color: '#172e37',
+      weight: 'regular',
       rotation: 0,
       opacity: 100
     };
@@ -391,6 +426,37 @@ export default function ControlsPanel({
 
             <details className="accordion-item">
               <summary className="accordion-header">
+                <span>Phosphor Icon</span>
+                <Lucide.ChevronDown className="accordion-chevron" size={16} />
+              </summary>
+              <div className="accordion-body">
+                <input
+                  type="text"
+                  placeholder="Search Phosphor icons..."
+                  value={phosphorSearchTerm}
+                  onChange={(e) => setPhosphorSearchTerm(e.target.value)}
+                  className="mb-3"
+                />
+                <div className="grid grid-cols-8 gap-2 max-h-56 overflow-y-auto p-3 bg-slate-50 rounded-lg">
+                  {filteredPhosphorIcons.map(name => {
+                    const IconComp = Phosphor[name];
+                    return (
+                      <button
+                        key={name}
+                        title={name}
+                        onClick={() => addPhosphorIcon(name)}
+                        className="aspect-square flex items-center justify-center bg-white hover:bg-indigo-50 border border-slate-200 rounded-lg text-slate-700 hover:text-indigo-600 hover:border-indigo-200 transition-all cursor-pointer"
+                      >
+                        <IconComp size={20} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
+
+            <details className="accordion-item">
+              <summary className="accordion-header">
                 <span>Custom Text</span>
                 <Lucide.ChevronDown className="accordion-chevron" size={16} />
               </summary>
@@ -671,7 +737,24 @@ export default function ControlsPanel({
                   />
                 </div>
 
-                {selectedElement.type === 'icon' && (
+                {selectedElement.type === 'icon' && selectedElement.iconType === 'phosphor' && (
+                  <div className="input-group">
+                    <label>Icon Weight</label>
+                    <select
+                      value={selectedElement.weight || 'regular'}
+                      onChange={e => updateSelected('weight', e.target.value)}
+                    >
+                      <option value="thin">Thin</option>
+                      <option value="light">Light</option>
+                      <option value="regular">Regular</option>
+                      <option value="bold">Bold</option>
+                      <option value="fill">Fill</option>
+                      <option value="duotone">Duotone</option>
+                    </select>
+                  </div>
+                )}
+
+                {selectedElement.type === 'icon' && selectedElement.iconType !== 'phosphor' && (
                   <div className="input-group">
                     <div className="flex justify-between text-xs font-bold text-slate-500">
                       <label>Stroke Width</label>
