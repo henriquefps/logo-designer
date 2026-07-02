@@ -222,14 +222,16 @@ export default function CanvasPreview({
                   />
                 )}
                 
-                {/* Icon alignment needs a centered container */}
-                {el.type === 'icon' ? (
-                  <g transform={`translate(${-size / 2}, ${-size / 2})`}>
-                    {content}
-                  </g>
-                ) : (
-                  content
-                )}
+                {/* Apply mirror flipping and icon centering */}
+                <g transform={`scale(${el.flipH ? -1 : 1}, ${el.flipV ? -1 : 1})`}>
+                  {el.type === 'icon' ? (
+                    <g transform={`translate(${-size / 2}, ${-size / 2})`}>
+                      {content}
+                    </g>
+                  ) : (
+                    content
+                  )}
+                </g>
               </g>
             );
           })}

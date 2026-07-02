@@ -799,6 +799,37 @@ export default function ControlsPanel({
                   />
                 </div>
 
+                {/* Mirror / Flip Controls */}
+                <div className="input-group">
+                  <label className="text-xs font-bold text-slate-500 mb-1 block">Flip / Mirror</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateSelected('flipH', !selectedElement.flipH)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border transition-all text-sm font-medium ${
+                        selectedElement.flipH
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                      title="Flip Horizontally"
+                    >
+                      <Lucide.FlipHorizontal size={16} />
+                      <span>Horizontal</span>
+                    </button>
+                    <button
+                      onClick={() => updateSelected('flipV', !selectedElement.flipV)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border transition-all text-sm font-medium ${
+                        selectedElement.flipV
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                      title="Flip Vertically"
+                    >
+                      <Lucide.FlipVertical size={16} />
+                      <span>Vertical</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* X & Y position details */}
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div className="input-group">
