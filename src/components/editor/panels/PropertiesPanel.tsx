@@ -11,6 +11,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { ColorField } from '@/components/editor/shared/ColorField';
 import { NumberField } from '@/components/editor/shared/NumberField';
 import { AlignmentPad } from './AlignmentPad';
+import { FONT_OPTIONS, findFont } from '@/lib/fonts';
 import type { IconElement, LogoElement, TextElement } from '@/types/element';
 
 const WEIGHTS = ['thin', 'light', 'regular', 'bold', 'fill', 'duotone'] as const;
@@ -69,6 +70,54 @@ export function PropertiesPanel() {
             onBlur={commit}
             className="resize-none text-sm"
           />
+        </div>
+      )}
+
+      {single?.type === 'text' && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Font</Label>
+            <Select
+              value={single.fontFamily}
+              onValueChange={(fontFamily) => {
+                const font = findFont(fontFamily);
+                updateSingle({ fontFamily, fontWeight: font.defaultWeight });
+                commit();
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((font) => (
+                  <SelectItem key={font.family} value={font.family} style={{ fontFamily: font.family }}>
+                    {font.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Weight</Label>
+            <Select
+              value={single.fontWeight}
+              onValueChange={(fontWeight) => {
+                updateSingle({ fontWeight });
+                commit();
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {findFont(single.fontFamily).weights.map((w) => (
+                  <SelectItem key={w.value} value={w.value}>
+                    {w.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
 

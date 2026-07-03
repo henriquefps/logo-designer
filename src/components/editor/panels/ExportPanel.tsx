@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { DownloadSimpleIcon, CodeIcon, PackageIcon } from '@phosphor-icons/react';
+import { DownloadSimpleIcon, CodeIcon, PackageIcon, FloppyDiskIcon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useCanvasRef } from '@/hooks/useCanvasRef';
+import { useActiveProject } from '@/store/useProjectStore';
 import { svgToBlob, svgToBlobUrl, downloadBlob } from '@/lib/export/svgSerialize';
 import { generateIconPack } from '@/lib/export/iconPack';
+import { downloadProjectFile } from '@/lib/projectFile';
 
 const SIZES = [256, 512, 1024] as const;
 const RASTER_FORMATS = [
@@ -17,6 +20,7 @@ const RASTER_FORMATS = [
 
 export function ExportPanel() {
   const svgRef = useCanvasRef();
+  const project = useActiveProject();
   const [size, setSize] = useState<number>(512);
   const [format, setFormat] = useState<(typeof RASTER_FORMATS)[number]['value']>('image/png');
   const [busy, setBusy] = useState<string | null>(null);
@@ -101,6 +105,28 @@ export function ExportPanel() {
         </Button>
         <p className="text-xs text-muted-foreground">
           The icon pack bundles favicons, an iOS AppIcon set, and Android mipmaps (square + round) generated from this design.
+        </p>
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-col gap-2">
+        <Label className="text-xs text-muted-foreground">Backup</Label>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            if (!project) return;
+            downloadProjectFile(project);
+            toast.success('Project file saved');
+          }}
+        >
+          <FloppyDiskIcon className="size-4" />
+          Save Project File
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Projects only live in this browser. Save a project file to back it up or move it to another device — import it
+          back from the project menu at the top left.
         </p>
       </div>
     </div>

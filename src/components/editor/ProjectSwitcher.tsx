@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { CaretDownIcon, PlusIcon, CopySimpleIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { CaretDownIcon, PlusIcon, CopySimpleIcon, TrashIcon, CheckIcon, UploadSimpleIcon, DiceFiveIcon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -7,6 +8,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useProjectStore } from '@/store/useProjectStore';
 import { useUIStore } from '@/store/useUIStore';
 import { cn } from '@/lib/utils';
+import { parseProjectFile } from '@/lib/projectFile';
+import { generateRandomLogo } from '@/lib/randomLogo';
 import { TemplateGallery } from './TemplateGallery';
 
 export function ProjectSwitcher() {
@@ -17,12 +20,38 @@ export function ProjectSwitcher() {
   const renameProject = useProjectStore((s) => s.renameProject);
   const duplicateProject = useProjectStore((s) => s.duplicateProject);
   const deleteProject = useProjectStore((s) => s.deleteProject);
+  const createProject = useProjectStore((s) => s.createProject);
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSurpriseMe = async () => {
+    try {
+      const { name, canvasSettings, elements } = await generateRandomLogo();
+      createProject({ name, canvasSettings, elements });
+      clearSelection();
+    } catch (error) {
+      toast.error('Could not generate a random logo', { description: error instanceof Error ? error.message : undefined });
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const { name, canvasSettings, elements } = await parseProjectFile(file);
+      createProject({ name, canvasSettings, elements });
+      clearSelection();
+      toast.success(`Imported "${name}"`);
+    } catch (error) {
+      toast.error('Import failed', { description: error instanceof Error ? error.message : undefined });
+    }
+  };
 
   const activeProject = activeProjectId ? projects[activeProjectId] : null;
 
@@ -109,8 +138,16 @@ export function ProjectSwitcher() {
           <DropdownMenuItem onSelect={() => setTemplateGalleryOpen(true)}>
             <PlusIcon className="size-3.5" /> New logo…
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={handleSurpriseMe}>
+            <DiceFiveIcon className="size-3.5" /> Surprise me
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => importInputRef.current?.click()}>
+            <UploadSimpleIcon className="size-3.5" /> Import project file…
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <input ref={importInputRef} type="file" accept="application/json,.json" onChange={handleImportFile} className="hidden" />
 
       <TemplateGallery open={templateGalleryOpen} onOpenChange={setTemplateGalleryOpen} />
 

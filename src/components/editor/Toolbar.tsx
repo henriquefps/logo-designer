@@ -6,6 +6,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useUIStore } from '@/store/useUIStore';
 import { ProjectSwitcher } from './ProjectSwitcher';
 import { ThemeToggle } from './ThemeToggle';
+import { AboutDialog } from './AboutDialog';
+import { ShortcutsDialog } from './ShortcutsDialog';
 
 export function Toolbar() {
   const undo = useProjectStore((s) => s.undo);
@@ -63,6 +65,8 @@ export function Toolbar() {
         </Tooltip>
 
         <Separator orientation="vertical" className="mx-1 h-5" />
+        <ShortcutsDialog />
+        <AboutDialog />
         <ThemeToggle />
       </div>
     </header>
