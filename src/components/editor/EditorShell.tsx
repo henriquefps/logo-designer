@@ -21,14 +21,22 @@ function EditorPanelTabs() {
 
   return (
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EditorTab)} className="flex h-full flex-col gap-0">
-      <TabsList className="mx-3 mt-3">
-        <TabsTrigger value="add">Add</TabsTrigger>
-        <TabsTrigger value="background">Background</TabsTrigger>
-        <TabsTrigger value="layers">Layers{project ? ` (${project.elements.length})` : ''}</TabsTrigger>
-        <TabsTrigger value="export">Export</TabsTrigger>
+      <TabsList className="mt-3 grid w-full grid-cols-4 gap-1">
+        <TabsTrigger value="add" className="min-w-0 px-1.5 tracking-normal">
+          <span className="truncate">Add</span>
+        </TabsTrigger>
+        <TabsTrigger value="background" className="min-w-0 px-1.5 tracking-normal">
+          <span className="truncate">Background</span>
+        </TabsTrigger>
+        <TabsTrigger value="layers" className="min-w-0 px-1.5 tracking-normal">
+          <span className="truncate">Layers{project ? ` (${project.elements.length})` : ''}</span>
+        </TabsTrigger>
+        <TabsTrigger value="export" className="min-w-0 px-1.5 tracking-normal">
+          <span className="truncate">Export</span>
+        </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <TabsContent value="add" className="mt-0">
           <AddPanel />
         </TabsContent>
@@ -60,7 +68,7 @@ export function EditorShell() {
     <div className="flex h-dvh flex-col">
       <Toolbar />
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[360px] shrink-0 border-r border-border md:block">
+        <aside className="hidden w-[360px] shrink-0 overflow-hidden border-r border-border md:block md:min-h-0">
           <EditorPanelTabs />
         </aside>
         <CanvasStage />
