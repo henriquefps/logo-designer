@@ -24,29 +24,40 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 }
 
-export function ShortcutsDialog() {
-  const [open, setOpen] = useState(false);
+interface ShortcutsDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Render without the built-in icon-button trigger, for callers that open it from elsewhere (e.g. a mobile menu item). */
+  hideTrigger?: boolean;
+}
+
+export function ShortcutsDialog({ open: openProp, onOpenChange, hideTrigger }: ShortcutsDialogProps = {}) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === '?' && !isEditableTarget(e.target)) setOpen((v) => !v);
+      if (e.key === '?' && !isEditableTarget(e.target)) setOpen(!open);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [open, setOpen]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <KeyboardIcon className="size-4" />
-            </Button>
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
-      </Tooltip>
+      {!hideTrigger && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8">
+                <KeyboardIcon className="size-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+        </Tooltip>
+      )}
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

@@ -11,19 +11,28 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-export function AboutDialog() {
+interface AboutDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Render without the built-in icon-button trigger, for callers that open it from elsewhere (e.g. a mobile menu item). */
+  hideTrigger?: boolean;
+}
+
+export function AboutDialog({ open, onOpenChange, hideTrigger }: AboutDialogProps = {}) {
   return (
-    <Dialog>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <InfoIcon className="size-4" />
-            </Button>
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent>About & privacy</TooltipContent>
-      </Tooltip>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!hideTrigger && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8">
+                <InfoIcon className="size-4" />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>About & privacy</TooltipContent>
+        </Tooltip>
+      )}
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
