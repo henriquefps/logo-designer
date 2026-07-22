@@ -49,7 +49,7 @@ export function ExportPanel() {
   const downloadSvg = () =>
     withBusy('svg', async () => {
       if (!svgRef.current) return;
-      const { url, revoke } = svgToBlobUrl(svgRef.current);
+      const { url, revoke } = await svgToBlobUrl(svgRef.current);
       const link = document.createElement('a');
       link.href = url;
       link.download = 'logogo-design.svg';
