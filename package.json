@@ -24,6 +24,8 @@
     "immer": "^11.2.9",
     "jszip": "^3.10.1",
     "lucide-react": "^1.21.0",
+    "paper": "^0.17.0",
+    "perfect-freehand": "^1.2.3",
     "radix-ui": "^1.6.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

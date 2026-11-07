@@ -1,0 +1,112 @@
+import { ExcludeIcon, IntersectIcon, SubtractIcon, UniteIcon } from '@phosphor-icons/react';
+import {
+  booleanSelection,
+  canBoolean,
+  canConvertToPath,
+  canEditPaths,
+  canJoin,
+  canOutlineStroke,
+  convertSelectionToPath,
+  editSelectedPath,
+  joinSelection,
+  nodeEditCandidate,
+  outlineStrokeSelection,
+  reverseSelection,
+  simplifySelection,
+} from '@/vector/commands';
+import type { BooleanOp } from '@/vector/paperOps';
+import type { Action } from '../types';
+
+export const BOOLEAN_OPS: { op: BooleanOp; label: string; icon: typeof UniteIcon }[] = [
+  { op: 'unite', label: 'Unite', icon: UniteIcon },
+  { op: 'subtract', label: 'Subtract front', icon: SubtractIcon },
+  { op: 'intersect', label: 'Intersect', icon: IntersectIcon },
+  { op: 'exclude', label: 'Exclude', icon: ExcludeIcon },
+];
+
+const actions: Action[] = [
+  {
+    id: 'path.editPoints',
+    label: 'Edit points',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 40,
+    enabled: () => nodeEditCandidate() !== null,
+    run: () => void editSelectedPath(),
+  },
+  {
+    id: 'path.convert',
+    label: 'Convert to path',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 41,
+    shortcut: 'mod+shift+p',
+    enabled: canConvertToPath,
+    run: convertSelectionToPath,
+  },
+  {
+    id: 'path.outlineStroke',
+    label: 'Outline stroke',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 42,
+    enabled: canOutlineStroke,
+    run: () => void outlineStrokeSelection(),
+  },
+  {
+    id: 'path.join',
+    label: 'Join / close path',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 43,
+    shortcut: 'mod+j',
+    enabled: canJoin,
+    run: joinSelection,
+  },
+  {
+    id: 'path.reverse',
+    label: 'Reverse path direction',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 44,
+    enabled: canEditPaths,
+    run: reverseSelection,
+  },
+  {
+    id: 'path.simplify',
+    label: 'Simplify path',
+    menu: 'object',
+    group: 'path',
+    submenu: 'Path',
+    section: 'Path',
+    order: 45,
+    enabled: canEditPaths,
+    run: () => void simplifySelection(),
+  },
+  ...BOOLEAN_OPS.map(
+    ({ op, label, icon }, i): Action => ({
+      id: `path.boolean.${op}`,
+      label,
+      icon,
+      menu: 'object',
+      group: 'boolean',
+      submenu: 'Boolean',
+      section: 'Boolean',
+      order: 50 + i,
+      enabled: canBoolean,
+      run: () => void booleanSelection(op),
+    }),
+  ),
+];
+
+export default actions;

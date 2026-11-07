@@ -33,6 +33,8 @@ export function CanvasView() {
   const panDrag = useRef<PanDrag | null>(null);
   const pinch = useRef<Pinch | null>(null);
   const toolPointer = useRef<number | null>(null);
+  // Chrome reports detail=0 on pointerdown, so count clicks ourselves (double-click detection).
+  const lastDown = useRef<{ t: number; p: Vec; count: number } | null>(null);
 
   // Track viewport size; fit the artboard the first time we know it.
   useEffect(() => {
@@ -131,7 +133,11 @@ export function CanvasView() {
     }
     if (e.button !== 0) return;
     toolPointer.current = e.pointerId;
-    tool?.onPointerDown?.(toToolEvent(e, true), toolContext);
+    const p = local(e);
+    const prev = lastDown.current;
+    const repeat = prev && e.timeStamp - prev.t < 500 && Math.hypot(p.x - prev.p.x, p.y - prev.p.y) < 6;
+    lastDown.current = { t: e.timeStamp, p, count: repeat ? prev.count + 1 : 1 };
+    tool?.onPointerDown?.({ ...toToolEvent(e, true), detail: Math.max(e.detail, lastDown.current.count) }, toolContext);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
