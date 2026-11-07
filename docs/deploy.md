@@ -15,7 +15,7 @@ Designer is a single Cloudflare Worker named `designer`: static assets (the Vite
 bun run build       # vite build; writes assets + worker to .cloudflare/output/v0/ (gitignored)
 bun run deploy:dry  # build + `cf deploy --dry-run` (no upload, no DNS)
 bun run deploy      # build + `cf deploy` (publishes the Worker and both custom domains)
-bun run test        # includes worker routing tests (worker/index.test.ts)
+bun run test        # includes worker routing tests (worker/routing.test.ts)
 ```
 
 The Vite config uses `@cloudflare/vite-plugin`; `vite-plugin-pwa` is pointed at `.cloudflare/output/v0/workers/default/assets` so `sw.js` and the precache manifest land in the deployed assets.
