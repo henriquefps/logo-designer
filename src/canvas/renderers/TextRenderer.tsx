@@ -1,33 +1,49 @@
 import type { TextNode } from '@/model';
+import { cssFontStack, initFonts, SYNTHETIC_ITALIC_DEG, textLayout, useFontStore } from '@/fonts';
+import { useEditorStore } from '@/store/useEditorStore';
 import { paintedProps } from './paint';
 
-const ANCHOR = { left: 'start', center: 'middle', right: 'end' } as const;
+initFonts();
 
-/** Basic live text. The text worker refines metrics (see setTextMeasurer in model/bounds). */
+/**
+ * Live text. Every line is positioned explicitly from the fonts module's layout (same math as
+ * the measurer and the outliner), so the selection box and "Create outlines" match what you see.
+ * Ligatures and font synthesis are off; italic without an italic face is skewed here, like the outlines.
+ */
 export function TextRenderer({ node }: { node: TextNode }) {
+  // Re-render when fonts load (metrics change) and hide while the text is being edited in place.
+  useFontStore((s) => s.version);
+  const editing = useEditorStore((s) => s.editingTextId === node.id);
   const { defs, props } = paintedProps(node);
-  const lines = node.text.split('\n');
-  const lh = node.fontSize * node.lineHeight;
-  const firstBaseline = (lh - node.fontSize) / 2 + node.fontSize * 0.8;
+  const layout = textLayout(node);
+  const { resolved } = layout;
+  const skew = resolved.syntheticItalic;
+  const shift = skew ? Math.tan((SYNTHETIC_ITALIC_DEG * Math.PI) / 180) : 0;
+  const text = (
+    <text
+      fontFamily={cssFontStack(resolved.face.family)}
+      fontWeight={resolved.weight}
+      fontStyle={resolved.face.style}
+      fontSize={node.fontSize}
+      letterSpacing={node.letterSpacing || undefined}
+      style={{ whiteSpace: 'pre', fontVariantLigatures: 'none', fontSynthesis: 'none', fontKerning: 'normal' }}
+      visibility={editing ? 'hidden' : undefined}
+      {...props}
+    >
+      {layout.lines.map((line, i) =>
+        line.text ? (
+          // With skewX(-a) around y=0, shifting x by tan(a)·baseline keeps each line's baseline in place.
+          <tspan key={i} x={line.x + shift * line.baseline} y={line.baseline}>
+            {line.text}
+          </tspan>
+        ) : null,
+      )}
+    </text>
+  );
   return (
     <>
       {defs}
-      <text
-        fontFamily={node.fontFamily}
-        fontWeight={node.fontWeight}
-        fontStyle={node.fontStyle}
-        fontSize={node.fontSize}
-        letterSpacing={node.letterSpacing || undefined}
-        textAnchor={ANCHOR[node.align]}
-        style={{ whiteSpace: 'pre' }}
-        {...props}
-      >
-        {lines.map((line, i) => (
-          <tspan key={i} x={0} y={firstBaseline + i * lh}>
-            {line || ' '}
-          </tspan>
-        ))}
-      </text>
+      {skew ? <g transform={`skewX(${-SYNTHETIC_ITALIC_DEG})`}>{text}</g> : text}
     </>
   );
 }

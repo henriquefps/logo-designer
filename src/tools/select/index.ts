@@ -5,6 +5,7 @@ import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
 import { editPathAt, editSelectedPath } from '@/vector/commands';
+import { editTextOnDoubleClick, isDoubleClick } from '../text/session';
 
 const HANDLE_HIT_PX = 8;
 const DRAG_THRESHOLD_PX = 3;
@@ -48,6 +49,7 @@ const select: Tool = {
 
   onPointerDown(e, ctx) {
     if (e.button !== 0) return;
+    if (isDoubleClick(e) && editTextOnDoubleClick(ctx.hitTest(e.point, { deep: true }))) return;
     const ed = ctx.editor();
     const handle = hitHandle(ctx, e);
     if (handle) {

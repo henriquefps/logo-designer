@@ -113,8 +113,20 @@ Box-dragging shapes (polygon, star, image placeholder) should reuse `createShape
 4. `bakeScale` in `transformOps.ts` if its size should absorb scale. Icon in `panels/layers/nodeIcons.ts`.
 5. Tests in `src/model/__tests__/`.
 
-For text, plug accurate metrics in with `setTextMeasurer()` (`model/bounds.ts`) from the fonts module
-instead of editing bounds code; `TextRenderer.tsx` is a basic placeholder for the text worker to own.
+Text metrics come from the fonts module (`src/fonts/measure.ts` installs `setTextMeasurer()`).
+
+## Fonts and text (`src/fonts/`)
+
+- `catalog.ts` bundled OFL fonts (TTF in `files/`, licenses in `files/licenses/`); `uploads.ts` user fonts
+  in IndexedDB `designer-fonts` (WOFF2 stored decompressed); `store.ts` registry (`useFontStore`,
+  `resolveText`, `ensureFace`, uploads/rename/delete). Canvas CSS family names are prefixed `dz `.
+- `layout.ts` is the single layout (baselines, alignment, letter spacing between characters, CSS weight
+  matching, synthetic italic) shared by `TextRenderer`, the measurer, the inline editor and outlines.
+- `outline.ts` → **`textToPaths(node): Promise<SceneNode>`** (group of glyph paths with the text's
+  transform; one compound path when the paint is a gradient). Exporters call this.
+- `kerning.ts` reads GPOS pair kerning directly (opentype.js 2 skips extension lookups).
+- Text tool (`tools/text/`): click = point text, the editor is a textarea portaled into the canvas and
+  transformed to match; `session.ts` keeps one undo step per edit. Select double-click edits text.
 
 ## How to add a Properties section
 
