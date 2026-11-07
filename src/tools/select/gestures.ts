@@ -39,7 +39,7 @@ function applyMatrix(ctx: ToolContext, snap: Snapshot, m: Matrix) {
 export function snapTargetsExcluding(doc: DesignDocument, ids: Id[]): SnapTarget[] {
   const exclude = new Set(ids);
   const rects = doc.children
-    .filter((n) => n.visible && !exclude.has(n.id))
+    .filter((n) => n.visible && !n.reference && !exclude.has(n.id))
     .map((n) => worldBounds(doc, n.id))
     .filter((r): r is NonNullable<typeof r> => !!r);
   return computeSnapTargets(doc.artboard, rects);

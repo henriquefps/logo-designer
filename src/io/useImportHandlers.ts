@@ -6,7 +6,7 @@ import { hasClipboard, parseClipboardText, pasteNodes } from '@/store/clipboard'
 import { isFontFile } from '@/fonts/store';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Vec } from '@/model';
-import { importFiles, isImageFile, isSvgFile } from './importActions';
+import { importFiles, isImageFile, isSvgFile, placeReferenceImage } from './importActions';
 
 /** Document point under a client position when it is over the canvas, else undefined. */
 function dropPoint(e: { clientX: number; clientY: number; target: EventTarget | null }): Vec | undefined {
@@ -71,6 +71,10 @@ export function useImportHandlers() {
       const files = [...(e.dataTransfer?.files ?? [])].filter((f) => !isFontFile(f));
       if (!files.length) return;
       const at = dropPoint(e);
+      if (e.altKey && files.every(isImageFile)) {
+        void Promise.all(files.map((f) => placeReferenceImage(f)));
+        return;
+      }
       const routed = files.filter((f) => importerForFile(f));
       if (routed.length) void importFiles(routed, at);
       else if (files.length) void importFiles(files, at); // reports unsupported files

@@ -146,3 +146,30 @@ export async function openSvgFileAsDocument(file: File) {
     toast.error(e instanceof Error ? e.message : 'Could not open this SVG.');
   }
 }
+
+/**
+ * Places an image as a tracing reference: fitted (contain) and centered in the artboard,
+ * bottom-most, locked, half transparent. Never hit-tested nor exported.
+ */
+export async function placeReferenceImage(file: File) {
+  try {
+    const { href, width, height } = await imageFileToDataUrl(file);
+    const { width: aw, height: ah } = useDocStore.getState().doc.artboard;
+    const k = Math.min(aw / width, ah / height);
+    const node = createImage({
+      name: `Reference – ${file.name}`,
+      href,
+      width: width * k,
+      height: height * k,
+      opacity: 0.5,
+      locked: true,
+      reference: true,
+      transform: { x: aw / 2, y: ah / 2 },
+    });
+    useDocStore.getState().addNodes([node], { index: 0, label: 'Place reference image' });
+    useEditorStore.getState().clearSelection();
+    toast.success('Reference placed', { description: 'Select it from the Layers panel. It is not exported.' });
+  } catch (e) {
+    toast.error(`Could not place “${file.name}”`, { description: e instanceof Error ? e.message : undefined });
+  }
+}

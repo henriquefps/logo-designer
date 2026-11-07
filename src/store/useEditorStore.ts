@@ -24,9 +24,10 @@ interface ViewPrefs {
   showGrid: boolean;
   snapToGrid: boolean;
   gridSize: number;
+  showReferences: boolean;
 }
 const VIEW_KEY = 'designer.view';
-const DEFAULT_VIEW: ViewPrefs = { showRulers: false, showGrid: false, snapToGrid: false, gridSize: 16 };
+const DEFAULT_VIEW: ViewPrefs = { showRulers: false, showGrid: false, snapToGrid: false, gridSize: 16, showReferences: true };
 function loadView(): ViewPrefs {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
@@ -35,6 +36,7 @@ function loadView(): ViewPrefs {
         showRulers: v.showRulers === true,
         showGrid: v.showGrid === true,
         snapToGrid: v.snapToGrid === true,
+        showReferences: v.showReferences !== false,
         gridSize: typeof v.gridSize === 'number' && v.gridSize >= 1 && v.gridSize <= 1000 ? v.gridSize : DEFAULT_VIEW.gridSize,
       };
     }
@@ -140,9 +142,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setSnapping: (snapping) => set({ snapping }),
   setViewPrefs: (patch) => {
     set(patch);
-    const { showRulers, showGrid, snapToGrid, gridSize } = get();
+    const { showRulers, showGrid, snapToGrid, gridSize, showReferences } = get();
     try {
-      localStorage.setItem(VIEW_KEY, JSON.stringify({ showRulers, showGrid, snapToGrid, gridSize }));
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ showRulers, showGrid, snapToGrid, gridSize, showReferences }));
     } catch {
       /* storage unavailable */
     }

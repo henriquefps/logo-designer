@@ -34,6 +34,7 @@ const OBJECT_MENU: Entry[] = [
   '-',
   'object.lock',
   'object.hide',
+  'object.reference',
   '-',
   'paint.swap',
 ];

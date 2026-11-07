@@ -134,7 +134,7 @@ class Writer {
   }
 
   async node(node: SceneNode, indent: string, outline: boolean): Promise<string | null> {
-    if (!node.visible) return null;
+    if (!node.visible || node.reference) return null;
     const t = node.transform;
     const simple = translationOnly(t);
     const tr = simple ? undefined : transformAttr(t);

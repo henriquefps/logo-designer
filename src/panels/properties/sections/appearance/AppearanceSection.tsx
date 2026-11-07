@@ -1,4 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { setReference } from '@/actions/modules/object';
 import { Slider } from '@/components/ui/slider';
 import { useDocStore } from '@/store/useDocStore';
 import { NumberField } from '../../../shared/NumberField';
@@ -30,6 +32,7 @@ const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace('-',
 export function AppearanceSection({ ctx }: { ctx: SelectionContext }) {
   const opacity = common(ctx.nodes, (n) => n.opacity);
   const blend = common(ctx.nodes, (n) => n.blendMode ?? 'normal');
+  const reference = common(ctx.nodes, (n) => !!n.reference);
   const setOpacity = (v: number) => editNodes(ctx.ids, (n) => void (n.opacity = v), 'Opacity');
   return (
     <Section title="Appearance">
@@ -69,6 +72,14 @@ export function AppearanceSection({ ctx }: { ctx: SelectionContext }) {
             ))}
           </SelectContent>
         </Select>
+      </FieldRow>
+      <FieldRow label="Reference">
+        <Switch
+          aria-label="Use as reference"
+          checked={reference === true}
+          onCheckedChange={(on) => setReference(on, ctx.ids)}
+        />
+        <span className="text-xs text-muted-foreground">Trace over it; not exported</span>
       </FieldRow>
     </Section>
   );

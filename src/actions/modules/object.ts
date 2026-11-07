@@ -21,6 +21,24 @@ function flip(axis: 'x' | 'y') {
   );
 }
 
+/** Marks nodes as tracing references (locked, not selectable on canvas) or restores them. */
+export function setReference(on: boolean, ids: string[] = sel()) {
+  ds().updateNodes(
+    ids,
+    (n) => {
+      if (on) {
+        n.reference = true;
+        n.locked = true;
+      } else {
+        delete n.reference;
+        n.locked = false;
+      }
+    },
+    { label: on ? 'Use as reference' : 'Stop using as reference' },
+  );
+  if (on) ed().clearSelection();
+}
+
 const actions: Action[] = [
   {
     id: 'object.group',
@@ -104,6 +122,16 @@ const actions: Action[] = [
       ds().updateNodes(sel(), (n) => void (n.locked = true), { label: 'Lock' });
       ed().clearSelection();
     },
+  },
+  {
+    id: 'object.reference',
+    label: 'Use as reference',
+    menu: 'object',
+    group: 'state',
+    order: 34,
+    enabled: hasSelection,
+    checked: () => sel().length > 0 && sel().every((id) => !!findNode(doc(), id)?.reference),
+    run: () => setReference(!sel().every((id) => !!findNode(doc(), id)?.reference)),
   },
   {
     id: 'object.unlockAll',
