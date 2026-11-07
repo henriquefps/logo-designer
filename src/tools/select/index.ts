@@ -4,6 +4,7 @@ import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
+import { editPathAt, editSelectedPath } from '@/vector/commands';
 
 const HANDLE_HIT_PX = 8;
 const DRAG_THRESHOLD_PX = 3;
@@ -56,6 +57,7 @@ const select: Tool = {
           : startResize(ctx, handle.index, handle.frame, ed.selection);
       return;
     }
+    if (e.detail === 2 && !e.shift && editPathAt(ctx.hitTest(e.point, { deep: true }))) return;
     const hit = ctx.hitTest(e.point, { deep: e.mod });
     if (hit) {
       if (e.shift) {
@@ -125,6 +127,7 @@ const select: Tool = {
   },
 
   onKeyDown(e, ctx) {
+    if (e.key === 'Enter' && !gesture && !pending && editSelectedPath()) return true;
     if (e.key === 'Escape') {
       if (gesture || pending) select.onCancel!(ctx);
       else ctx.editor().clearSelection();

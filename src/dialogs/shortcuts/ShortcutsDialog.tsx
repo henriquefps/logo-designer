@@ -20,6 +20,15 @@ const EXTRA = [
   { label: 'Cancel', keys: ['Esc'] },
 ];
 
+const PATHS = [
+  { label: 'Edit points of the selected path', keys: ['↵', 'Double-click'] },
+  { label: 'Pen: curve point / break handles', keys: ['Drag', 'Alt + drag'] },
+  { label: 'Pen: close / finish path', keys: ['Click first point', '↵'] },
+  { label: 'Node edit: add / delete point', keys: ['Click segment', 'Del'] },
+  { label: 'Node edit: corner ↔ smooth', keys: ['Double-click anchor'] },
+  { label: 'Node edit: corner handle', keys: ['Alt + drag handle'] },
+];
+
 /** Generated from the tool and action registries, so new commands show up automatically. */
 export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const sections = new Map<string, { label: string; keys: string[] }[]>();
@@ -36,6 +45,7 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     sections.set(name, [...(sections.get(name) ?? []), { label: a.label, keys: list.map(formatShortcut) }]);
   }
   sections.set('Canvas', EXTRA);
+  sections.set('Pen & points', PATHS);
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent className="sm:max-w-2xl">

@@ -17,7 +17,7 @@ export function ToolBar({ orientation = 'vertical' }: { orientation?: 'vertical'
       role="toolbar"
       aria-label="Tools"
       aria-orientation={orientation}
-      className={cn('flex items-center gap-1', vertical ? 'flex-col py-2' : 'flex-row justify-center overflow-x-auto px-2')}
+      className={cn('flex items-center gap-1', vertical ? 'flex-col py-2' : 'flex-row justify-center-safe overflow-x-auto px-2')}
     >
       {tools.map((t, i) => {
         const Icon = t.icon;

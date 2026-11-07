@@ -12,7 +12,7 @@ export function SelectionOverlay() {
   const tool = useEditorStore((s) => s.tool);
   const busy = useDocStore((s) => !!s.txn);
   const { toScreen, zoom } = useView();
-  if (!selection.length) return null;
+  if (!selection.length || tool === 'direct') return null;
   const frame = getSelectionFrame(doc, selection);
   if (!frame) return null;
   const corners = frame.corners.map(toScreen);
