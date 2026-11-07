@@ -9,26 +9,12 @@ export type IconComponent = ComponentType<any>;
 export type IconMap = Record<string, IconComponent>;
 
 let lucide: Promise<IconMap> | null = null;
-let phosphor: Promise<IconMap> | null = null;
 
-const NOT_ICONS = new Set(['IconContext', 'IconBase', 'Icon', 'SSR']);
-
-/** Bundled libraries are loaded lazily (own chunks) the first time the tab needs them. */
+/** Lucide is bundled and loaded lazily (own chunks) the first time the tab needs them. */
 export function loadLucide(): Promise<IconMap> {
   return (lucide ??= import('lucide-react').then((m) => m.icons as unknown as IconMap));
 }
 
-export function loadPhosphor(): Promise<IconMap> {
-  return (phosphor ??= import('@phosphor-icons/react/dist/ssr').then((m) => {
-    const map: IconMap = {};
-    for (const [k, v] of Object.entries(m)) {
-      if (/^[A-Z]/.test(k) && !k.endsWith('Icon') && !NOT_ICONS.has(k) && typeof v !== 'string') map[k] = v as IconComponent;
-    }
-    return map;
-  }));
-}
-
-export const loadBundled = (source: 'lucide' | 'phosphor') => (source === 'lucide' ? loadLucide() : loadPhosphor());
 
 /** "ArrowUpRight" → "arrow-up-right" */
 export const kebab = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').toLowerCase();
@@ -41,9 +27,20 @@ export function matchesQuery(name: string, query: string): boolean {
 }
 
 /** SVG markup of a bundled icon (rendered with React, so it always matches the preview). */
-export async function bundledSvg(source: 'lucide' | 'phosphor', name: string, weight: PhosphorWeight): Promise<string> {
-  const [map, { renderToStaticMarkup }] = await Promise.all([loadBundled(source), import('react-dom/server')]);
+export async function bundledSvg(name: string): Promise<string> {
+  const [map, { renderToStaticMarkup }] = await Promise.all([loadLucide(), import('react-dom/server')]);
   const Comp = map[name];
   if (!Comp) throw new Error(`Unknown icon ${name}`);
-  return renderToStaticMarkup(createElement(Comp, source === 'phosphor' ? { weight } : {}));
+  return renderToStaticMarkup(createElement(Comp, {}));
 }
+
+/** Phosphor comes from Iconify's `ph` collection: one small SVG per icon and weight, cached after first use. */
+export const PHOSPHOR_PREFIX = 'ph';
+const WEIGHT_SUFFIX = /-(thin|light|bold|fill|duotone)$/;
+
+export function phosphorWeightOf(name: string): PhosphorWeight {
+  return (WEIGHT_SUFFIX.exec(name)?.[1] as PhosphorWeight | undefined) ?? 'regular';
+}
+
+/** Ids ("ph:heart-bold") of one weight out of the whole `ph` collection. */
+export const filterPhosphor = (ids: string[], weight: PhosphorWeight): string[] => ids.filter((id) => phosphorWeightOf(id.slice(PHOSPHOR_PREFIX.length + 1)) === weight);

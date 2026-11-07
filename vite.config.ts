@@ -15,6 +15,12 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        // Icon libraries are big: cached on first use instead of precached.
+        globIgnores: ['**/lucide-react-*.js', '**/server.browser-*.js'],
+        runtimeCaching: [
+          { urlPattern: ({ url }) => /\/assets\/(lucide-react|server\.browser)-.*\.js$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'icon-libs', expiration: { maxEntries: 8 } } },
+          { urlPattern: /^https:\/\/api\.iconify\.design\//, handler: 'CacheFirst', options: { cacheName: 'iconify-api', expiration: { maxEntries: 2000, maxAgeSeconds: 60 * 60 * 24 * 30 }, cacheableResponse: { statuses: [200] } } },
+        ],
       },
     }),
   ],

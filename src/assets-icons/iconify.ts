@@ -88,9 +88,71 @@ export function splitId(id: string): [string, string] {
   return [id.slice(0, i), id.slice(i + 1)];
 }
 
+/** SVG markup of one icon, built from the batched JSON endpoint (same data as the grid thumbnails). */
 export const fetchIconifySvg = (id: string): Promise<string> =>
   cached(`svg:${id}`, 365 * DAY, async () => {
-    const res = await fetch(iconifyUrl(id));
-    if (!res.ok) throw new Error(`Iconify ${res.status}`);
-    return res.text();
+    for (let attempt = 0; ; attempt++) {
+      const t = await requestThumb(id);
+      if (t) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t.width} ${t.height}">${t.body}</svg>`;
+      if (attempt >= 2) throw new Error(`Iconify icon ${id} not available`);
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
   });
+
+export interface Thumb {
+  body: string;
+  width: number;
+  height: number;
+}
+
+const thumbs = new Map<string, Thumb | null>();
+const waiting = new Map<string, ((t: Thumb | null) => void)[]>();
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+const BATCH = 40;
+
+/** Drops anything executable from third-party SVG body markup. */
+export const sanitizeBody = (body: string): string =>
+  body.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '').replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+
+async function flush() {
+  flushTimer = null;
+  const pending = [...waiting.entries()];
+  waiting.clear();
+  const byPrefix = new Map<string, string[]>();
+  for (const [id] of pending) {
+    const [prefix, name] = splitId(id);
+    byPrefix.set(prefix, [...(byPrefix.get(prefix) ?? []), name]);
+  }
+  const results = new Map<string, Thumb>();
+  await Promise.all(
+    [...byPrefix].flatMap(([prefix, names]) =>
+      Array.from({ length: Math.ceil(names.length / BATCH) }, (_, i) => names.slice(i * BATCH, (i + 1) * BATCH)).map(async (chunk) => {
+        try {
+          const res = await fetch(`${ICONIFY_API}/${prefix}.json?icons=${chunk.map(encodeURIComponent).join(',')}`);
+          if (!res.ok) return;
+          const data = (await res.json()) as { width?: number; height?: number; icons?: Record<string, { body: string; width?: number; height?: number }> };
+          for (const [name, ic] of Object.entries(data.icons ?? {})) {
+            results.set(`${prefix}:${name}`, { body: sanitizeBody(ic.body), width: ic.width ?? data.width ?? 16, height: ic.height ?? data.height ?? 16 });
+          }
+        } catch {
+          /* leave unresolved: resolves to null below, retried on next mount */
+        }
+      }),
+    ),
+  );
+  for (const [id, resolvers] of pending) {
+    const t = results.get(id) ?? null;
+    if (t) thumbs.set(id, t);
+    resolvers.forEach((r) => r(t));
+  }
+}
+
+/** Grid thumbnails: requests made in the same tick are batched into one `/{prefix}.json?icons=` call. */
+export function requestThumb(id: string): Promise<Thumb | null> {
+  const hit = thumbs.get(id);
+  if (hit) return Promise.resolve(hit);
+  return new Promise((resolve) => {
+    waiting.set(id, [...(waiting.get(id) ?? []), resolve]);
+    flushTimer ??= setTimeout(() => void flush(), 16);
+  });
+}

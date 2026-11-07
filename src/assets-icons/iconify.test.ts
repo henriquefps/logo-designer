@@ -28,15 +28,27 @@ describe('iconify', () => {
   it('search drops closed collections and caches', async () => {
     const fetchMock = vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => (url.includes('/collections') ? collections : { icons: ['mdi:home', 'nc:home', 'a:home'] }),
+      json: async () =>
+        url.includes('/collections') ? collections : url.includes('mdi.json') ? { width: 24, height: 24, icons: { home: { body: '<path d="M0 0"/>' } } } : { icons: ['mdi:home', 'nc:home', 'a:home'] },
       text: async () => '<svg/>',
     }));
     vi.stubGlobal('fetch', fetchMock);
     expect(await searchIcons('home-test', null)).toEqual(['mdi:home', 'a:home']);
     await searchIcons('home-test', null);
     expect(fetchMock).toHaveBeenCalledTimes(2); // collections + one search
-    expect(await fetchIconifySvg('mdi:home')).toBe('<svg/>');
+    expect(await fetchIconifySvg("mdi:home")).toContain("<svg");
     await fetchIconifySvg('mdi:home');
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+import { filterPhosphor, phosphorWeightOf } from './catalog';
+
+describe('phosphor via iconify', () => {
+  it('splits the ph collection by weight', () => {
+    const ids = ['ph:heart', 'ph:heart-bold', 'ph:heart-fill', 'ph:heart-straight', 'ph:heart-straight-thin'];
+    expect(phosphorWeightOf('heart-straight-thin')).toBe('thin');
+    expect(filterPhosphor(ids, 'regular')).toEqual(['ph:heart', 'ph:heart-straight']);
+    expect(filterPhosphor(ids, 'bold')).toEqual(['ph:heart-bold']);
   });
 });

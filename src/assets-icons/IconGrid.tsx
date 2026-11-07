@@ -1,7 +1,8 @@
 import { StarIcon } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
-import type { IconMap, PhosphorWeight } from './catalog';
-import { iconifyUrl } from './iconify';
+import type { IconMap } from './catalog';
+import { requestThumb } from './iconify';
+import { useAsync } from './useAsync';
 import { refKey, type IconRef } from './insert';
 import { useVirtualGrid } from './useVirtualGrid';
 
@@ -11,15 +12,20 @@ const GAP = 6;
 
 interface IconGridProps {
   items: IconRef[];
-  maps: Partial<Record<'lucide' | 'phosphor', IconMap>>;
-  weight: PhosphorWeight;
+  maps: Partial<Record<'lucide', IconMap>>;
   favorites: string[];
   onPick: (ref: IconRef) => void;
   onToggleFavorite: (ref: IconRef) => void;
   empty: string;
 }
 
-export function IconGrid({ items, maps, weight, favorites, onPick, onToggleFavorite, empty }: IconGridProps) {
+function IconifyThumb({ id }: { id: string }) {
+  const { data } = useAsync(id, () => requestThumb(id));
+  if (!data) return null;
+  return <svg aria-hidden width={20} height={20} viewBox={`0 0 ${data.width} ${data.height}`} fill="currentColor" dangerouslySetInnerHTML={{ __html: data.body }} />;
+}
+
+export function IconGrid({ items, maps, favorites, onPick, onToggleFavorite, empty }: IconGridProps) {
   const { containerRef, columns, totalHeight, startIndex, endIndex, offsetTop } = useVirtualGrid(items.length, { itemSize: ITEM, gap: GAP });
   return (
     <div ref={containerRef} className="h-80 overflow-y-auto rounded-md border bg-muted/30 p-2" data-testid="icon-grid">
@@ -47,22 +53,9 @@ export function IconGrid({ items, maps, weight, favorites, onPick, onToggleFavor
                     className="flex size-full cursor-grab items-center justify-center rounded-md border border-transparent bg-background text-foreground transition-colors hover:border-primary hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing"
                   >
                     {ref.source === 'iconify' ? (
-                      <span
-                        aria-hidden
-                        className="size-5 bg-current"
-                        style={{
-                          maskImage: `url(${iconifyUrl(ref.id)})`,
-                          WebkitMaskImage: `url(${iconifyUrl(ref.id)})`,
-                          maskSize: 'contain',
-                          WebkitMaskSize: 'contain',
-                          maskRepeat: 'no-repeat',
-                          WebkitMaskRepeat: 'no-repeat',
-                          maskPosition: 'center',
-                          WebkitMaskPosition: 'center',
-                        }}
-                      />
+                      <IconifyThumb id={ref.id} />
                     ) : Comp ? (
-                      <Comp size={20} {...(ref.source === 'phosphor' ? { weight } : {})} />
+                      <Comp size={20} />
                     ) : null}
                   </button>
                   <button

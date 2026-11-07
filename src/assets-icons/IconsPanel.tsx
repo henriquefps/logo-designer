@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { FieldRow, Section } from '@/panels/shared/Section';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
-import { PHOSPHOR_WEIGHTS, loadBundled, matchesQuery, type IconMap, type IconSource, type PhosphorWeight } from './catalog';
+import { PHOSPHOR_PREFIX, PHOSPHOR_WEIGHTS, filterPhosphor, loadLucide, matchesQuery, type IconMap, type IconSource, type PhosphorWeight } from './catalog';
 import { IconGrid, ICON_DRAG_MIME } from './IconGrid';
 import { listCollection, licenseNeedsAttribution, loadCollections, searchIcons } from './iconify';
 import { DEFAULT_ICON_RATIO, insertIcon, parseRefKey, refKey, type IconRef } from './insert';
@@ -18,10 +18,7 @@ import { useAsync, useDebounced } from './useAsync';
 type View = 'all' | 'favorites' | 'recent';
 const ALL = '__all__';
 
-const BUNDLED_INFO: Record<'lucide' | 'phosphor', { label: string; license: string }> = {
-  lucide: { label: 'Lucide', license: 'ISC' },
-  phosphor: { label: 'Phosphor', license: 'MIT' },
-};
+const INFO = { lucide: 'Lucide · ISC license', phosphor: 'Phosphor · MIT license (loaded from Iconify on demand)' };
 
 /** Dropping an icon from the grid onto the canvas inserts it at the drop point. */
 function useCanvasDrop() {
@@ -69,22 +66,29 @@ export function IconsPanel() {
   const [retry, setRetry] = useState(0);
   const debounced = useDebounced(query, 300);
 
-  const bundled = o.source !== 'iconify';
-  const bundledState = useAsync<IconMap>(bundled ? o.source : null, () => loadBundled(o.source as 'lucide' | 'phosphor'));
+  const bundled = o.source === 'lucide';
+  const phosphor = o.source === 'phosphor';
+  const bundledState = useAsync<IconMap>(bundled ? 'lucide' : null, () => loadLucide());
   const collectionsState = useAsync(o.source === 'iconify' ? `collections:${retry}` : null, loadCollections);
   const collections = collectionsState.data;
   const collection = collections?.find((c) => c.prefix === o.collection) ?? null;
 
-  const iconifyKey = o.source === 'iconify' && view === 'all' && collections ? `${o.collection ?? ALL}|${debounced.trim()}|${retry}` : null;
+  const iconifyKey = phosphor
+    ? view === 'all'
+      ? `ph|${o.weight}|${retry}`
+      : null
+    : o.source === 'iconify' && view === 'all' && collections
+      ? `${o.collection ?? ALL}|${debounced.trim()}|${retry}`
+      : null;
   const iconifyState = useAsync<string[]>(iconifyKey, () => {
+    if (phosphor) return listCollection(PHOSPHOR_PREFIX).then((ids) => filterPhosphor(ids, o.weight));
     const q = debounced.trim();
     if (q) return searchIcons(q, o.collection);
     return o.collection ? listCollection(o.collection) : Promise.resolve([]);
   });
 
   // Bundled maps used for previews (favorites/recents can mix sources).
-  const lucideMap = useAsync<IconMap>(view !== 'all' || o.source === 'lucide' ? 'lucide' : null, () => loadBundled('lucide')).data;
-  const phosphorMap = useAsync<IconMap>(view !== 'all' || o.source === 'phosphor' ? 'phosphor' : null, () => loadBundled('phosphor')).data;
+  const lucideMap = useAsync<IconMap>(view !== 'all' || bundled ? 'lucide' : null, () => loadLucide()).data;
 
   const items = useMemo<IconRef[]>(() => {
     const fromKeys = (keys: string[]) =>
@@ -96,13 +100,14 @@ export function IconsPanel() {
     if (view === 'recent') return fromKeys(recents);
     if (bundled) {
       const names = Object.keys(bundledState.data ?? {}).filter((n) => matchesQuery(n, query));
-      return names.map((id) => ({ source: o.source as 'lucide' | 'phosphor', id }));
+      return names.map((id) => ({ source: 'lucide' as const, id }));
     }
-    return (iconifyState.data ?? []).map((id) => ({ source: 'iconify' as const, id }));
-  }, [view, favorites, recents, bundled, bundledState.data, query, o.source, iconifyState.data]);
+    const ids = iconifyState.data ?? [];
+    return (phosphor ? ids.filter((id) => matchesQuery(id, query)) : ids).map((id) => ({ source: 'iconify' as const, id }));
+  }, [view, favorites, recents, bundled, phosphor, bundledState.data, query, iconifyState.data]);
 
-  const loading = view === 'all' && (bundled ? bundledState.loading : collectionsState.loading || iconifyState.loading);
-  const error = view === 'all' && !bundled ? collectionsState.error ?? iconifyState.error : undefined;
+  const loading = view === 'all' && (bundled ? bundledState.loading : (!phosphor && collectionsState.loading) || iconifyState.loading);
+  const error = view === 'all' && !bundled ? (phosphor ? undefined : collectionsState.error) ?? iconifyState.error : undefined;
   const empty = loading
     ? 'Loading…'
     : error
@@ -150,8 +155,8 @@ export function IconsPanel() {
           </Select>
         )}
         <p className="text-xs text-muted-foreground">
-          {bundled
-            ? `${BUNDLED_INFO[o.source as 'lucide' | 'phosphor'].label} · ${BUNDLED_INFO[o.source as 'lucide' | 'phosphor'].license} license`
+          {bundled || phosphor
+            ? INFO[o.source as 'lucide' | 'phosphor']
             : collection
               ? `${collection.name} · ${collection.license.title}${collection.author ? ` · ${collection.author}` : ''}${licenseNeedsAttribution(collection.license.spdx) ? ' · attribution required' : ''}`
               : 'Each icon keeps its collection license. Only open licenses are listed.'}
@@ -190,7 +195,7 @@ export function IconsPanel() {
             onChange={(e) => o.set({ strokeWidth: numberOrNull(e.target.value) })}
           />
         </FieldRow>
-        {o.source === 'phosphor' && (
+        {phosphor && (
           <FieldRow label="Weight">
             <Select value={o.weight} onValueChange={(v) => o.set({ weight: v as PhosphorWeight })}>
               <SelectTrigger size="sm" className="w-full" aria-label="Phosphor weight">
@@ -224,7 +229,7 @@ export function IconsPanel() {
             Recent
           </ToggleGroupItem>
         </ToggleGroup>
-        <IconGrid items={items} maps={{ lucide: lucideMap, phosphor: phosphorMap }} weight={o.weight} favorites={favorites} onPick={(r) => insert(r)} onToggleFavorite={(r) => toggleFavorite(refKey(r))} empty={empty} />
+        <IconGrid items={items} maps={{ lucide: lucideMap }} favorites={favorites} onPick={(r) => insert(r)} onToggleFavorite={(r) => toggleFavorite(refKey(r))} empty={empty} />
         {error && (
           <Button variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>
             <ArrowClockwiseIcon /> Retry
