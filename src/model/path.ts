@@ -18,7 +18,8 @@ export function subpathsToD(subpaths: SubPath[]): string {
       const b = pts[(i + 1) % pts.length];
       const closing = sp.closed && i === pts.length - 1;
       if (!a.out && !b.in) {
-        if (!closing) out.push(`L${fmt(b)}`);
+        // Zero-length lines (duplicate points, common in font outlines) are dropped.
+        if (!closing && fmt(b) !== fmt(a)) out.push(`L${fmt(b)}`);
       } else out.push(`C${fmt(a.out ?? a)} ${fmt(b.in ?? b)} ${fmt(b)}`);
     }
     if (sp.closed) out.push('Z');

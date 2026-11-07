@@ -1,6 +1,7 @@
 import { LineSegmentIcon } from '@phosphor-icons/react';
-import { defaultStroke, IDENTITY, none, solid, type Id, type Vec } from '@/model';
-import { snapPoint, SNAP_PX } from '@/canvas/snapping';
+import { lineStyle } from '@/store/usePaintDefaults';
+import { IDENTITY, type Id, type Vec } from '@/model';
+import { snapPoint, SNAP_PX, snapEnabled } from '@/canvas/snapping';
 import { pathFromWorld } from '@/vector/convert';
 import { constrain45, dist } from '@/vector/geometry';
 import { snapTargetsExcluding } from '../select/gestures';
@@ -13,7 +14,7 @@ let nodeId: Id | null = null;
 function endPoint(e: ToolPointerEvent, ctx: ToolContext): Vec {
   let p = e.point;
   const ed = ctx.editor();
-  if (ed.snapping && !e.mod && !e.shift) {
+  if (snapEnabled() && !e.mod && !e.shift) {
     const s = snapPoint(p, snapTargetsExcluding(ctx.doc(), nodeId ? [nodeId] : []), SNAP_PX * ctx.px());
     p = s.point;
     ed.setGuides(s.guides);
@@ -25,7 +26,7 @@ const lineNode = (a: Vec, b: Vec, id?: Id) => {
   const n = pathFromWorld(
     [{ closed: false, points: [{ ...a, type: 'corner' }, { ...b, type: 'corner' }] }],
     IDENTITY,
-    { name: 'Line', fill: none(), stroke: { ...defaultStroke(solid('#000000'), 2), cap: 'round' } },
+    { name: 'Line', ...lineStyle() },
   );
   return id ? { ...n, id } : n;
 };

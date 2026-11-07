@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { joinColor, normalizeHex, splitColor } from '@/model';
 import { cn } from '@/lib/utils';
-import { useDocStore } from '@/store/useDocStore';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ColorPicker } from '@/components/color/ColorPicker';
 import { NumberField } from './NumberField';
 
 interface ColorFieldProps {
@@ -13,7 +14,7 @@ interface ColorFieldProps {
   className?: string;
 }
 
-/** Swatch (native color picker) + hex input + alpha %. Picker drags are one undo step. */
+/** Swatch (opens the color picker popover) + hex input + alpha %. Picker drags are one undo step. */
 export function ColorField({ value, onChange, ariaLabel, showAlpha = true, className }: ColorFieldProps) {
   const { color, opacity } = splitColor(value);
   const [draft, setDraft] = useState<string | null>(null);
@@ -28,24 +29,24 @@ export function ColorField({ value, onChange, ariaLabel, showAlpha = true, class
 
   return (
     <div className={cn('flex min-w-0 items-center gap-2', className)}>
-      <label
-        className="relative size-8 shrink-0 cursor-pointer overflow-hidden rounded-md border border-input shadow-xs"
-        style={{
-          backgroundImage: 'repeating-conic-gradient(var(--muted) 0% 25%, var(--card) 0% 50%)',
-          backgroundSize: '8px 8px',
-        }}
-      >
-        <span className="absolute inset-0" style={{ backgroundColor: value }} />
-        <input
-          type="color"
-          aria-label={ariaLabel}
-          className="absolute inset-0 size-full cursor-pointer opacity-0"
-          value={color}
-          onPointerDown={() => useDocStore.getState().beginTransaction('Change color')}
-          onBlur={() => useDocStore.getState().commitTransaction()}
-          onChange={(e) => onChange(joinColor(e.target.value, opacity))}
-        />
-      </label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={ariaLabel}
+            className="relative size-8 shrink-0 cursor-pointer overflow-hidden rounded-md border border-input shadow-xs outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            style={{
+              backgroundImage: 'repeating-conic-gradient(var(--muted) 0% 25%, var(--card) 0% 50%)',
+              backgroundSize: '8px 8px',
+            }}
+          >
+            <span className="absolute inset-0" style={{ backgroundColor: value }} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="left" align="start" className="w-72 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <ColorPicker value={value} onChange={onChange} showAlpha={showAlpha} />
+        </PopoverContent>
+      </Popover>
       <div className="flex h-8 min-w-0 flex-1 items-center rounded-md border border-input shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
         <span className="pl-2 font-mono text-xs text-muted-foreground">#</span>
         <input

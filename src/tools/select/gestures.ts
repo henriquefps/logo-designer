@@ -14,7 +14,7 @@ import {
   type SceneNode,
   type Vec,
 } from '@/model';
-import { computeSnapTargets, snapPoint, snapRect, SNAP_PX, type SnapTarget } from '@/canvas/snapping';
+import { computeSnapTargets, snapPoint, snapRect, SNAP_PX, type SnapTarget, snapEnabled } from '@/canvas/snapping';
 import { HANDLE_DIRS, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { ToolContext, ToolPointerEvent } from '../types';
 
@@ -68,7 +68,7 @@ export function startMove(ctx: ToolContext, start: Vec, ids: Id[], label = 'Move
         else dx = 0;
       }
       const ed = ctx.editor();
-      if (ed.snapping && startBox && !e.mod) {
+      if (snapEnabled() && startBox && !e.mod) {
         const r = snapRect({ ...startBox, x: startBox.x + dx, y: startBox.y + dy }, targets, SNAP_PX * ctx.px());
         if (!e.shift || dx !== 0) dx += r.dx;
         if (!e.shift || dy !== 0) dy += r.dy;
@@ -103,7 +103,7 @@ export function startResize(ctx: ToolContext, handle: number, frame: SelectionFr
     move: (e) => {
       const ed = ctx.editor();
       let point = e.point;
-      if (ed.snapping && rotation === 0 && !e.mod) {
+      if (snapEnabled() && rotation === 0 && !e.mod) {
         const s = snapPoint(point, targets, SNAP_PX * ctx.px());
         point = s.point;
         ed.setGuides(s.guides);

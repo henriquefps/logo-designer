@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { FieldRow, Section } from '@/panels/shared/Section';
+import { ColorField } from '@/panels/shared/ColorField';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { PHOSPHOR_PREFIX, PHOSPHOR_WEIGHTS, filterPhosphor, loadLucide, matchesQuery, type IconMap, type IconSource, type PhosphorWeight } from './catalog';
@@ -165,11 +166,7 @@ export function IconsPanel() {
 
       <Section title="Insert options">
         <FieldRow label="Color">
-          <label className="relative size-8 shrink-0 cursor-pointer overflow-hidden rounded-md border border-input shadow-xs">
-            <span className="absolute inset-0" style={{ backgroundColor: o.color }} />
-            <input type="color" aria-label="Icon color" className="absolute inset-0 size-full cursor-pointer opacity-0" value={o.color} onChange={(e) => o.set({ color: e.target.value })} />
-          </label>
-          <span className="font-mono text-sm uppercase">{o.color}</span>
+          <ColorField ariaLabel="Icon color" value={o.color} showAlpha={false} onChange={(color) => o.set({ color: color.slice(0, 7) })} />
         </FieldRow>
         <FieldRow label="Size">
           <Input

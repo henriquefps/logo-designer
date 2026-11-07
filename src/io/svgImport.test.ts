@@ -41,6 +41,18 @@ describe('parseSvg', () => {
     expect(worldBox(rect)).toEqual({ x: 0, y: 0, width: 30, height: 40 });
   });
 
+  it('imports physical sizes (mm, in) at their px size', () => {
+    const res = parseSvg(svg('<rect x="10" y="10" width="100" height="50" stroke="#000" stroke-width="2"/>', 'width="210mm" height="148mm" viewBox="0 0 210 148"'));
+    const k = 96 / 25.4;
+    close(res.width, 210 * k);
+    close(res.height, 148 * k);
+    const r = res.nodes[0] as RectNode;
+    close(worldBox(r).width, 100 * k);
+    close(r.stroke.width, 2 * k);
+    // Unitless sizes keep viewBox units.
+    expect(parseSvg(svg('<rect width="10" height="10"/>', 'width="48" height="48" viewBox="0 0 24 24"')).width).toBe(24);
+  });
+
   it('maps primitives with fill, stroke and opacity', () => {
     const r = parseSvg(
       svg(

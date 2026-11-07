@@ -20,3 +20,19 @@ describe('snapping', () => {
     expect(snapPoint({ x: 99, y: 1 }, targets, 2).point).toEqual({ x: 100, y: 0 });
   });
 });
+
+describe('snap to grid', () => {
+  it('snaps the nearest edge to the grid when no smart guide applies', async () => {
+    const { useEditorStore } = await import('@/store/useEditorStore');
+    useEditorStore.setState({ snapping: false, snapToGrid: true, gridSize: 10 });
+    try {
+      const r = snapRect({ x: 13, y: 26, width: 20, height: 5 }, [], 3);
+      expect(r.dx).toBeCloseTo(-3);
+      // Top 26 → 30 is +4, bottom 31 → 30 is -1: the nearer edge wins.
+      expect(r.dy).toBeCloseTo(-1);
+      expect(snapPoint({ x: 17, y: 2 }, [], 3).point).toEqual({ x: 20, y: 0 });
+    } finally {
+      useEditorStore.setState({ snapping: true, snapToGrid: false, gridSize: 16 });
+    }
+  });
+});

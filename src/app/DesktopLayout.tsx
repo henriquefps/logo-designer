@@ -6,6 +6,7 @@ import { PanelTabs } from './PanelTabs';
 import { AppMark, ProjectTitle } from './ProjectTitle';
 import { StatusBar } from './StatusBar';
 import { ToolBar } from './ToolBar';
+import { PaintSwatches } from './PaintSwatches';
 
 export function DesktopLayout() {
   return (
@@ -25,6 +26,9 @@ export function DesktopLayout() {
       <div className="flex min-h-0 flex-1 gap-2 px-2 pb-2">
         <aside className="flex w-13 shrink-0 flex-col items-center overflow-y-auto rounded-xl border bg-card shadow-xs">
           <ToolBar />
+          <div className="mt-auto w-full border-t">
+            <PaintSwatches />
+          </div>
         </aside>
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
           <div className="shrink-0 border-b">

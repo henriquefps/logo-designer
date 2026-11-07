@@ -1,5 +1,5 @@
 import { CursorIcon } from '@phosphor-icons/react';
-import { rectFromCorners, nodesInRect, type Vec } from '@/model';
+import { rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
 import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
@@ -37,6 +37,13 @@ function hitHandle(ctx: ToolContext, e: ToolPointerEvent): HandleHit {
   return null;
 }
 
+/** Root-to-leaf chain of ids (groups first) for the deepest node under the point. */
+function hitChain(ctx: ToolContext, point: Vec): Id[] {
+  const deep = ctx.hitTest(point, { deep: true });
+  const loc = deep ? locate(ctx.doc(), deep) : null;
+  return loc ? [...loc.ancestors.map((a) => a.id), deep!] : [];
+}
+
 const select: Tool = {
   id: 'select',
   label: 'Select',
@@ -59,8 +66,23 @@ const select: Tool = {
           : startResize(ctx, handle.index, handle.frame, ed.selection);
       return;
     }
-    if (e.detail === 2 && !e.shift && editPathAt(ctx.hitTest(e.point, { deep: true }))) return;
-    const hit = ctx.hitTest(e.point, { deep: e.mod });
+    const chain = hitChain(ctx, e.point);
+    // The deepest already-selected node under the pointer (after drilling into a group).
+    let selectedLevel = -1;
+    chain.forEach((id, i) => {
+      if (ed.selection.includes(id)) selectedLevel = i;
+    });
+    if (e.detail === 2 && !e.shift && chain.length) {
+      // Double-click on a group steps into it (one level per double-click), like Illustrator;
+      // on a leaf it edits points.
+      if (selectedLevel < chain.length - 1 && chain.length > 1) {
+        ed.setSelection([chain[selectedLevel + 1]]);
+        pending = { kind: 'move', start: e.point, screen: e.screen, alt: false };
+        return;
+      }
+      if (editPathAt(chain[chain.length - 1])) return;
+    }
+    const hit = e.mod ? ctx.hitTest(e.point, { deep: true }) : selectedLevel > 0 ? chain[selectedLevel] : ctx.hitTest(e.point);
     if (hit) {
       if (e.shift) {
         ed.toggleSelection(hit);

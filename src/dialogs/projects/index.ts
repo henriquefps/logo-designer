@@ -1,5 +1,5 @@
 import type { DialogDef } from '../types';
-import { ProjectsDialog } from './ProjectsDialog';
+import { lazy } from 'react';
 
-const def: DialogDef = { id: 'projects', Component: ProjectsDialog };
+const def: DialogDef = { id: 'projects', Component: lazy(() => import('./ProjectsDialog').then((m) => ({ default: m.ProjectsDialog }))) };
 export default def;

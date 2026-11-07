@@ -14,12 +14,12 @@ const open = (id: string) => useEditorStore.getState().openDialog(id);
 const actions: Action[] = [
   {
     id: 'file.new',
-    label: 'New project',
+    label: 'New…',
     menu: 'file',
     group: 'project',
     order: 0,
     shortcut: 'alt+mod+n',
-    run: () => void useProjectsStore.getState().create('Untitled'),
+    run: () => useEditorStore.getState().openDialog('newDocument'),
   },
   {
     id: 'file.projects',

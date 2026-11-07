@@ -31,3 +31,6 @@ dist-ssr
 .profile
 .playwright-mcp/
 .cloudflare/
+
+# TypeScript incremental build info
+*.tsbuildinfo

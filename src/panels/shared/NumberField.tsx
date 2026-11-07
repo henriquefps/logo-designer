@@ -44,6 +44,9 @@ export function NumberField({
   const fmt = (v: number | null) => (v === null ? '' : String(Math.round(v * 10 ** precision) / 10 ** precision));
   const [draft, setDraft] = useState<string | null>(null);
   const scrub = useRef<{ x: number; v: number } | null>(null);
+  // Enter commits and then blurs: the blur must not commit again (its props are still the old ones,
+  // so relative edits such as W or X would be applied twice).
+  const skipBlur = useRef(false);
 
   const commit = (text: string) => {
     setDraft(null);
@@ -92,13 +95,18 @@ export function NumberField({
         placeholder={value === null ? 'Mixed' : undefined}
         onChange={(e) => setDraft(e.target.value)}
         onFocus={(e) => e.currentTarget.select()}
-        onBlur={(e) => commit(e.currentTarget.value)}
+        onBlur={(e) => {
+          if (skipBlur.current) skipBlur.current = false;
+          else commit(e.currentTarget.value);
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             commit(e.currentTarget.value);
+            skipBlur.current = true;
             e.currentTarget.blur();
           } else if (e.key === 'Escape') {
             setDraft(null);
+            skipBlur.current = true;
             e.currentTarget.blur();
           } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && value !== null) {
             e.preventDefault();

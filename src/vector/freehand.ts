@@ -3,8 +3,11 @@ import { getStroke } from 'perfect-freehand';
 import type { Vec } from '@/model';
 import { dist } from './geometry';
 
+/** A freehand sample; `pressure` (0..1) is set for real pen input. */
+export type FreehandPoint = Vec & { pressure?: number };
+
 /** Drops points closer than `minDist` to the previous kept point (keeps the last point). */
-export function decimate(points: Vec[], minDist: number): Vec[] {
+export function decimate<T extends Vec>(points: T[], minDist: number): T[] {
   if (points.length < 3) return [...points];
   const out = [points[0]];
   for (let i = 1; i < points.length - 1; i++) {
@@ -33,11 +36,15 @@ export interface BrushOptions {
   thinning: number;
 }
 
-/** Variable-width outline polygon for a brush stroke (perfect-freehand). */
-export function brushOutline(points: Vec[], opts: BrushOptions, last = true): Vec[] {
+/**
+ * Variable-width outline polygon for a brush stroke (perfect-freehand). Uses the real pen pressure
+ * when every point has one (stylus), otherwise simulates it from the drawing speed.
+ */
+export function brushOutline(points: FreehandPoint[], opts: BrushOptions, last = true): Vec[] {
+  const real = points.length > 0 && points.every((p) => typeof p.pressure === 'number');
   const out = getStroke(
-    points.map((p) => [p.x, p.y]),
-    { size: opts.size, thinning: opts.thinning, smoothing: 0.5, streamline: 0.5, simulatePressure: true, last },
+    points.map((p) => (real ? [p.x, p.y, p.pressure!] : [p.x, p.y])),
+    { size: opts.size, thinning: opts.thinning, smoothing: 0.5, streamline: 0.5, simulatePressure: !real, last },
   );
   return out.map(([x, y]) => ({ x, y }));
 }

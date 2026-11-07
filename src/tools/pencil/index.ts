@@ -1,5 +1,6 @@
 import { PencilSimpleIcon } from '@phosphor-icons/react';
-import { defaultStroke, IDENTITY, none, solid } from '@/model';
+import { lineStyle, shapeStyle } from '@/store/usePaintDefaults';
+import { IDENTITY } from '@/model';
 import { decimate, shouldClose, smoothnessToTolerance } from '@/vector/freehand';
 import { pathFromWorld } from '@/vector/convert';
 import { fitCurve, loadPaper } from '@/vector/paperOps';
@@ -53,8 +54,7 @@ const pencil: Tool = {
     const sp = fitCurve(scope, points, smoothnessToTolerance(smoothness) * px, closed);
     const node = pathFromWorld([sp], IDENTITY, {
       name: 'Pencil',
-      fill: none(),
-      stroke: { ...defaultStroke(solid('#000000'), 2), cap: 'round', join: 'round' },
+      ...(closed ? shapeStyle() : lineStyle()),
     });
     ctx.docStore().addNodes([node], { label: 'Pencil' });
     ctx.editor().setSelection([node.id]);

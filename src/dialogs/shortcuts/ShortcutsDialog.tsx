@@ -17,6 +17,8 @@ const EXTRA = [
   { label: 'Constrain (draw, move, resize, rotate 15°)', keys: ['Shift'] },
   { label: 'From center / duplicate while moving', keys: ['Alt'] },
   { label: 'Select inside groups / no snapping', keys: [formatShortcut('mod+').replace(/\+$/, '')] },
+  { label: 'Step into a group (select a child)', keys: ['Double-click'] },
+  { label: 'Object actions', keys: ['Right-click'] },
   { label: 'Cancel', keys: ['Esc'] },
 ];
 

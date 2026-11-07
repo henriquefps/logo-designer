@@ -5,6 +5,8 @@ import { DialogHost } from '@/dialogs/DialogHost';
 import { useImportHandlers } from '@/io/useImportHandlers';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjectsStore } from '@/store/useProjectsStore';
+import { useEditorStore } from '@/store/useEditorStore';
+import { isFirstVisit } from '@/dialogs/newDocument/welcome';
 import { useTheme } from '@/theme/theme';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -16,7 +18,13 @@ export function App() {
   useKeyboard();
   useImportHandlers();
   useEffect(() => {
-    void useProjectsStore.getState().init();
+    void useProjectsStore
+      .getState()
+      .init()
+      .then(() => {
+        // First visit: the welcome dialog (sizes, Open SVG).
+        if (isFirstVisit() && !useEditorStore.getState().dialog) useEditorStore.getState().openDialog('newDocument');
+      });
     const flush = () => void useProjectsStore.getState().flush();
     window.addEventListener('pagehide', flush);
     const onVisibility = () => document.visibilityState === 'hidden' && flush();

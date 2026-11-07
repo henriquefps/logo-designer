@@ -24,6 +24,9 @@ function useMenuState() {
   useDocStore((s) => s.past.length + s.future.length);
   useEditorStore((s) => s.selection);
   useEditorStore((s) => s.snapping);
+  useEditorStore((s) => s.showRulers);
+  useEditorStore((s) => s.showGrid);
+  useEditorStore((s) => s.snapToGrid);
 }
 
 /** Splits a group into plain items and submenus (by Action.submenu), keeping order. */

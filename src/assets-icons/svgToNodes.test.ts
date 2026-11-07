@@ -1,46 +1,7 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { pathDataToSubpaths, parsePathData } from './svgPath';
-import { resolveColor, svgToNodes } from './svgToNodes';
+import { svgToNodes } from './svgToNodes';
 import type { GroupNode, PathNode } from '@/model/types';
-
-describe('path data', () => {
-  it('parses relative/implicit commands and closes', () => {
-    const sp = pathDataToSubpaths('m1 1 2 0 0 2z');
-    expect(sp).toHaveLength(1);
-    expect(sp[0].closed).toBe(true);
-    expect(sp[0].points.map((p) => [p.x, p.y])).toEqual([[1, 1], [3, 1], [3, 3]]);
-  });
-  it('merges closing point equal to the start and keeps handles', () => {
-    const sp = pathDataToSubpaths('M0 0C0 1 1 1 1 0C1 -1 0 -1 0 0Z');
-    expect(sp[0].points).toHaveLength(2);
-    expect(sp[0].points[0].in).toEqual({ x: 0, y: -1 });
-    expect(sp[0].points[0].out).toEqual({ x: 0, y: 1 });
-  });
-  it('H/V and smooth curves', () => {
-    const segs = parsePathData('M0 0H5V5S6 6 7 7');
-    expect(segs).toHaveLength(4);
-    expect(segs[3]).toMatchObject({ t: 'C', c1: { x: 5, y: 5 }, x: 7, y: 7 });
-  });
-  it('arcs become cubics ending on target', () => {
-    const segs = parsePathData('M0 0A5 5 0 0 1 10 0');
-    expect(segs.length).toBeGreaterThan(1);
-    const last = segs[segs.length - 1];
-    expect(last).toMatchObject({ t: 'C', x: 10, y: 0 });
-  });
-  it('stops on garbage instead of throwing', () => {
-    expect(() => parsePathData('M0 0 L 5')).not.toThrow();
-  });
-});
-
-describe('resolveColor', () => {
-  it('handles currentColor, none, hex and rgb', () => {
-    expect(resolveColor('currentColor', '#112233')).toBe('#112233');
-    expect(resolveColor('none', '#112233')).toBeNull();
-    expect(resolveColor('#abc', '#000000')).toBe('#aabbcc');
-    expect(resolveColor('rgb(255, 0, 0)', '#000000')).toBe('#ff0000');
-    expect(resolveColor('url(#g)', '#123456')).toBe('#123456');
-  });
-});
 
 const lucide = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2L22 22"></path><circle cx="12" cy="12" r="4"/></svg>';
 
@@ -75,6 +36,17 @@ describe('svgToNodes', () => {
     const n = svgToNodes(svg, { color: '#000000', size: 10 }) as PathNode;
     expect(n.type).toBe('path');
     expect(n.subpaths[0].points[0]).toMatchObject({ x: 0, y: 0 });
+  });
+  it('uses the full importer: <style> classes, gradients and <use>', () => {
+    const svg =
+      '<svg viewBox="0 0 20 10"><defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient><style>.a{fill:#123456}</style></defs>' +
+      '<rect id="r" class="a" width="10" height="10"/><use href="#r" x="10" fill="url(#g)"/><circle cx="15" cy="5" r="2" fill="url(#g)"/></svg>';
+    const g = svgToNodes(svg, { color: '#000000', size: 20 }) as GroupNode;
+    expect(g.type).toBe('group');
+    const kinds = g.children.map((c) => (c as PathNode).fill.kind);
+    expect((g.children[0] as PathNode).fill).toEqual({ kind: 'solid', color: '#123456' });
+    expect(kinds).toContain('linear');
+    expect(g.children.every((c) => c.type === 'path' && c.transform.x === 0 && c.transform.y === 0)).toBe(true);
   });
   it('returns null when nothing drawable', () => {
     expect(svgToNodes('<svg viewBox="0 0 1 1"></svg>', { color: '#000', size: 1 })).toBeNull();

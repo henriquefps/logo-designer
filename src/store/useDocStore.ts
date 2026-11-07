@@ -1,5 +1,6 @@
 import { applyPatches, enablePatches, produce, produceWithPatches, type Draft, type Patch } from 'immer';
 import { create } from 'zustand';
+import { useEditorStore } from './useEditorStore';
 import {
   cloneWithNewIds,
   createDocument,
@@ -31,12 +32,22 @@ export interface HistoryEntry {
   label: string;
   patches: Patch[];
   inverse: Patch[];
+  /** Selection when the change was made (restored by undo). */
+  selection?: Id[];
+  /** Selection when the entry was undone (restored by redo). */
+  redoSelection?: Id[];
 }
 
 interface Transaction {
   label: string;
   base: DesignDocument;
+  selection: Id[];
 }
+
+const currentSelection = () => useEditorStore.getState().selection;
+const restoreSelection = (ids: Id[] | undefined) => {
+  if (ids) useEditorStore.getState().setSelection(ids);
+};
 
 export type NodePatch = Partial<Omit<SceneNode, 'id' | 'type' | 'transform' | 'children'>> & {
   transform?: Partial<Transform>;
@@ -110,7 +121,7 @@ export const useDocStore = create<DocState>()((set, get) => {
     if (!patches.length) return;
     set((s) => ({
       doc: next,
-      past: trim([...s.past, { label, patches, inverse }]),
+      past: trim([...s.past, { label, patches, inverse, selection: currentSelection() }]),
       future: [],
       version: s.version + 1,
     }));
@@ -138,7 +149,7 @@ export const useDocStore = create<DocState>()((set, get) => {
 
     beginTransaction: (label) => {
       if (get().txn) get().commitTransaction();
-      set({ txn: { label, base: get().doc } });
+      set({ txn: { label, base: get().doc, selection: currentSelection() } });
     },
     commitTransaction: () => {
       const { txn, doc } = get();
@@ -151,7 +162,7 @@ export const useDocStore = create<DocState>()((set, get) => {
           if (doc[key] !== txn.base[key]) (d as Record<string, unknown>)[key] = doc[key];
         }
       });
-      set((s) => ({ past: trim([...s.past, { label: txn.label, patches, inverse }]), future: [] }));
+      set((s) => ({ past: trim([...s.past, { label: txn.label, patches, inverse, selection: txn.selection }]), future: [] }));
     },
     cancelTransaction: () => {
       const { txn } = get();
@@ -167,9 +178,10 @@ export const useDocStore = create<DocState>()((set, get) => {
       set((s) => ({
         doc: applyPatches(doc, entry.inverse),
         past: past.slice(0, -1),
-        future: [...s.future, entry],
+        future: [...s.future, { ...entry, redoSelection: currentSelection() }],
         version: s.version + 1,
       }));
+      restoreSelection(entry.selection);
     },
     redo: () => {
       const { future, doc } = get();
@@ -181,6 +193,7 @@ export const useDocStore = create<DocState>()((set, get) => {
         past: [...s.past, entry],
         version: s.version + 1,
       }));
+      restoreSelection(entry.redoSelection);
     },
     canUndo: () => get().past.length > 0,
     canRedo: () => get().future.length > 0,

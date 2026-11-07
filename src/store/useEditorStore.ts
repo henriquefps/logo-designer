@@ -18,7 +18,33 @@ export const MIN_ZOOM = 0.02;
 export const MAX_ZOOM = 64;
 export const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
-export interface EditorState {
+/** View preferences saved per browser (rulers, grid). */
+interface ViewPrefs {
+  showRulers: boolean;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  gridSize: number;
+}
+const VIEW_KEY = 'designer.view';
+const DEFAULT_VIEW: ViewPrefs = { showRulers: false, showGrid: false, snapToGrid: false, gridSize: 16 };
+function loadView(): ViewPrefs {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
+    if (v && typeof v === 'object') {
+      return {
+        showRulers: v.showRulers === true,
+        showGrid: v.showGrid === true,
+        snapToGrid: v.snapToGrid === true,
+        gridSize: typeof v.gridSize === 'number' && v.gridSize >= 1 && v.gridSize <= 1000 ? v.gridSize : DEFAULT_VIEW.gridSize,
+      };
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return { ...DEFAULT_VIEW };
+}
+
+export interface EditorState extends ViewPrefs {
   tool: string;
   /** Tool to return to after a temporary one (e.g. Space → hand). */
   previousTool: string | null;
@@ -57,6 +83,7 @@ export interface EditorState {
   setEditingText: (id: Id | null) => void;
   setPanelTab: (tab: PanelTab) => void;
   setSnapping: (on: boolean) => void;
+  setViewPrefs: (patch: Partial<ViewPrefs>) => void;
   setGuides: (g: SnapGuide[]) => void;
   setMarquee: (r: Rect | null) => void;
   openDialog: (id: string | null) => void;
@@ -82,6 +109,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   editingTextId: null,
   panelTab: 'properties',
   snapping: true,
+  ...loadView(),
   guides: [],
   marquee: null,
   dialog: null,
@@ -110,6 +138,15 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setEditingText: (editingTextId) => set({ editingTextId }),
   setPanelTab: (panelTab) => set({ panelTab }),
   setSnapping: (snapping) => set({ snapping }),
+  setViewPrefs: (patch) => {
+    set(patch);
+    const { showRulers, showGrid, snapToGrid, gridSize } = get();
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ showRulers, showGrid, snapToGrid, gridSize }));
+    } catch {
+      /* storage unavailable */
+    }
+  },
   setGuides: (guides) => set((s) => (s.guides.length === 0 && guides.length === 0 ? s : { guides })),
   setMarquee: (marquee) => set({ marquee }),
   openDialog: (dialog) => set({ dialog }),
