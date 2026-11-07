@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DialogHost } from '@/dialogs/DialogHost';
+import { useImportHandlers } from '@/io/useImportHandlers';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { useTheme } from '@/theme/theme';
@@ -13,6 +14,7 @@ export function App() {
   const mobile = useIsMobile();
   const theme = useTheme();
   useKeyboard();
+  useImportHandlers();
   useEffect(() => {
     void useProjectsStore.getState().init();
     const flush = () => void useProjectsStore.getState().flush();

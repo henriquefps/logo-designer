@@ -5,6 +5,8 @@ import { getImporter } from '@/io/importers/registry';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
+import { openSvgFileAsDocument, SVG_ACCEPT } from '@/io/importActions';
+import { copySvgToClipboard } from '@/io/exportActions';
 import type { Action } from '../types';
 
 const open = (id: string) => useEditorStore.getState().openDialog(id);
@@ -79,8 +81,28 @@ const actions: Action[] = [
     menu: 'file',
     group: 'io',
     order: 21,
-    shortcut: 'mod+e',
+    shortcut: ['mod+shift+e', 'mod+e'],
     run: () => open('export'),
+  },
+  {
+    id: 'file.openSvg',
+    label: 'Open SVG as new project…',
+    menu: 'file',
+    group: 'file',
+    order: 12,
+    run: async () => {
+      const [file] = await pickFiles(SVG_ACCEPT);
+      if (file) await openSvgFileAsDocument(file);
+    },
+  },
+  {
+    id: 'file.copySvg',
+    label: 'Copy SVG to clipboard',
+    menu: 'file',
+    group: 'io',
+    order: 22,
+    shortcut: 'mod+alt+c',
+    run: () => void copySvgToClipboard(),
   },
 ];
 

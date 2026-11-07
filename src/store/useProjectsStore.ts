@@ -93,6 +93,7 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     saveState: 'idle',
 
     init: async () => {
+      await import('@/io/legacy/migrate').then((m) => m.migrateLogoGoOnce()).catch(() => null); // one-time LogoGo import
       const projects = await loadProjectList();
       set({ projects });
       const preferred = getActiveProjectId();
