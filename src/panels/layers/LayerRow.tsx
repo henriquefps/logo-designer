@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon, ImageSquareIcon } from '@phosphor-icons/react';
 import type { SceneNode } from '@/model';
 import { cn } from '@/lib/utils';
 import { NODE_ICONS } from './nodeIcons';
@@ -73,7 +73,11 @@ export function LayerRow(p: LayerRowProps) {
       >
         {p.expanded ? <CaretDownIcon /> : <CaretRightIcon />}
       </button>
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      {node.reference ? (
+        <ImageSquareIcon aria-label="Reference" weight="fill" className="size-4 shrink-0 text-primary" />
+      ) : (
+        <Icon className="size-4 shrink-0 text-muted-foreground" />
+      )}
       {editing ? (
         <input
           autoFocus

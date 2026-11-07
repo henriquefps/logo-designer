@@ -91,6 +91,7 @@ function node(v: unknown, ids: Set<string>, depth: number): SceneNode {
     name: typeof v.name === 'string' ? v.name : type,
     visible: v.visible !== false,
     locked: v.locked === true,
+    ...(v.reference === true ? { reference: true } : {}),
     opacity: typeof v.opacity === 'number' && Number.isFinite(v.opacity) ? Math.max(0, Math.min(1, v.opacity)) : 1,
     ...(typeof v.blendMode === 'string' ? { blendMode: v.blendMode } : {}),
     transform: {

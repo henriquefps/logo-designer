@@ -42,6 +42,8 @@ export interface NodeBase {
   name: string;
   visible: boolean;
   locked: boolean;
+  /** Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false. */
+  reference?: boolean;
   opacity: number; // 0..1
   blendMode?: string;
   transform: Transform;

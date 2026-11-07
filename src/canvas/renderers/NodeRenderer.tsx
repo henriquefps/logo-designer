@@ -1,4 +1,5 @@
 import { memo, type ComponentType } from 'react';
+import { useEditorStore } from '@/store/useEditorStore';
 import { toSvgTransform, type NodeType, type SceneNode } from '@/model';
 import { ImageRenderer } from './ImageRenderer';
 import { EllipseRenderer, PathRenderer, PolygonRenderer, RectRenderer } from './shapes';
@@ -32,7 +33,8 @@ const RENDERERS: Record<NodeType, ComponentType<{ node: any }>> = {
  */
 export const NodeRenderer = memo(function NodeRenderer({ node }: { node: SceneNode }) {
   const R = RENDERERS[node.type];
-  if (!node.visible) return null;
+  const showReferences = useEditorStore((s) => s.showReferences);
+  if (!node.visible || (node.reference && !showReferences)) return null;
   return (
     <g
       data-node-id={node.id}

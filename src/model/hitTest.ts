@@ -105,7 +105,7 @@ export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}):
   const search = (nodes: SceneNode[], parentM: Matrix): Id | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      if (!n.visible || n.locked) continue;
+      if (!n.visible || n.locked || n.reference) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       if (n.type === 'group') {
         const leaf = search(n.children, m);
@@ -124,7 +124,7 @@ export function nodesInRect(doc: DesignDocument, rect: Rect, opts: { deep?: bool
   const out: Id[] = [];
   const visit = (nodes: SceneNode[], parentM: Matrix) => {
     for (const n of nodes) {
-      if (!n.visible || n.locked) continue;
+      if (!n.visible || n.locked || n.reference) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       if (opts.deep && n.type === 'group') {
         visit(n.children, m);

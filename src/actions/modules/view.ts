@@ -1,4 +1,4 @@
-import { MagnetIcon, RulerIcon, GridFourIcon } from '@phosphor-icons/react';
+import { ImageSquareIcon, MagnetIcon, RulerIcon, GridFourIcon } from '@phosphor-icons/react';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Action } from '../types';
@@ -67,6 +67,16 @@ const actions: Action[] = [
     shortcut: "mod+'",
     checked: () => ed().showGrid,
     run: () => ed().setViewPrefs({ showGrid: !ed().showGrid }),
+  },
+  {
+    id: 'view.references',
+    label: 'Show reference images',
+    menu: 'view',
+    group: 'guides',
+    order: 14,
+    icon: ImageSquareIcon,
+    checked: () => ed().showReferences,
+    run: () => ed().setViewPrefs({ showReferences: !ed().showReferences }),
   },
   {
     id: 'view.snapGrid',

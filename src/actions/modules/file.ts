@@ -5,7 +5,7 @@ import { getImporter } from '@/io/importers/registry';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
-import { openSvgFileAsDocument, SVG_ACCEPT } from '@/io/importActions';
+import { IMAGE_ACCEPT, openSvgFileAsDocument, placeReferenceImage, SVG_ACCEPT } from '@/io/importActions';
 import { copySvgToClipboard } from '@/io/exportActions';
 import type { Action } from '../types';
 
@@ -73,6 +73,17 @@ const actions: Action[] = [
       }
       const files = await pickFiles(importer.accept, true);
       if (files.length) await importer.importFiles(files);
+    },
+  },
+  {
+    id: 'file.placeReference',
+    label: 'Place reference image…',
+    menu: 'file',
+    group: 'io',
+    order: 21,
+    run: async () => {
+      const [file] = await pickFiles(IMAGE_ACCEPT);
+      if (file) await placeReferenceImage(file);
     },
   },
   {
