@@ -19,6 +19,8 @@ interface UIStoreState {
   /** Measured (getBBox) sizes for text elements, keyed by element id. Ephemeral, not persisted. */
   textSizes: Record<string, { width: number; height: number }>;
   mobilePanelOpen: boolean;
+  /** Id of the path-shaped element currently open in node-edit mode, or null when not editing. */
+  nodeEditElementId: string | null;
 
   setSelection: (ids: string[]) => void;
   toggleSelection: (id: string) => void;
@@ -38,6 +40,7 @@ interface UIStoreState {
   pushRecentIcon: (iconKey: string) => void;
   setTextSize: (id: string, width: number, height: number) => void;
   setMobilePanelOpen: (open: boolean) => void;
+  setNodeEditElementId: (id: string | null) => void;
 }
 
 const MIN_ZOOM = 0.25;
@@ -58,6 +61,7 @@ export const useUIStore = create<UIStoreState>()(
       recentIcons: [],
       textSizes: {},
       mobilePanelOpen: false,
+      nodeEditElementId: null,
 
       setSelection: (ids) => set({ selectedIds: ids }),
       toggleSelection: (id) =>
@@ -95,6 +99,7 @@ export const useUIStore = create<UIStoreState>()(
       setTextSize: (id, width, height) =>
         set((state) => (state.textSizes[id]?.width === width && state.textSizes[id]?.height === height ? state : { textSizes: { ...state.textSizes, [id]: { width, height } } })),
       setMobilePanelOpen: (open) => set({ mobilePanelOpen: open }),
+      setNodeEditElementId: (id) => set({ nodeEditElementId: id }),
     }),
     {
       name: 'logogo-ui-storage',

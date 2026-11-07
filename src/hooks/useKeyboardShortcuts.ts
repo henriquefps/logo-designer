@@ -13,6 +13,7 @@ export function useKeyboardShortcuts() {
   const selectedIds = useUIStore((s) => s.selectedIds);
   const setSelection = useUIStore((s) => s.setSelection);
   const clearSelection = useUIStore((s) => s.clearSelection);
+  const nodeEditElementId = useUIStore((s) => s.nodeEditElementId);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -46,6 +47,9 @@ export function useKeyboardShortcuts() {
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Node-edit mode owns Delete/Backspace while active (removes the selected node instead
+        // of the whole element) — see CanvasStage's own keydown handler.
+        if (nodeEditElementId) return;
         e.preventDefault();
         store.removeElements(selectedIds);
         clearSelection();
@@ -81,5 +85,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [project, selectedIds, setSelection, clearSelection]);
+  }, [project, selectedIds, setSelection, clearSelection, nodeEditElementId]);
 }

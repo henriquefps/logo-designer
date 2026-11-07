@@ -11,6 +11,8 @@ import { useUIStore } from '@/store/useUIStore';
 import { ColorField } from '@/components/editor/shared/ColorField';
 import { NumberField } from '@/components/editor/shared/NumberField';
 import { AlignmentPad } from './AlignmentPad';
+import { BooleanOpsPanel } from './BooleanOpsPanel';
+import { ConvertToPathButton } from './ConvertToPathButton';
 import { FONT_OPTIONS, findFont } from '@/lib/fonts';
 import type { IconElement, LogoElement, TextElement } from '@/types/element';
 
@@ -58,6 +60,8 @@ export function PropertiesPanel() {
   return (
     <div className="space-y-6 p-4">
       <AlignmentPad />
+      <BooleanOpsPanel selected={selected} />
+      {single && <ConvertToPathButton element={single} />}
       <Separator />
 
       {single?.type === 'text' && (

@@ -1,15 +1,17 @@
 import { useId } from 'react';
 import type { CanvasSettings, BackgroundShape } from '@/types/canvas';
 import { CANVAS_SIZE } from '@/types/canvas';
-import type { LogoElement } from '@/types/element';
+import type { LogoElement, ShapeElement } from '@/types/element';
 import type { MarqueeRect } from '@/hooks/useCanvasDrag';
 import type { ShapeDraft } from '@/hooks/useShapeDrawing';
+import type { NodeDragTarget } from '@/hooks/useNodeEdit';
 import type { SnapTarget } from '@/lib/snapping';
 import { ElementNode } from './ElementNode';
 import { SelectionOverlay } from './SelectionOverlay';
 import { AlignmentGuides } from './AlignmentGuides';
 import { MarqueeSelect } from './MarqueeSelect';
 import { ShapeContent } from './ShapeContent';
+import { NodeEditOverlay } from './NodeEditOverlay';
 
 function ShapeGeometry({ shape, fill, pointerEvents }: { shape: BackgroundShape; fill?: string; pointerEvents?: React.CSSProperties['pointerEvents'] }) {
   switch (shape) {
@@ -39,6 +41,10 @@ interface CanvasSvgProps {
   marqueeRect: MarqueeRect | null;
   guides: SnapTarget[];
   draft?: ShapeDraft | null;
+  nodeEditElement?: ShapeElement | null;
+  nodeEditSelectedIndex?: number | null;
+  onNodeEditPointDown?: (e: React.PointerEvent, target: NodeDragTarget) => void;
+  onNodeEditSegmentDoubleClick?: (e: React.MouseEvent, segmentIndex: number) => void;
 }
 
 export const CanvasSvg = ({
@@ -57,6 +63,10 @@ export const CanvasSvg = ({
   marqueeRect,
   guides,
   draft,
+  nodeEditElement,
+  nodeEditSelectedIndex,
+  onNodeEditPointDown,
+  onNodeEditSegmentDoubleClick,
 }: CanvasSvgProps & { ref?: React.Ref<SVGSVGElement> }) => {
   const gradientId = useId();
   const clipId = useId();
@@ -121,6 +131,14 @@ export const CanvasSvg = ({
       <SelectionOverlay elements={elements} selectedIds={selectedIds} textSizes={textSizes} />
       <AlignmentGuides guides={guides} />
       <MarqueeSelect rect={marqueeRect} />
+      {nodeEditElement && onNodeEditPointDown && onNodeEditSegmentDoubleClick && (
+        <NodeEditOverlay
+          element={nodeEditElement}
+          selectedNodeIndex={nodeEditSelectedIndex ?? null}
+          onPointDown={onNodeEditPointDown}
+          onSegmentDoubleClick={onNodeEditSegmentDoubleClick}
+        />
+      )}
 
       {draft && (
         <g transform={`translate(${draft.x}, ${draft.y})`} pointerEvents="none">

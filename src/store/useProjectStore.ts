@@ -4,11 +4,43 @@ import { createId } from '@/lib/id';
 import { debouncedLocalStorage } from '@/lib/storage/persistStorage';
 import { migrateLegacyStorage } from '@/lib/storage/migrateLegacyStorage';
 import { DEFAULT_CANVAS_SETTINGS, type CanvasSettings } from '@/types/canvas';
-import type { LogoElement } from '@/types/element';
+import type { LogoElement, ShapeElement } from '@/types/element';
+import { computeBooleanOp, isBooleanOpEligible, type BooleanOpKind } from '@/lib/booleanOps';
+import type { ConvertResult } from '@/lib/convertToPath';
 import type { Project } from '@/types/project';
 
 const STORAGE_KEY = 'logogo-project-storage';
 const HISTORY_LIMIT = 50;
+
+/**
+ * Schema version of the *persisted* slice (projects/elements), independent of any in-memory
+ * app version. Bump this — and add a branch in `migratePersistedState` — whenever a stored
+ * field's meaning changes in a way older data can't just fall through as-is. Every real
+ * browser's existing data today is implicitly at version 0: zustand's persist wrapper always
+ * writes a version into its storage envelope, defaulting to 0, which was never overridden
+ * before this.
+ */
+const SCHEMA_VERSION = 1;
+
+interface PersistedProjectState {
+  projects: Record<string, Project>;
+  projectOrder: string[];
+  activeProjectId: string | null;
+}
+
+function migratePersistedState(persisted: unknown, fromVersion: number): PersistedProjectState {
+  const state = persisted as PersistedProjectState;
+
+  if (fromVersion < 1) {
+    // v0 → v1: ShapePoint gained optional handleIn/handleOutX/Y (Bézier curve support, LogoGo
+    // 2.0 Fase 1). Purely additive — every existing point is already a valid ShapePoint with
+    // those fields simply absent, rendering as the same straight segments as before — no data
+    // transformation needed. This step exists to mark the version boundary for the next
+    // migration (e.g. boolean-op results, Fase 1) to chain from.
+  }
+
+  return state;
+}
 
 interface HistorySnapshot {
   canvasSettings: CanvasSettings;
@@ -21,7 +53,6 @@ interface HistoryState {
 }
 
 interface ProjectStoreState {
-  version: 2;
   projects: Record<string, Project>;
   projectOrder: string[];
   activeProjectId: string | null;
@@ -41,6 +72,8 @@ interface ProjectStoreState {
   removeElements: (ids: string[]) => void;
   duplicateElements: (ids: string[]) => string[];
   reorderElement: (id: string, dir: 'up' | 'down' | 'front' | 'back') => void;
+  applyBooleanOp: (ids: string[], op: BooleanOpKind) => Promise<string | null>;
+  convertToPath: (id: string, geometry: ConvertResult) => void;
   setCanvasSettings: (patch: Partial<CanvasSettings>) => void;
 
   beginGesture: () => void;
@@ -125,7 +158,6 @@ function buildInitialState(): Pick<ProjectStoreState, 'projects' | 'projectOrder
 export const useProjectStore = create<ProjectStoreState>()(
   persist(
     (set, get) => ({
-      version: 2,
       ...buildInitialState(),
       history: {},
       historyPending: {},
@@ -305,6 +337,85 @@ export const useProjectStore = create<ProjectStoreState>()(
         get().commit();
       },
 
+      applyBooleanOp: async (elementIds, op) => {
+        const id = get().activeProjectId;
+        if (!id) return null;
+        const idSet = new Set(elementIds);
+        // z-order (project.elements order) is the deterministic "bottom to top" sequence the op
+        // combines in — matters for subtract/exclude, where operand order changes the result.
+        const project = get().projects[id];
+        const sources = project.elements.filter((el): el is ShapeElement => idSet.has(el.id) && isBooleanOpEligible(el));
+        if (sources.length < 2) return null;
+
+        const result = await computeBooleanOp(sources, op);
+        if (!result) return null;
+        // The active project may have changed (or the source elements been edited/removed) while
+        // the dynamic import + paper.js computation above was in flight — bail rather than apply
+        // a result computed against state that's no longer current.
+        if (get().activeProjectId !== id) return null;
+
+        // The frontmost source's appearance carries over to the combined shape — it's the one
+        // visually "on top" of the group being combined, so its style is the least surprising pick.
+        const front = sources[sources.length - 1];
+        const newElement: ShapeElement = {
+          id: createId(),
+          type: 'shape',
+          shape: 'path',
+          x: result.x,
+          y: result.y,
+          width: result.width,
+          height: result.height,
+          rotation: 0,
+          opacity: front.opacity,
+          flipH: false,
+          flipV: false,
+          locked: false,
+          fill: front.fill,
+          stroke: front.stroke,
+          strokeWidth: front.strokeWidth,
+          pathData: result.pathData,
+        };
+
+        get().beginGesture();
+        set((state) => {
+          const proj = state.projects[id];
+          const sourceIdSet = new Set(sources.map((el) => el.id));
+          return {
+            projects: {
+              ...state.projects,
+              [id]: { ...proj, elements: [...proj.elements.filter((el) => !sourceIdSet.has(el.id)), newElement], updatedAt: Date.now() },
+            },
+          };
+        });
+        get().commit();
+        return newElement.id;
+      },
+
+      convertToPath: (elementId, geometry) => {
+        const id = get().activeProjectId;
+        if (!id) return;
+        get().beginGesture();
+        set((state) => {
+          const project = state.projects[id];
+          return {
+            projects: {
+              ...state.projects,
+              [id]: {
+                ...project,
+                elements: project.elements.map((el) => {
+                  if (el.id !== elementId) return el;
+                  const { id: elId, x, y, rotation, opacity, flipH, flipV, locked, label } = el;
+                  const converted: ShapeElement = { id: elId, type: 'shape', shape: 'path', x, y, rotation, opacity, flipH, flipV, locked, label, ...geometry };
+                  return converted;
+                }),
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        });
+        get().commit();
+      },
+
       setCanvasSettings: (patch) => {
         const id = get().activeProjectId;
         if (!id) return;
@@ -400,8 +511,9 @@ export const useProjectStore = create<ProjectStoreState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => debouncedLocalStorage),
+      version: SCHEMA_VERSION,
+      migrate: migratePersistedState,
       partialize: (state) => ({
-        version: state.version,
         projects: state.projects,
         projectOrder: state.projectOrder,
         activeProjectId: state.activeProjectId,

@@ -31,7 +31,16 @@ Fora do escopo, deliberadamente: edição de fotos raster (pincel de cura, liqui
 ## 3. Decisões de arquitetura
 
 **Motor de renderização: manter SVG como fonte da verdade, não migrar para canvas/WebGL.**
-O SVG já é o formato de exportação nativo — manter o DOM SVG como modelo de dados evita uma camada de conversão com perda entre "o que edito" e "o que exporto" (WYSIWYG real). SVG nativo já cobre gradientes, padrões, filtros (`feGaussianBlur`, `feDropShadow`) e `mix-blend-mode` — dá pra ir bem mais longe com o que já existe antes de precisar trocar de motor. O que falta (boolean ops, edição de nós Bézier) entra como uma camada de **geometria pura** por cima (uma lib como `martinez-polygon-clipping` ou `paper.js` usada só para calcular o `d` do path resultante, sem renderizar nada com ela) — o SVG continua sendo desenhado do mesmo jeito de sempre.
+O SVG já é o formato de exportação nativo — manter o DOM SVG como modelo de dados evita uma camada de conversão com perda entre "o que edito" e "o que exporto" (WYSIWYG real). SVG nativo já cobre gradientes, padrões, filtros (`feGaussianBlur`, `feDropShadow`) e `mix-blend-mode` — dá pra ir bem mais longe com o que já existe antes de precisar trocar de motor. O que falta (boolean ops, edição de nós Bézier) entra como uma camada de **geometria pura** por cima (`paper.js` usado só para calcular o `d` do path resultante, sem renderizar nada com ela — ver seção 7 para o porquê da escolha em vez de `martinez-polygon-clipping`) — o SVG continua sendo desenhado do mesmo jeito de sempre.
+
+**Modo de uso: simples por padrão, avançado por disclosure progressivo.**
+O fluxo atual (escolher ícone/texto, ajustar, exportar) continua sendo a porta de entrada e o caminho padrão — é o que faz da LogoGo um utilitário de 2 minutos, e essa promessa não muda. Caneta Bézier, edição de nó, boolean ops, componentes e brand kit só aparecem para quem pede: um modo "avançado" opt-in e/ou entrar em edição de nó via duplo clique num path, nunca expostos por padrão na barra principal. Cada fase que introduz uma ferramenta nova (1, 2, 3) deve incluir explicitamente essa decisão de disclosure na sua UI, não só a funcionalidade.
+
+**Fonte customizada: por usuário, nunca distribuída pelo app.** Cada usuário pode carregar seu próprio arquivo de fonte local (`.otf`/`.ttf`/`.woff`/`.woff2` — a licença de uso é responsabilidade de quem carrega, como em qualquer editor profissional) para escrever texto na LogoGo. Regras que valem sempre, não só na Fase 3:
+- O arquivo fica só no `IndexedDB` do navegador daquele usuário. Nunca sobe a servidor (não existe um), nunca entra no código-fonte/repositório do app.
+- Por padrão, **não** entra no arquivo de backup de projeto (`.logogo.json`) exportável — o backup guarda só o nome da fonte usada; se reaberto em outro navegador, cai num fallback com aviso ("fonte customizada ausente — carregue novamente"), como o Figma faz com fonte ausente.
+- No export de imagem (SVG/PNG/WebP/JPG/icon pack), texto com fonte customizada é **sempre** convertido para outline/path (`opentype.js`, Fase 1) em vez de embutido como `@font-face` — a arte final vira só geometria vetorial, o uso classicamente permitido por praticamente qualquer licença de fonte comercial (diferente de embutir/redistribuir o arquivo da fonte em si).
+- Essa regra é diferente das fontes que já vêm com o app (Inter, Playfair Display etc. — todas de licença aberta via `@fontsource`): essas continuam podendo ser embutidas como `@font-face` de verdade no export, como já funciona hoje. A distinção "bundlada no app vs. trazida pelo usuário" é proposital e não deve se perder conforme o plano avança.
 
 **Tema: shadcn continua, mas com um `components.json` próprio, diferente do site atual.**
 Hoje o site usa `style: radix-sera`, `baseColor: olive`, densidade "site de consumo". Uma ferramenta pro pede o oposto do que um site institucional pede: mais densidade de informação, toolbars compactas, dark-first (é assim que Figma, Illustrator e Photoshop tratam a própria UI — o canvas branco do usuário é que deve saltar aos olhos, não o chrome do app). Recomendo:
@@ -46,6 +55,7 @@ Cada fase é utilizável sozinha (dá pra parar entre elas), mas a ordem importa
 ### Fase 0 — Fundação do workspace
 - Novo tema shadcn (seção 3) + shell de painéis redimensionáveis (canvas central, camadas à esquerda, propriedades à direita — layout "app pro", não "app de site").
 - Modelo de dados: projeto passa a ter **múltiplas pranchas** (`boards`) em vez de um canvas único — ex.: "Símbolo", "Horizontal", "Wordmark", "Versão escura". É a mudança estrutural mais profunda do plano; todo o resto assume que ela existe.
+- **Versionamento de schema desde já**: junto com a introdução de `boards`, definir a tag de versão do schema do projeto (`schemaVersion`) e o esqueleto da estratégia de migração (uma função `migrate(project, fromVersion)` por degrau de versão, mesmo vazia/no-op no início). Cada fase seguinte que muda a forma dos dados (grupos na Fase 2, boolean ops na Fase 1, brand kit na Fase 3) soma um novo `schemaVersion` e sua própria função de migração incremental, em vez de deixar tudo acumulado para resolver de uma vez na Fase 5 — o que exigiria migrar de N formatos intermediários diferentes ao invés de um degrau por vez.
 - Réguas, guias arrastáveis a partir da régua, grade configurável — estende o [snapping.ts](src/lib/snapping.ts) que já existe.
 
 ### Fase 1 — Motor vetorial
@@ -64,13 +74,13 @@ Cada fase é utilizável sozinha (dá pra parar entre elas), mas a ordem importa
 - Editor de gradiente linear/radial/cônico com múltiplos stops, em qualquer elemento (hoje só existe no fundo), com alças no próprio canvas.
 - Preenchimento com padrão (repetir uma imagem/ícone).
 - Pilha de efeitos por elemento (sombra externa, sombra interna, blur, empilháveis, como a lista de efeitos do Figma) via filtros SVG.
-- Fonte customizada (upload de `.woff2`), controle de eixo variável, letter-spacing/line-height, texto em curva, outline de texto para path.
+- Fonte customizada por usuário (upload de `.otf`/`.ttf`/`.woff`/`.woff2` local — ver regras de armazenamento/export na seção 3), controle de eixo variável, letter-spacing/line-height, texto em curva, outline de texto para path.
 - **Brand kit**: paletas e pares de fonte nomeados, aplicáveis ao projeto inteiro, com variações (ex. "Primária", "Mono", "Invertida") que trocam todas as pranchas de uma vez.
 
 ### Fase 4 — Exportação completa
 Ver as tabelas da seção 6 para as especificações exatas. Resumo do que muda:
 - PNG em resolução customizada + densidades @1x/@2x/@3x, com ou sem fundo.
-- SVG em dois modos: "editável" (mantém `<text>`/gradientes) e "achatado" (fontes viram path, ids/classes limpos) para portabilidade.
+- SVG em dois modos: "editável" (mantém `<text>`/gradientes) e "achatado" (fontes viram path, ids/classes limpos) para portabilidade. Texto em fonte customizada por usuário sempre vira path em ambos os modos, independente da escolha — não é opcional (seção 3).
 - PDF vetorial (uma prancha por página) para material impresso.
 - Favicon `.ico` multi-resolução.
 - iOS, Android (adaptive icon de verdade, não só mipmap), macOS `.icns` e menu bar — detalhe completo na seção 6.
@@ -78,7 +88,7 @@ Ver as tabelas da seção 6 para as especificações exatas. Resumo do que muda:
 - "Exportar tudo" em lote, lembrando o último preset usado por projeto.
 
 ### Fase 5 — Projeto, import e arquivo
-- Versionar o schema do projeto (pranchas, grupos, paths com boolean, brand kit) com migração automática dos projetos salvos no formato atual — ninguém perde trabalho na virada.
+- Fechar a cadeia de migração: a partir do esqueleto criado na Fase 0, garantir que um projeto salvo em qualquer versão anterior (incluindo o formato atual, pré-plano) passa por todos os degraus incrementais até o schema corrente sem perda — ninguém perde trabalho na virada.
 - Import de SVG (via elemento embutido no início; "converter para editável" como meta secundária para SVGs simples).
 - Opcional: salvar direto em disco via File System Access API, mantendo a filosofia sem conta/sem servidor.
 
@@ -104,12 +114,12 @@ flowchart LR
 
 | Fase | Entrega principal | Tamanho | Depende de |
 |---|---|---|---|
-| 0 | Tema novo + pranchas múltiplas + réguas/guias | M | — |
+| 0 | Tema novo + pranchas múltiplas + esqueleto de versionamento de schema + réguas/guias | M | — |
 | 1 | Caneta Bézier, edição de nó, boolean ops | G | Fase 0 |
 | 2 | Camadas/grupos, componentes, estilos salvos | M | Fase 0 |
 | 3 | Gradiente/padrão por elemento, efeitos, tipografia avançada, brand kit | G | Fase 1 |
 | 4 | Exportação completa (todas as plataformas da seção 6) | M | Fases 1 e 3 |
-| 5 | Migração de schema, import SVG, salvar em disco | M | Fase 2 |
+| 5 | Fechar cadeia de migração de schema, import SVG, salvar em disco | M | Fase 2 |
 | 6 | Performance, atalhos, acessibilidade | P | Fases 4 e 5 |
 
 P = pequeno, M = médio, G = grande. A Fase 1 é a de maior risco técnico (geometria Bézier + boolean ops) — vale prototipar isolada antes de encaixar na UI.
@@ -187,7 +197,7 @@ O pipeline atual gera mipmaps quadrados/redondos fixos — o Android moderno esp
 
 ## 7. Bibliotecas candidatas (apêndice técnico)
 
-- **Boolean ops / geometria de path**: `martinez-polygon-clipping` (leve, robusto para polígonos) ou `paper.js` (mais completo, inclui a própria matemática de Bézier) — usados só para calcular geometria, nunca para renderizar.
+- **Boolean ops / geometria de path**: `paper.js` — decisão fechada. `martinez-polygon-clipping` foi considerado (é mais leve) mas trabalha só com polígonos de aresta reta: um path com curva teria que ser achatado em polilinha antes da operação, perdendo a curva de verdade no resultado. `paper.js` faz boolean ops (`unite`/`subtract`/`intersect`/`exclude`) nativamente cientes de Bézier, preservando curva real no resultado — essencial já que a Fase 1 introduz a caneta Bézier de verdade. Usado só para calcular geometria, nunca para renderizar.
 - **Outline de fonte para path**: `opentype.js` — lê o `.woff2`/`.ttf` carregado e devolve os contornos como path SVG; resolve o bug de fonte no export "de graça".
 - **PDF vetorial**: `pdf-lib` (gera PDF diretamente no navegador, sem servidor).
 - **`.icns` e `.ico`**: não precisam de lib pesada — são containers simples (lista de PNGs com um cabeçalho); um encoder pequeno e dedicado resolve, na linha do que [iconPack.ts](src/lib/export/iconPack.ts) já faz hoje.

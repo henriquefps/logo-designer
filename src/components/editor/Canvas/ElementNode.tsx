@@ -24,6 +24,7 @@ interface ElementNodeProps {
  */
 export function ElementNode({ element, isSelected, isHovered, onPointerDown, onPointerEnter, onPointerLeave, onMeasureText }: ElementNodeProps) {
   const textRef = useRef<SVGTextElement>(null);
+  const setNodeEditElementId = useUIStore((s) => s.setNodeEditElementId);
   const iconModule = useIconModule(element.type === 'icon' ? element.iconType : null);
   const textSize = useUIStore((s) => (element.type === 'text' ? s.textSizes[element.id] : undefined));
   const measuredSize = getElementSize(element, textSize);
@@ -85,6 +86,8 @@ export function ElementNode({ element, isSelected, isHovered, onPointerDown, onP
         strokeWidth={element.strokeWidth}
         cornerRadius={element.cornerRadius}
         points={element.points}
+        pathData={element.pathData}
+        closed={element.closed}
       />
     );
   }
@@ -94,6 +97,14 @@ export function ElementNode({ element, isSelected, isHovered, onPointerDown, onP
       transform={`translate(${element.x}, ${element.y}) rotate(${element.rotation})`}
       opacity={element.opacity / 100}
       onPointerDown={(e) => onPointerDown(e, element)}
+      onDoubleClick={
+        element.type === 'shape' && element.shape === 'path' && !element.pathData
+          ? (e) => {
+              e.stopPropagation();
+              setNodeEditElementId(element.id);
+            }
+          : undefined
+      }
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       style={{ cursor: element.locked ? 'default' : 'move' }}
