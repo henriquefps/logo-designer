@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createEllipse, createGroup, createPolygon, createRect, cubicAt, IDENTITY, subpathsBounds, type BezierPoint, type SubPath } from '@/model';
+import { createEllipse, createGroup, ellipseSubpaths, createPolygon, createRect, cubicAt, IDENTITY, subpathsBounds, type BezierPoint, type SubPath } from '@/model';
 import { constrain45, inferPointType, nearestSegment, segmentCubic, splitCubic, type Cubic } from '../geometry';
 import {
   anchorKey,
@@ -232,7 +232,22 @@ describe('paper ops', () => {
     // Ring: outer 110² minus inner 90².
     close(Math.abs(area(sq)), 110 * 110 - 90 * 90, 1e-3);
     const round = outlineStroke(scope, [line([0, 0], [100, 0])], { width: 10, cap: 'round', join: 'round' });
-    close(subpathsBounds(round)!.width, 110, 0.05);
+    // Round caps are refit as Béziers: within a fraction of a unit.
+    close(subpathsBounds(round)!.width, 110, 0.5);
+  });
+
+  it('refits curved outlines into few Béziers and keeps corners', () => {
+    const ring = outlineStroke(scope, ellipseSubpaths({ rx: 50, ry: 50 }), { width: 10, cap: 'butt', join: 'round' });
+    expect(ring).toHaveLength(2);
+    // A flattened circle has hundreds of points; the refit keeps a handful per ring.
+    expect(ring.every((sp) => sp.points.length <= 16)).toBe(true);
+    expect(ring.some((sp) => sp.points.some((p) => p.out))).toBe(true);
+    const b = subpathsBounds(ring)!;
+    close(b.width, 110, 0.6);
+    close(b.height, 110, 0.6);
+    // Straight outlines keep their exact corners.
+    const sq = outlineStroke(scope, [square(0, 0, 100)], { width: 10, cap: 'butt', join: 'miter' });
+    expect(sq.every((sp) => sp.points.every((p) => !p.in && !p.out))).toBe(true);
   });
 
   it('simplifies and fits curves', () => {
@@ -254,6 +269,14 @@ describe('paper ops', () => {
 });
 
 describe('freehand', () => {
+  it('uses real pen pressure when every point has one', () => {
+    const pts = (pressure?: number) => Array.from({ length: 20 }, (_, i) => ({ x: i * 5, y: 0, ...(pressure === undefined ? {} : { pressure }) }));
+    const height = (o: { x: number; y: number }[]) => Math.max(...o.map((p) => p.y)) - Math.min(...o.map((p) => p.y));
+    const light = height(brushOutline(pts(0.1), { size: 20, thinning: 0.8 }));
+    const heavy = height(brushOutline(pts(1), { size: 20, thinning: 0.8 }));
+    expect(heavy).toBeGreaterThan(light * 1.5);
+  });
+
   it('decimates and decides closing', () => {
     const pts = Array.from({ length: 10 }, (_, i) => ({ x: i * 0.1, y: 0 }));
     expect(decimate(pts, 0.5)).toHaveLength(3);

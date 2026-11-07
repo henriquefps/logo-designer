@@ -87,7 +87,7 @@ export function matchShortcut(e: KeyboardEvent, shortcut: string): boolean {
   // Shift changes e.key for symbols/letters; compare by code as a fallback.
   const code = e.code.toLowerCase();
   if (code === `key${key}` || code === `digit${key}`) return true;
-  const codeMap: Record<string, string> = { ']': 'bracketright', '[': 'bracketleft', '=': 'equal', '-': 'minus', '\\': 'backslash' };
+  const codeMap: Record<string, string> = { ']': 'bracketright', '[': 'bracketleft', '=': 'equal', '-': 'minus', '\\': 'backslash', "'": 'quote' };
   return codeMap[key] === code;
 }
 

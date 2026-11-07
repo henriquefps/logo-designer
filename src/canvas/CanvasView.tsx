@@ -4,12 +4,15 @@ import { useDocStore } from '@/store/useDocStore';
 import { getTool } from '@/tools/registry';
 import { toolContext } from '@/tools/context';
 import type { ToolPointerEvent } from '@/tools/types';
-import type { Vec } from '@/model';
+import { isAncestorOrSelf, type Vec } from '@/model';
 import { isMac } from '@/actions/registry';
 import { SceneLayer } from './SceneLayer';
 import { SelectionOverlay } from './overlays/SelectionOverlay';
 import { HoverOverlay } from './overlays/HoverOverlay';
 import { GuidesOverlay } from './overlays/GuidesOverlay';
+import { Rulers } from './overlays/Rulers';
+import { CanvasContextMenu } from './CanvasContextMenu';
+import { useContextMenu } from './contextMenuStore';
 
 type PanDrag = { pointerId: number; start: Vec; pan: Vec };
 type Pinch = { dist: number; mid: Vec; zoom: number; pan: Vec };
@@ -96,6 +99,7 @@ export function CanvasView() {
       button: e.button,
       pointerType: e.pointerType,
       pointerId: e.pointerId,
+      pressure: e.pressure,
       detail: e.detail,
       pressed,
     };
@@ -193,33 +197,50 @@ export function CanvasView() {
     if (pointers.current.size < 2) pinch.current = null;
   };
 
+  // Right-click: select what is under the pointer (unless already selected), then show the menu.
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (ed().editingTextId) return;
+    const p = local(e);
+    const hit = toolContext.hitTest(ed().screenToDoc(p));
+    const sel = ed().selection;
+    if (hit && !sel.includes(hit) && !sel.some((id) => isAncestorOrSelf(useDocStore.getState().doc, hit, id))) ed().setSelection([hit]);
+    else if (!hit && !e.shiftKey) ed().clearSelection();
+    useContextMenu.getState().set({ x: e.clientX, y: e.clientY });
+  };
+
   const onPointerLeave = () => {
     ed().setPointer(null);
     if (toolPointer.current === null) ed().setHover(null);
   };
 
   return (
-    <div
-      ref={ref}
-      data-slot="canvas"
-      className="relative size-full touch-none overflow-hidden bg-muted select-none"
-      style={{ cursor: spacePan && cursor !== 'grabbing' ? 'grab' : cursor }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onPointerLeave={onPointerLeave}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <svg className="absolute inset-0 size-full" role="img" aria-label="Canvas">
-        <SceneLayer />
-      </svg>
-      <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
-        <HoverOverlay />
-        <SelectionOverlay />
-        <GuidesOverlay />
-        {ToolOverlay && <ToolOverlay />}
-      </svg>
-    </div>
+    <>
+      <div
+        ref={ref}
+        data-slot="canvas"
+        className="relative size-full touch-none overflow-hidden bg-muted select-none"
+        style={{ cursor: spacePan && cursor !== 'grabbing' ? 'grab' : cursor }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onPointerLeave={onPointerLeave}
+        onContextMenu={onContextMenu}
+      >
+        <svg className="absolute inset-0 size-full" role="img" aria-label="Canvas">
+          <SceneLayer />
+        </svg>
+        <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
+          <HoverOverlay />
+          <SelectionOverlay />
+          <GuidesOverlay />
+          {ToolOverlay && <ToolOverlay />}
+        </svg>
+        <Rulers />
+      </div>
+      {/* Outside the canvas element: React events from the portaled menu must not reach its pointer handlers. */}
+      <CanvasContextMenu />
+    </>
   );
 }

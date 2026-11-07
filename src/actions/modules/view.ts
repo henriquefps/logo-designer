@@ -1,4 +1,4 @@
-import { MagnetIcon } from '@phosphor-icons/react';
+import { MagnetIcon, RulerIcon, GridFourIcon } from '@phosphor-icons/react';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Action } from '../types';
@@ -45,6 +45,38 @@ const actions: Action[] = [
     shortcut: 'mod+u',
     checked: () => ed().snapping,
     run: () => ed().setSnapping(!ed().snapping),
+  },
+  {
+    id: 'view.rulers',
+    label: 'Rulers',
+    menu: 'view',
+    group: 'guides',
+    order: 11,
+    icon: RulerIcon,
+    shortcut: 'alt+mod+r',
+    checked: () => ed().showRulers,
+    run: () => ed().setViewPrefs({ showRulers: !ed().showRulers }),
+  },
+  {
+    id: 'view.grid',
+    label: 'Grid',
+    menu: 'view',
+    group: 'guides',
+    order: 12,
+    icon: GridFourIcon,
+    shortcut: "mod+'",
+    checked: () => ed().showGrid,
+    run: () => ed().setViewPrefs({ showGrid: !ed().showGrid }),
+  },
+  {
+    id: 'view.snapGrid',
+    label: 'Snap to grid',
+    menu: 'view',
+    group: 'guides',
+    order: 13,
+    shortcut: "mod+shift+'",
+    checked: () => ed().snapToGrid,
+    run: () => ed().setViewPrefs({ snapToGrid: !ed().snapToGrid }),
   },
 ];
 

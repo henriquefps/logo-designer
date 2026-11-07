@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { createText, findNode, solid, type Id, type TextNode, type Vec } from '@/model';
+import { textFill } from '@/store/usePaintDefaults';
+import { createText, findNode, type Id, type TextNode, type Vec } from '@/model';
 import { baselineOffset, resolveText } from '@/fonts';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -69,7 +70,7 @@ export function createTextAt(point: Vec) {
     text: '',
     fontSize: d.fontSize,
     lineHeight,
-    fill: solid('#000000'),
+    fill: textFill(),
     transform: { x: point.x, y: point.y - baselineOffset(metrics, d.fontSize, lineHeight) },
   });
   const txn = openTxn('Add text');

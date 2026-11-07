@@ -239,8 +239,104 @@ export function outlineStroke(scope: Scope, subpaths: SubPath[], stroke: Pick<St
   const all = new scope.CompoundPath({ children: pieces, ...NO_INSERT });
   all.fillRule = 'nonzero';
   const united = all.unite(new scope.Path(NO_INSERT), NO_INSERT);
-  // Keep the polygon (corners stay exact); just drop collinear points left by the union.
-  return fromPaper(united).map(dropCollinear).filter((sp) => sp.points.length >= 3);
+  // Drop collinear points left by the union, then refit the curved runs between corners into
+  // Béziers so the result stays light (corners stay exact).
+  const tolerance = Math.max(0.05, Math.min(1, hw / 10));
+  return fromPaper(united)
+    .map(dropCollinear)
+    .filter((sp) => sp.points.length >= 3)
+    .map((sp) => refitPolygon(scope, sp, tolerance));
+}
+
+const CORNER_COS = Math.cos((30 * Math.PI) / 180);
+
+/**
+ * Refits a closed, handle-less polygon with cubic Béziers: split at corners (turns sharper than
+ * 30° or long straight edges), fit each run with paper.js simplify and stitch them back. Returns
+ * the input when it already has curves or when the fit is not lighter.
+ */
+export function refitPolygon(scope: Scope, sp: SubPath, tolerance: number): SubPath {
+  if (!sp.closed || sp.points.length < 6) return sp;
+  // Mixed outlines (arcs from round joins/caps): flatten to a polyline first.
+  let pts: Vec[] = sp.points;
+  if (sp.points.some((p) => p.in || p.out)) {
+    const flat = toPaper(scope, [sp]).children[0] as paper.Path;
+    flat.flatten(Math.max(0.02, tolerance / 4));
+    pts = flat.segments.map((g) => ({ x: g.point.x, y: g.point.y }));
+  }
+  const n = pts.length;
+  if (n < 6) return sp;
+  // Edge lengths: a long edge is a real straight side; its ends are kept as corners.
+  const lens = pts.map((p, i) => dist(p, pts[(i + 1) % n]));
+  const median = [...lens].sort((a, b) => a - b)[Math.floor(n / 2)];
+  const isCorner = pts.map((p, i) => {
+    const prev = pts[(i - 1 + n) % n];
+    const next = pts[(i + 1) % n];
+    const a = { x: p.x - prev.x, y: p.y - prev.y };
+    const b = { x: next.x - p.x, y: next.y - p.y };
+    const la = Math.hypot(a.x, a.y);
+    const lb = Math.hypot(b.x, b.y);
+    if (!la || !lb) return true;
+    const cos = (a.x * b.x + a.y * b.y) / (la * lb);
+    const longEdge = Math.max(la, lb) > Math.max(median * 6, tolerance * 20);
+    return cos < CORNER_COS || longEdge;
+  });
+  let corners = isCorner.map((c, i) => (c ? i : -1)).filter((i) => i >= 0);
+  // paper.js fits closed loops poorly: a loop without corners is split into four open runs whose
+  // joints are smoothed afterwards.
+  const soft = new Set<number>();
+  if (!corners.length) {
+    corners = [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor((3 * n) / 4)];
+    corners.forEach((c) => soft.add(c));
+  }
+
+  const fitRun = (run: Vec[]): BezierPoint[] => {
+    const path = new scope.Path({ segments: run.map((q) => [q.x, q.y]), ...NO_INSERT });
+    if (run.length > 2) path.simplify(tolerance * tolerance); // paper compares squared distances
+    return pathToSubpath(path).points;
+  };
+
+  const points: BezierPoint[] = [];
+  const jointAt: number[] = [];
+  for (let k = 0; k < corners.length; k++) {
+    const from = corners[k];
+    const to = corners[(k + 1) % corners.length];
+    const run: Vec[] = [];
+    for (let i = from; ; i = (i + 1) % n) {
+      run.push(pts[i]);
+      if ((i === to && run.length > 1) || run.length > n + 1) break;
+    }
+    const fitted = fitRun(run);
+    // Stitch: the run's first point merges with the previous run's last point (the joint).
+    if (points.length) {
+      const joint = points[points.length - 1];
+      if (fitted[0].out) joint.out = fitted[0].out;
+      points.push(...fitted.slice(1));
+    } else points.push(...fitted);
+    jointAt.push(points.length - 1);
+  }
+  // The last run ends on the first joint: merge into points[0].
+  const last = points.pop()!;
+  jointAt.pop();
+  jointAt.unshift(0);
+  if (last.in) points[0].in = last.in;
+  jointAt.forEach((idx, k) => {
+    const p = points[idx];
+    if (!soft.has(corners[k]) || !p.in || !p.out) {
+      p.type = 'corner';
+      return;
+    }
+    // Soft joint: make the handles collinear (smooth), keeping their lengths.
+    const dx = p.out.x - p.in.x;
+    const dy = p.out.y - p.in.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const li = Math.hypot(p.in.x - p.x, p.in.y - p.y);
+    const lo = Math.hypot(p.out.x - p.x, p.out.y - p.y);
+    p.in = { x: p.x - (dx / len) * li, y: p.y - (dy / len) * li };
+    p.out = { x: p.x + (dx / len) * lo, y: p.y + (dy / len) * lo };
+    p.type = 'smooth';
+  });
+  return points.length >= 3 && points.length < sp.points.length ? { closed: true, points } : sp;
 }
 
 /** Removes points of straight runs (only for handle-less points). */

@@ -1,6 +1,6 @@
 import type { Icon } from '@phosphor-icons/react';
 import { rectFromCorners, type Rect, type SceneNode, type Vec } from '@/model';
-import { snapPoint, SNAP_PX } from '@/canvas/snapping';
+import { snapPoint, SNAP_PX, snapEnabled } from '@/canvas/snapping';
 import { snapTargetsExcluding } from './select/gestures';
 import type { Tool, ToolContext, ToolPointerEvent } from './types';
 
@@ -30,7 +30,7 @@ export function createShapeTool(spec: ShapeToolSpec): Tool {
   const boxFor = (e: ToolPointerEvent, ctx: ToolContext): Rect => {
     let p = e.point;
     const ed = ctx.editor();
-    if (ed.snapping && !e.mod) {
+    if (snapEnabled() && !e.mod) {
       const s = snapPoint(p, snapTargetsExcluding(ctx.doc(), nodeId ? [nodeId] : []), SNAP_PX * ctx.px());
       p = s.point;
       ed.setGuides(s.guides);

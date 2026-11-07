@@ -11,6 +11,7 @@ import { MenuDropdownItems } from './MenuBar';
 import { PanelTabs } from './PanelTabs';
 import { ProjectTitle } from './ProjectTitle';
 import { ToolBar } from './ToolBar';
+import { PaintSwatches } from './PaintSwatches';
 
 /** Phones: full-screen canvas, compact top bar, bottom tool strip, panels in a bottom Sheet. */
 export function MobileLayout() {
@@ -54,7 +55,11 @@ export function MobileLayout() {
         <CanvasView />
       </main>
       <nav className="shrink-0 bg-background py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-        <ToolBar orientation="horizontal" />
+        <div className="flex items-center justify-center gap-1 px-2">
+          <ToolBar orientation="horizontal" />
+          <span aria-hidden="true" className="mx-0.5 h-6 w-px shrink-0 bg-border" />
+          <PaintSwatches orientation="horizontal" />
+        </div>
       </nav>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="gap-0 rounded-t-xl p-0 data-[side=bottom]:h-[70dvh]" showCloseButton={false}>

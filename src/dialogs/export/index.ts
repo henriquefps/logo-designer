@@ -1,5 +1,5 @@
 import type { DialogDef } from '../types';
-import { ExportDialog } from './ExportDialog';
+import { lazy } from 'react';
 
-const def: DialogDef = { id: 'export', Component: ExportDialog };
+const def: DialogDef = { id: 'export', Component: lazy(() => import('./ExportDialog').then((m) => ({ default: m.ExportDialog }))) };
 export default def;

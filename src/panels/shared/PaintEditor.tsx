@@ -3,6 +3,7 @@ import { convertPaint, gradientVector, type GradientStop, type Paint } from '@/m
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ColorPicker } from '@/components/color/ColorPicker';
 import { ColorField } from './ColorField';
 import { NumberField } from './NumberField';
 
@@ -19,8 +20,11 @@ function gradientCss(p: Extract<Paint, { stops: GradientStop[] }>) {
   return `linear-gradient(${(p.angle ?? 0) + 90}deg, ${stops.join(', ')})`;
 }
 
-/** Edits a Paint: none / solid (color + alpha) / linear or radial gradient (stops, angle). */
-export function PaintEditor({ value, onChange, label }: { value: Paint; onChange: (p: Paint) => void; label: string }) {
+/**
+ * Edits a Paint: none / solid (color + alpha) / linear or radial gradient (stops, angle).
+ * `inline` shows the full color picker for solid colors (used inside popovers).
+ */
+export function PaintEditor({ value, onChange, label, inline = false }: { value: Paint; onChange: (p: Paint) => void; label: string; inline?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <ToggleGroup
@@ -46,7 +50,12 @@ export function PaintEditor({ value, onChange, label }: { value: Paint; onChange
           </Tooltip>
         ))}
       </ToggleGroup>
-      {value.kind === 'solid' && <ColorField ariaLabel={label} value={value.color} onChange={(color) => onChange({ kind: 'solid', color })} />}
+      {value.kind === 'solid' &&
+        (inline ? (
+          <ColorPicker value={value.color} onChange={(color) => onChange({ kind: 'solid', color })} />
+        ) : (
+          <ColorField ariaLabel={label} value={value.color} onChange={(color) => onChange({ kind: 'solid', color })} />
+        ))}
       {(value.kind === 'linear' || value.kind === 'radial') && <GradientEditor value={value} onChange={onChange} label={label} />}
     </div>
   );

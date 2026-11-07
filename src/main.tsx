@@ -5,6 +5,7 @@ import { initTheme } from './theme/theme';
 import { App } from './app/App';
 
 initTheme();
+if (import.meta.env.DEV) void import('./dev/debugHandle').then((m) => m.installDebugHandle());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

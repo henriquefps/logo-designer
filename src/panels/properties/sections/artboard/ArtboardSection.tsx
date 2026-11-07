@@ -5,8 +5,32 @@ import { NumberField } from '../../../shared/NumberField';
 import { PaintEditor } from '../../../shared/PaintEditor';
 import { FieldRow, Section } from '../../../shared/Section';
 import type { SelectionContext } from '../../types';
-import { ARTBOARD_PRESETS } from './presets';
+import { ARTBOARD_PRESETS, presetLabel } from './presets';
+import { Switch } from '@/components/ui/switch';
+import { useShallow } from 'zustand/react/shallow';
 
+/** View grid and rulers (saved per browser, not in the document). */
+function GridSection() {
+  const { showGrid, snapToGrid, gridSize, showRulers, setViewPrefs } = useEditorStore(
+    useShallow((s) => ({ showGrid: s.showGrid, snapToGrid: s.snapToGrid, gridSize: s.gridSize, showRulers: s.showRulers, setViewPrefs: s.setViewPrefs })),
+  );
+  return (
+    <Section title="Grid and rulers">
+      <FieldRow label="Show grid">
+        <Switch aria-label="Show grid" checked={showGrid} onCheckedChange={(v) => setViewPrefs({ showGrid: v })} />
+      </FieldRow>
+      <FieldRow label="Snap">
+        <Switch aria-label="Snap to grid" checked={snapToGrid} onCheckedChange={(v) => setViewPrefs({ snapToGrid: v })} />
+      </FieldRow>
+      <FieldRow label="Grid size">
+        <NumberField ariaLabel="Grid size" value={gridSize} min={1} max={1000} precision={2} suffix="px" onCommit={(g) => setViewPrefs({ gridSize: g })} />
+      </FieldRow>
+      <FieldRow label="Rulers">
+        <Switch aria-label="Show rulers" checked={showRulers} onCheckedChange={(v) => setViewPrefs({ showRulers: v })} />
+      </FieldRow>
+    </Section>
+  );
+}
 
 export function ArtboardSection({ ctx }: { ctx: SelectionContext }) {
   const { width, height, background } = ctx.doc.artboard;
@@ -32,7 +56,7 @@ export function ArtboardSection({ ctx }: { ctx: SelectionContext }) {
           <SelectContent>
             {ARTBOARD_PRESETS.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.label}
+                {presetLabel(p)}
               </SelectItem>
             ))}
             <SelectItem value="custom">Custom</SelectItem>
@@ -46,6 +70,7 @@ export function ArtboardSection({ ctx }: { ctx: SelectionContext }) {
       <Section title="Background">
         <PaintEditor label="Background" value={background} onChange={(p) => setArtboard({ background: p }, { label: 'Artboard background' })} />
       </Section>
+      <GridSection />
       <Section title="Document">
         <FieldRow label="Objects">
           <span className="text-sm tabular-nums">{countNodes(ctx.doc.children)}</span>

@@ -458,6 +458,16 @@ class Importer {
   }
 }
 
+const PX_PER_UNIT: Record<string, number> = { mm: 96 / 25.4, cm: 96 / 2.54, in: 96, pt: 96 / 72, pc: 16 };
+
+/** A length with a physical unit (mm, cm, in, pt, pc) in px; null for unitless/px/%. */
+function physicalLength(v: string | null): number | null {
+  const m = v?.trim().match(/^([\d.eE+-]+)\s*(mm|cm|in|pt|pc)$/);
+  if (!m) return null;
+  const n = parseFloat(m[1]) * PX_PER_UNIT[m[2]];
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** Parses SVG markup. Throws a readable error when the text is not an SVG document. */
 export function parseSvg(text: string, opts: SvgImportOptions = {}): SvgImportResult {
   const dom = new DOMParser().parseFromString(text, 'image/svg+xml');
@@ -467,10 +477,17 @@ export function parseSvg(text: string, opts: SvgImportOptions = {}): SvgImportRe
   }
   const imp = new Importer(root);
   const vb = parseViewBox(root.getAttribute('viewBox'));
-  const width = vb?.width ?? (num(root.getAttribute('width'), 0) || 0);
-  const height = vb?.height ?? (num(root.getAttribute('height'), 0) || 0);
+  let width = vb?.width ?? (num(root.getAttribute('width'), 0) || 0);
+  let height = vb?.height ?? (num(root.getAttribute('height'), 0) || 0);
   imp.viewport = { width: width || 100, height: height || 100 };
-  const rootMatrix = multiply(opts.matrix ?? { ...IDENTITY }, translate(-(vb?.x ?? 0), -(vb?.y ?? 0)));
+  // Physical sizes (Inkscape/Illustrator: width="210mm" viewBox="0 0 210 148") import at their
+  // real size in px (96 dpi), as browsers render them.
+  const physW = physicalLength(root.getAttribute('width'));
+  const physH = physicalLength(root.getAttribute('height'));
+  const unitScale = vb && (physW || physH) ? Math.min(physW ? physW / vb.width : Infinity, physH ? physH / vb.height : Infinity) : 1;
+  width *= unitScale;
+  height *= unitScale;
+  const rootMatrix = multiply(opts.matrix ?? { ...IDENTITY }, multiply(scaleM(unitScale), translate(-(vb?.x ?? 0), -(vb?.y ?? 0))));
   const rootStyle = computeStyle(root, { ...INITIAL_STYLE, ...(opts.currentColor ? { color: opts.currentColor } : {}) }, imp.rules);
   if (rootStyle.display === 'none') rootStyle.display = 'inline';
   const rootTransform = multiply(rootMatrix, parseTransform(root.getAttribute('transform')));

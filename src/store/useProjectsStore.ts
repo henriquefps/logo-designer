@@ -25,7 +25,8 @@ interface ProjectsState {
   saveState: SaveState;
 
   init: () => Promise<void>;
-  create: (name?: string) => Promise<Id>;
+  /** New project (optionally with an artboard size) and opens it. */
+  create: (name?: string, size?: { width: number; height: number }) => Promise<Id>;
   open: (id: Id) => Promise<void>;
   /** Adds an existing document (e.g. opened from a project file) as a new project and opens it. */
   importDocument: (doc: DesignDocument) => Promise<Id>;
@@ -109,9 +110,10 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       set({ ready: true });
     },
 
-    create: async (name = 'Untitled') => {
+    create: async (name = 'Untitled', size) => {
       await get().flush();
       const doc = createDocument({ name });
+      if (size) doc.artboard = { ...doc.artboard, width: size.width, height: size.height };
       await saveDocument(doc);
       const projects = upsert(get().projects, metaOf(doc));
       await saveProjectList(projects);

@@ -17,6 +17,8 @@ export interface ToolPointerEvent {
   button: number;
   pointerType: string;
   pointerId: number;
+  /** 0..1 (stylus pressure; 0.5 for a pressed mouse). */
+  pressure: number;
   /** Click count (2 = double click) for pointerdown. */
   detail: number;
   /** True while a button/finger is down. */

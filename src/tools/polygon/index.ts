@@ -1,4 +1,5 @@
 import { PolygonIcon } from '@phosphor-icons/react';
+import { shapeStyle } from '@/store/usePaintDefaults';
 import { createPolygon, type PolygonNode } from '@/model';
 import { createShapeTool } from '../shapeTool';
 import { fitPolygon } from './fit';
@@ -19,7 +20,7 @@ const tool = createShapeTool({
   create: (b) => {
     const { sides, inner } = params();
     const f = fitPolygon(b, sides, inner);
-    return createPolygon({ ...f, name: inner !== undefined ? 'Star' : 'Polygon' });
+    return createPolygon({ ...f, ...shapeStyle(), name: inner !== undefined ? 'Star' : 'Polygon' });
   },
   update: (node, b) => {
     if (node.type !== 'polygon') return node;

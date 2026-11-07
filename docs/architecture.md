@@ -28,13 +28,18 @@ src/
     useProjectsStore.ts project list, open/create/rename/duplicate/delete, debounced autosave
     persistence.ts      IndexedDB (idb-keyval, db "designer", store "kv")
     clipboard.ts        copy/cut/paste buffer (+ system clipboard JSON mirror)
+    usePaintDefaults.ts current fill/stroke (tool bar swatches, key designer.paint); shapeStyle/lineStyle/
+                        brushPaint/textFill give new objects their paint; applyPaint edits the selection
   canvas/
     CanvasView.tsx      viewport: pointer routing to tools, wheel/pinch zoom, Space/middle/two-finger pan
     SceneLayer.tsx      artboard + nodes under translate(pan) scale(zoom)
     renderers/          NodeRenderer (one component per node type), paint.tsx (fill/stroke/gradient defs)
     overlays/           SelectionOverlay, HoverOverlay, GuidesOverlay (screen-pixel space)
     selectionFrame.ts   selection box/handles geometry shared by overlay and select tool
-    snapping.ts         smart guides (artboard + other objects)
+    snapping.ts         smart guides (artboard + other objects) + snap to grid; tools check snapEnabled()
+    GridLayer.tsx       grid over the artboard (View → Grid), under the artwork
+    CanvasContextMenu.tsx  right-click menu (built from action ids), state in contextMenuStore.ts
+    overlays/Rulers.tsx rulers on the canvas edges (View → Rulers)
   tools/
     types.ts            Tool interface, ToolPointerEvent, ToolContext
     registry.ts         auto-discovers tools/<id>/index.ts
@@ -51,7 +56,8 @@ src/
     layers/             LayersPanel, LayerRow
     assets/             AssetsPanel + sources/<id>/ (empty: icons/fonts workers add theirs)
     shared/             NumberField, ColorField, PaintEditor, AlignButtons, Section/FieldRow
-  dialogs/              DialogHost + <id>/ (projects, shortcuts, about, export)
+  dialogs/              DialogHost + <id>/ (newDocument = welcome/File → New, projects, shortcuts, about,
+                        export, convertToPath); each Component is React.lazy and mounts on first open
   io/
     projectFile.ts      .designer.json save/open + validateDocument (schemaVersion, every node checked)
     download.ts         downloadBlob, pickFiles
@@ -69,6 +75,9 @@ src/
   theme/                theme.ts (Light/Dark/System + palettes, keys designer.theme / designer.palette), ThemeMenu
   components/ui/        shadcn radix-vega primitives (generated; local edits: tabs focus fix, sonner theme prop)
   components/ResponsiveDialog.tsx  Dialog on desktop, bottom Sheet below 768px
+  components/color/     ColorPicker (SV square, hue/alpha, hex/RGB, document + recent colors), used by
+                        ColorField, PaintEditor (inline) and the swatches popover
+  dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools) for browser QA scripts
 ```
 
 ## Core conventions
@@ -188,6 +197,13 @@ Single-key tool shortcuts belong to tools, not actions. Keys reach the active to
 `src/dialogs/<id>/index.ts` → `export default { id, Component }`; open it with
 `useEditorStore.getState().openDialog('<id>')`. Use `ResponsiveDialog*` for form dialogs and
 `AlertDialog` for confirmations.
+
+## View preferences
+
+Rulers, grid, snap to grid and grid size live in `useEditorStore` (`setViewPrefs`, saved in
+`localStorage['designer.view']`), not in the document. The current fill/stroke is in
+`usePaintDefaults` (`designer.paint`), recent colors in `designer.recentColors`, and the welcome
+dialog's "seen" flag in `designer.welcomed`.
 
 ## Persistence
 

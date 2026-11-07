@@ -1,5 +1,5 @@
 import type { DialogDef } from '../types';
-import { ConvertToPathDialog } from './ConvertToPathDialog';
+import { lazy } from 'react';
 
-const def: DialogDef = { id: 'convertToPath', Component: ConvertToPathDialog };
+const def: DialogDef = { id: 'convertToPath', Component: lazy(() => import('./ConvertToPathDialog').then((m) => ({ default: m.ConvertToPathDialog }))) };
 export default def;

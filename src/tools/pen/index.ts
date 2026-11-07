@@ -1,6 +1,7 @@
 import { PenNibIcon } from '@phosphor-icons/react';
-import { apply, createPath, defaultStroke, invert, none, solid, worldMatrix, type BezierPoint, type Id, type PathNode, type Vec } from '@/model';
-import { snapPoint, SNAP_PX } from '@/canvas/snapping';
+import { lineStyle, shapeStyle } from '@/store/usePaintDefaults';
+import { apply, createPath, invert, worldMatrix, type BezierPoint, type Id, type PathNode, type Vec } from '@/model';
+import { snapPoint, SNAP_PX, snapEnabled } from '@/canvas/snapping';
 import { constrain45, dist, inferPointType, mirror } from '@/vector/geometry';
 import { snapTargetsExcluding } from '../select/gestures';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
@@ -31,7 +32,7 @@ const toLocal = (ctx: ToolContext, id: Id, p: Vec) => apply(invert(worldMatrix(c
 
 function snapped(e: ToolPointerEvent, ctx: ToolContext): Vec {
   const ed = ctx.editor();
-  if (!ed.snapping || e.mod) {
+  if (!snapEnabled() || e.mod) {
     ed.setGuides([]);
     return e.point;
   }
@@ -100,8 +101,7 @@ const pen: Tool = {
       const node = createPath({
         name: 'Path',
         subpaths: [{ closed: false, points: [{ x: 0, y: 0, type: 'corner' }] }],
-        fill: none(),
-        stroke: defaultStroke(solid('#000000'), 2),
+        ...lineStyle(),
         transform: { x: p.x, y: p.y },
       });
       store.beginTransaction('Pen');
@@ -118,7 +118,8 @@ const pen: Tool = {
     const lastW = apply(worldMatrix(ctx.doc(), path.id), last);
     if (sp.points.length >= 2 && dist(firstW, e.point) <= tol) {
       store.beginTransaction('Close path');
-      store.replaceNodes([{ ...path, subpaths: [{ ...sp, closed: true }] }]);
+      // A closed path takes the current fill and stroke (it was drawn with the line style).
+      store.replaceNodes([{ ...path, ...shapeStyle(), subpaths: [{ ...sp, closed: true }] }]);
       drag = { index: 0, anchor: { x: first.x, y: first.y }, screen: e.screen, closing: true, outOnly: false, dragged: false };
       return;
     }
