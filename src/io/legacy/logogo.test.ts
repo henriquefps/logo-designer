@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apply, boundsIn, fromTransform, type GroupNode, type PathNode, type TextNode } from '@/model';
 import { loadDocument, loadProjectList } from '@/store/persistence';
 import { convertLegacyProject, LEGACY_STORAGE_KEY, readLegacyProjects, type IconRenderer } from './logogo';
@@ -84,7 +84,24 @@ describe('LogoGo migration', () => {
 });
 
 describe('renderLibraryIcon', () => {
-  it('renders real lucide and phosphor icons into importable SVG', async () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('maps Phosphor names and weights to Iconify ph ids', async () => {
+    const { phosphorIconifyId } = await import('./renderIcon');
+    expect(phosphorIconifyId('ArrowUpRight', 'bold')).toBe('ph:arrow-up-right-bold');
+    expect(phosphorIconifyId('StarIcon', 'regular')).toBe('ph:star');
+    expect(phosphorIconifyId('Star')).toBe('ph:star');
+  });
+
+  it('renders lucide (bundled) and phosphor (Iconify ph) icons into importable SVG', async () => {
+    const requested: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      requested.push(url);
+      return new Response(
+        JSON.stringify({ width: 256, height: 256, icons: { 'star-fill': { body: '<path fill="currentColor" d="M28 28h200v200H28z"/>' } } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
     const { renderLibraryIcon } = await import('./renderIcon');
     for (const library of ['lucide', 'phosphor'] as const) {
       const { doc } = await convertLegacyProject(
@@ -97,6 +114,8 @@ describe('renderLibraryIcon', () => {
       expect(box.width).toBeGreaterThan(40);
       expect(box.width).toBeLessThanOrEqual(64.01);
       expect(Math.abs(box.x + box.width / 2 - 256)).toBeLessThan(4);
+      if (library === 'phosphor') expect((g.children[0] as PathNode).fill).toEqual({ kind: 'solid', color: '#336699' });
     }
+    expect(requested.some((u) => u.includes('/ph.json?icons=star-fill'))).toBe(true);
   });
 });

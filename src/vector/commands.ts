@@ -17,6 +17,7 @@ import {
   type PathNode,
   type SceneNode,
 } from '@/model';
+import { textToPaths } from '@/fonts/outline';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { switchTool } from '@/tools/context';
@@ -60,17 +61,40 @@ export function convertSelectionToPath() {
   ds().replaceNodes(nodes.map(convertTree), { label: 'Convert to path' });
 }
 
-export const canBoolean = () => selectedNodes().filter(isBooleanOperand).length >= 2;
+const containsText = (n: SceneNode): boolean => (n.type === 'group' ? n.children.some(containsText) : n.type === 'text');
+/** Boolean operand once its texts are outlined. */
+const isOperand = (n: SceneNode) => isBooleanOperand(n) || containsText(n);
+
+/** Replaces every visible text in a tree with its glyph outlines (textToPaths). Same object when there is no text. */
+async function outlineTexts(n: SceneNode): Promise<SceneNode> {
+  if (n.type === 'text') return n.visible ? { ...(await textToPaths(n)), id: n.id } : n;
+  if (n.type !== 'group' || !containsText(n)) return n;
+  return { ...n, children: await Promise.all(n.children.map(outlineTexts)) };
+}
+
+/** outlineTexts for several nodes, with a toast (and null) when a font cannot be loaded. */
+async function outlineTextsOrToast(nodes: SceneNode[]): Promise<SceneNode[] | null> {
+  try {
+    return await Promise.all(nodes.map(outlineTexts));
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Could not outline the text.');
+    return null;
+  }
+}
+
+export const canBoolean = () => selectedNodes().filter(isOperand).length >= 2;
 
 const OP_LABEL: Record<BooleanOp, string> = { unite: 'Unite', subtract: 'Subtract front', intersect: 'Intersect', exclude: 'Exclude' };
 
 export async function booleanSelection(op: BooleanOp) {
   const doc = ds().doc;
-  const ids = sortByDocumentOrder(doc, selectedIds()).filter((id) => isBooleanOperand(findNode(doc, id)!));
+  const ids = sortByDocumentOrder(doc, selectedIds()).filter((id) => isOperand(findNode(doc, id)!));
   if (ids.length < 2) return;
-  const scope = await loadPaper();
-  if (ds().doc !== doc) return; // document changed while paper.js was loading
-  const operands = ids.map((id) => worldShapes(findNode(doc, id)!, parentWorldMatrix(doc, id)));
+  // Text takes part through its glyph outlines.
+  const [scope, resolved] = await Promise.all([loadPaper(), outlineTextsOrToast(ids.map((id) => findNode(doc, id)!))]);
+  if (!resolved) return;
+  if (ds().doc !== doc) return; // document changed while paper.js / fonts were loading
+  const operands = ids.map((id, i) => worldShapes(resolved[i], parentWorldMatrix(doc, id)));
   let subpaths;
   try {
     subpaths = booleanOp(scope, operands, op);
@@ -84,7 +108,7 @@ export async function booleanSelection(op: BooleanOp) {
     return;
   }
   const bottomId = ids[0];
-  const bottom = findNode(doc, bottomId)!;
+  const bottom = resolved[0];
   const style = bottomStyleSource(bottom);
   const result: PathNode = {
     ...pathFromWorld(subpaths, invert(parentWorldMatrix(doc, bottomId)), {
@@ -108,14 +132,29 @@ export const canOutlineStroke = () =>
   selectedNodes().some((n) => {
     let ok = false;
     walk([n], (c) => {
-      if (hasOutline(c) && isPainted(c) && c.stroke.paint.kind !== 'none' && c.stroke.width > 0) ok = true;
+      if ((hasOutline(c) || c.type === 'text') && isPainted(c) && c.stroke.paint.kind !== 'none' && c.stroke.width > 0) ok = true;
     });
     return ok;
   });
 
 export async function outlineStrokeSelection() {
-  const scope = await loadPaper();
   const doc = ds().doc;
+  // Stroked text is outlined first, then its glyph strokes are expanded like any path.
+  const strokedText = (n: SceneNode) => n.type === 'text' && n.stroke.paint.kind !== 'none' && n.stroke.width > 0;
+  const withText = (n: SceneNode): SceneNode | Promise<SceneNode> => {
+    if (strokedText(n)) return outlineTexts(n);
+    if (n.type === 'group' && containsText(n)) return Promise.all(n.children.map(withText)).then((children) => ({ ...n, children }));
+    return n;
+  };
+  let selected: SceneNode[];
+  try {
+    selected = await Promise.all(selectedIds().map((id) => withText(findNode(doc, id)!)));
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Could not outline the text.');
+    return;
+  }
+  const scope = await loadPaper();
+  if (ds().doc !== doc) return;
   const replace = (n: SceneNode): SceneNode => {
     if (n.type === 'group') return { ...n, children: n.children.map(replace) };
     if (!hasOutline(n) || !isPainted(n) || n.stroke.paint.kind === 'none' || n.stroke.width <= 0) return n;
@@ -130,8 +169,7 @@ export async function outlineStrokeSelection() {
     strokePath.opacity = 1;
     return { ...createGroup({ name: n.name, opacity: n.opacity, children: [fillPath, strokePath] }), id: n.id };
   };
-  const nodes = selectedIds().map((id) => findNode(doc, id)!);
-  ds().replaceNodes(nodes.map(replace), { label: 'Outline stroke' });
+  ds().replaceNodes(selected.map(replace), { label: 'Outline stroke' });
 }
 
 export const canEditPaths = () => selectedNodes().some(containsPath);

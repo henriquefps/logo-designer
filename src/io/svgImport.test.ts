@@ -264,9 +264,9 @@ describe('export → import round-trip', () => {
     await expect(exportSvg(d, { scope: 'selection', selection: [] })).rejects.toThrow();
   });
 
-  it('falls back to <text> without the fonts module', async () => {
+  it('keeps live <text> when outlining is off', async () => {
     const d = createDocument({ children: [createText({ text: 'A & B\nline 2', transform: { x: 10, y: 10 } })] });
-    const { svg: out } = await exportSvg(d);
+    const { svg: out } = await exportSvg(d, { outlineText: false });
     expect(out).toContain('A &amp; B');
     const back = parseSvg(out);
     expect(back.nodes[1]).toMatchObject({ type: 'text', text: 'A & B\nline 2', transform: { x: 10, y: 10 } });
