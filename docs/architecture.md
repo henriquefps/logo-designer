@@ -53,10 +53,19 @@ src/
     shared/             NumberField, ColorField, PaintEditor, AlignButtons, Section/FieldRow
   dialogs/              DialogHost + <id>/ (projects, shortcuts, about, export)
   io/
-    projectFile.ts      .designer.json save/open
+    projectFile.ts      .designer.json save/open + validateDocument (schemaVersion, every node checked)
     download.ts         downloadBlob, pickFiles
-    exporters/          registry + <id>/index.ts (empty: export worker)
-    importers/          registry + <id>/index.ts (empty: SVG import worker)
+    svgExport.ts        exportSvg(doc, {scope, selection, padding, background}) → clean SVG string
+    outlineText.ts      adapter to fonts/outline.ts textToPaths (glob: picked up when it exists, else <text>)
+    rasterExport.ts     rasterizeSvg (PNG/JPG via canvas), rasterSize (scale or custom width)
+    exportActions.ts    renderExport/downloadExport (used by the Export dialog), copySvgToClipboard
+    svgImport.ts        parseSvg(text, {matrix, currentColor}) → SceneNodes (icons can reuse it)
+    svg/                pathData (d parser, arcs → cubics), transformAttr, styles (<style>/style=""), color
+    importActions.ts    importSvgText / importFiles / openSvgAsDocument / image downscale (2048)
+    useImportHandlers.ts  paste (SVG text, images, in-app nodes) + drop on window; mounted in App
+    legacy/             LogoGo → Designer migration (logogo.ts pure, migrate.ts runs once from init)
+    exporters/          registry + <id>/index.ts (extra formats; SVG/PNG/JPG are built into the dialog)
+    importers/          registry + <id>/index.ts (svg: SVG + PNG/JPG/WebP)
   theme/                theme.ts (Light/Dark/System + palettes, keys designer.theme / designer.palette), ThemeMenu
   components/ui/        shadcn radix-vega primitives (generated; local edits: tabs focus fix, sonner theme prop)
   components/ResponsiveDialog.tsx  Dialog on desktop, bottom Sheet below 768px
@@ -160,9 +169,10 @@ nodes at the artboard center. Icons must become `group`/`path` nodes (spec).
   canvas DOM: it contains editor overlays).
 - Importer: `src/io/importers/<id>/index.ts` → `export default` an `Importer`
   (`{ id, label, accept, importFiles, importText? }`). File → Import SVG runs the importer with id
-  `svg`. Paste/drop handling for SVG text and image files is not wired yet: the import worker should add
-  a `paste`/`drop` listener (e.g. in a small hook mounted from `app/App.tsx`) that uses
-  `importerForFile` / `importText`, falling back to `edit.paste` for in-app nodes.
+  `svg`. `io/useImportHandlers.ts` routes dropped files (`importerForFile`) and pasted text
+  (`importText` of every importer), falling back to the in-app clipboard. It lets Mod+V reach the
+  browser (capture listener) so the `paste` event carries the system clipboard without a prompt.
+- To turn SVG markup into nodes anywhere (icons, templates), call `parseSvg` from `io/svgImport.ts`.
 
 ## How to add a menu command or shortcut
 
@@ -183,8 +193,9 @@ Single-key tool shortcuts belong to tools, not actions. Keys reach the active to
 
 IndexedDB database `designer`, object store `kv`: key `projects` = `ProjectMeta[]`, `doc:<id>` = the
 full `DesignDocument`. The active project id is in `localStorage['designer.activeProject']`. Autosave runs
-600 ms after the last change (not during a transaction) and on `pagehide`/hidden. LogoGo migration
-(`logogo-project-storage`) is not done yet: add it as a one-time step in `useProjectsStore.init`.
+600 ms after the last change (not during a transaction) and on `pagehide`/hidden. `init` first runs the
+one-time LogoGo migration (`io/legacy/migrate.ts`: `logogo-project-storage` → new projects, flag
+`designer.logogoMigrated`; the old key is left untouched).
 
 ## Tests
 
