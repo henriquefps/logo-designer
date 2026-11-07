@@ -3,6 +3,7 @@ import { isEditableTarget } from '@/app/useKeyboard';
 import { getImporters, importerForFile } from '@/io/importers/registry';
 import { isMac } from '@/actions/registry';
 import { hasClipboard, parseClipboardText, pasteNodes } from '@/store/clipboard';
+import { isFontFile } from '@/fonts/store';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Vec } from '@/model';
 import { importFiles, isImageFile, isSvgFile } from './importActions';
@@ -66,7 +67,9 @@ export function useImportHandlers() {
     const onDrop = (e: DragEvent) => {
       if (!hasFiles(e)) return;
       e.preventDefault();
-      const files = [...(e.dataTransfer?.files ?? [])];
+      // Font files are uploaded by the fonts module (its own drop listener), not reported here.
+      const files = [...(e.dataTransfer?.files ?? [])].filter((f) => !isFontFile(f));
+      if (!files.length) return;
       const at = dropPoint(e);
       const routed = files.filter((f) => importerForFile(f));
       if (routed.length) void importFiles(routed, at);

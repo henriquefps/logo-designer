@@ -115,7 +115,8 @@ export async function booleanSelection(op: BooleanOp) {
       fill: style ? structuredClone(style.fill) : none(),
       stroke: style ? structuredClone(style.stroke) : defaultStroke(),
       fillRule: 'nonzero',
-      name: style?.name ?? 'Path',
+      // An outlined text keeps the text's name rather than “Glyph 1”.
+      name: findNode(doc, bottomId)!.type === 'text' ? findNode(doc, bottomId)!.name : (style?.name ?? 'Path'),
       opacity: bottom.opacity,
     }),
     id: bottomId,
