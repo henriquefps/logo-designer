@@ -2,10 +2,8 @@
 
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CheckCircleIcon, InfoIcon, WarningIcon, XCircleIcon, SpinnerIcon } from "@phosphor-icons/react"
-import { useUIStore } from "@/store/useUIStore"
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const theme = useUIStore((state) => state.theme)
+const Toaster = ({ theme = "system", ...props }: ToasterProps) => {
 
   return (
     <Sonner
