@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handle } from './index';
+import { handle } from './routing';
 
 const env = () => ({ ASSETS: { fetch: vi.fn(async () => new Response('asset')) } });
 
