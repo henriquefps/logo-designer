@@ -3,5 +3,8 @@
     "allow": [
       "Bash(bun add *)"
     ]
+  },
+  "worktree": {
+    "bgIsolation": "none"
   }
 }
