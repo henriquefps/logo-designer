@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://logogo.hfps.dev/sitemap.xml
+Sitemap: https://designer.hfps.dev/sitemap.xml

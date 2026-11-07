@@ -2,16 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
-@import "@fontsource-variable/space-grotesk";
-@import "@fontsource-variable/playfair-display";
-@import "@fontsource-variable/jetbrains-mono";
-@import "@fontsource/bebas-neue";
 
-@custom-variant dark (&:is(.dark *));
+
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(.light), :root:not(.light) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
-  --font-sans: 'Inter Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -28,6 +34,7 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-warning: var(--warning);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -52,6 +59,12 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* hfps tokens (shadcn olive preset), copied from hfps-site. --warning is local.
+   Light --muted-foreground (0.52) and --destructive (0.54) are darker than the preset
+   so text passes WCAG AA (4.5:1) on --background, --muted and --card.
+   Surfaces: chrome (top bar, sidebar) sits on --background (--sidebar matches it);
+   content sits on one raised --card surface (white in light, lighter than chrome in dark).
+   Dark follows the OS (prefers-color-scheme); a .dark or .light class on <html> overrides it. */
 :root {
   --background: oklch(0.966 0.005 106.5);
   --foreground: oklch(0.153 0.006 107.1);
@@ -59,32 +72,67 @@
   --card-foreground: oklch(0.153 0.006 107.1);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.153 0.006 107.1);
-  --primary: oklch(0.228 0.013 107.4);
+  --primary: oklch(0.5 0.09 135);
   --primary-foreground: oklch(0.988 0.003 106.5);
   --secondary: oklch(0.966 0.005 106.5);
   --secondary-foreground: oklch(0.228 0.013 107.4);
   --muted: oklch(0.966 0.005 106.5);
-  --muted-foreground: oklch(0.58 0.031 107.3);
+  --muted-foreground: oklch(0.52 0.031 107.3);
   --accent: oklch(0.966 0.005 106.5);
   --accent-foreground: oklch(0.228 0.013 107.4);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.54 0.22 27.325);
+  --warning: oklch(0.555 0.163 48.998);
   --border: oklch(0.93 0.007 106.5);
   --input: oklch(0.93 0.007 106.5);
-  --ring: oklch(0.737 0.021 106.9);
+  --ring: oklch(0.72 0.08 135);
   --chart-1: oklch(0.88 0.011 106.6);
   --chart-2: oklch(0.58 0.031 107.3);
   --chart-3: oklch(0.466 0.025 107.3);
   --chart-4: oklch(0.394 0.023 107.4);
   --chart-5: oklch(0.286 0.016 107.4);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.988 0.003 106.5);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.966 0.005 106.5);
   --sidebar-foreground: oklch(0.153 0.006 107.1);
-  --sidebar-primary: oklch(0.228 0.013 107.4);
+  --sidebar-primary: oklch(0.5 0.09 135);
   --sidebar-primary-foreground: oklch(0.988 0.003 106.5);
-  --sidebar-accent: oklch(0.966 0.005 106.5);
+  --sidebar-accent: oklch(0.935 0.007 106.5);
   --sidebar-accent-foreground: oklch(0.228 0.013 107.4);
   --sidebar-border: oklch(0.93 0.007 106.5);
   --sidebar-ring: oklch(0.737 0.021 106.9);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: oklch(0.153 0.006 107.1);
+    --foreground: oklch(0.988 0.003 106.5);
+    --card: oklch(0.228 0.013 107.4);
+    --card-foreground: oklch(0.988 0.003 106.5);
+    --popover: oklch(0.228 0.013 107.4);
+    --popover-foreground: oklch(0.988 0.003 106.5);
+    --primary: oklch(0.72 0.09 135);
+    --primary-foreground: oklch(0.153 0.006 107.1);
+    --secondary: oklch(0.286 0.016 107.4);
+    --secondary-foreground: oklch(0.988 0.003 106.5);
+    --muted: oklch(0.286 0.016 107.4);
+    --muted-foreground: oklch(0.737 0.021 106.9);
+    --accent: oklch(0.286 0.016 107.4);
+    --accent-foreground: oklch(0.988 0.003 106.5);
+    --destructive: oklch(0.704 0.191 22.216);
+    --warning: oklch(0.828 0.189 84.429);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.5 0.09 135);
+    --sidebar: oklch(0.153 0.006 107.1);
+    --sidebar-foreground: oklch(0.988 0.003 106.5);
+    --sidebar-primary: oklch(0.72 0.09 135);
+    --sidebar-primary-foreground: oklch(0.988 0.003 106.5);
+    --sidebar-accent: oklch(0.286 0.016 107.4);
+    --sidebar-accent-foreground: oklch(0.988 0.003 106.5);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.58 0.031 107.3);
+    color-scheme: dark;
+  }
 }
 
 .dark {
@@ -94,8 +142,8 @@
   --card-foreground: oklch(0.988 0.003 106.5);
   --popover: oklch(0.228 0.013 107.4);
   --popover-foreground: oklch(0.988 0.003 106.5);
-  --primary: oklch(0.93 0.007 106.5);
-  --primary-foreground: oklch(0.228 0.013 107.4);
+  --primary: oklch(0.72 0.09 135);
+  --primary-foreground: oklch(0.153 0.006 107.1);
   --secondary: oklch(0.286 0.016 107.4);
   --secondary-foreground: oklch(0.988 0.003 106.5);
   --muted: oklch(0.286 0.016 107.4);
@@ -103,22 +151,29 @@
   --accent: oklch(0.286 0.016 107.4);
   --accent-foreground: oklch(0.988 0.003 106.5);
   --destructive: oklch(0.704 0.191 22.216);
+  --warning: oklch(0.828 0.189 84.429);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.58 0.031 107.3);
-  --chart-1: oklch(0.88 0.011 106.6);
-  --chart-2: oklch(0.58 0.031 107.3);
-  --chart-3: oklch(0.466 0.025 107.3);
-  --chart-4: oklch(0.394 0.023 107.4);
-  --chart-5: oklch(0.286 0.016 107.4);
-  --sidebar: oklch(0.228 0.013 107.4);
+  --ring: oklch(0.5 0.09 135);
+  --sidebar: oklch(0.153 0.006 107.1);
   --sidebar-foreground: oklch(0.988 0.003 106.5);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.72 0.09 135);
   --sidebar-primary-foreground: oklch(0.988 0.003 106.5);
   --sidebar-accent: oklch(0.286 0.016 107.4);
   --sidebar-accent-foreground: oklch(0.988 0.003 106.5);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.58 0.031 107.3);
+  color-scheme: dark;
+}
+
+/* Eyebrow: the only uppercase text in the app. Section labels only, never controls. */
+@utility eyebrow {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
 }
 
 @layer base {
@@ -126,28 +181,135 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    @apply font-sans;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+    min-height: 100vh;
   }
 
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-
-  html {
-    @apply font-sans;
-  }
 }
 
-@layer utilities {
-  .checkerboard {
-    background-image:
-      linear-gradient(45deg, var(--color-muted) 25%, transparent 25%),
-      linear-gradient(-45deg, var(--color-muted) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, var(--color-muted) 75%),
-      linear-gradient(-45deg, transparent 75%, var(--color-muted) 75%);
-    background-size: 16px 16px;
-    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+/* Optional: per-user color palettes. Append to src/index.css AFTER theme.css (it must come after .dark).
+   Pair with assets/theme-picker/. Notes: the app-specific --live token is not part of this file. */
+/* Palettes (data-palette on <html>, saved next to the theme choice). Olive, the default, has no
+   attribute and uses the tokens above. The others change only the neutrals' hue and strength
+   (--nh, --nc), the brand colour (--bh hue, --bc chroma: primary, ring, chart-1, sidebar-primary)
+   and nothing else. --live, --destructive and --warning are semantic and identical in every
+   palette. One block serves light and dark through light-dark(); color-scheme follows the OS
+   unless <html> has .light or .dark. test/theme-contrast.test.ts checks every palette. */
+:root[data-palette] {
+  color-scheme: light dark;
+  --background: light-dark(
+    oklch(0.966 calc(0.005 * var(--nc)) var(--nh)),
+    oklch(0.153 calc(0.006 * var(--nc)) var(--nh))
+  );
+  --foreground: light-dark(
+    oklch(0.153 calc(0.006 * var(--nc)) var(--nh)),
+    oklch(0.988 calc(0.003 * var(--nc)) var(--nh))
+  );
+  --card: light-dark(oklch(1 0 0), oklch(0.228 calc(0.013 * var(--nc)) var(--nh)));
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: light-dark(oklch(0.5 var(--bc) var(--bh)), oklch(0.72 var(--bc) var(--bh)));
+  --primary-foreground: light-dark(
+    oklch(0.988 calc(0.003 * var(--nc)) var(--nh)),
+    oklch(0.153 calc(0.006 * var(--nc)) var(--nh))
+  );
+  --secondary: light-dark(
+    oklch(0.925 calc(0.008 * var(--nc)) var(--nh)),
+    oklch(0.286 calc(0.016 * var(--nc)) var(--nh))
+  );
+  --secondary-foreground: light-dark(
+    oklch(0.228 calc(0.013 * var(--nc)) var(--nh)),
+    oklch(0.988 calc(0.003 * var(--nc)) var(--nh))
+  );
+  --muted: var(--secondary);
+  --muted-foreground: light-dark(
+    oklch(0.5 calc(0.031 * var(--nc)) var(--nh)),
+    oklch(0.737 calc(0.021 * var(--nc)) var(--nh))
+  );
+  --accent: var(--secondary);
+  --accent-foreground: var(--secondary-foreground);
+  --destructive: light-dark(oklch(0.54 0.22 27.325), oklch(0.704 0.191 22.216));
+  --warning: light-dark(oklch(0.555 0.163 48.998), oklch(0.828 0.189 84.429));
+  --border: light-dark(oklch(0.9 calc(0.008 * var(--nc)) var(--nh)), oklch(1 0 0 / 10%));
+  --input: light-dark(oklch(0.9 calc(0.008 * var(--nc)) var(--nh)), oklch(1 0 0 / 15%));
+  --ring: light-dark(oklch(0.72 calc(var(--bc) * 0.9) var(--bh)), oklch(0.5 var(--bc) var(--bh)));
+  --chart-1: var(--primary);
+  --chart-2: light-dark(oklch(0.58 0.09 220), oklch(0.72 0.09 220));
+  --chart-3: light-dark(oklch(0.6 0.13 75), oklch(0.8 0.14 80));
+  --chart-4: light-dark(oklch(0.55 0.12 300), oklch(0.72 0.12 300));
+  --chart-5: light-dark(oklch(0.55 0.08 50), oklch(0.72 0.09 55));
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: oklch(0.988 calc(0.003 * var(--nc)) var(--nh));
+  --sidebar-accent: light-dark(
+    oklch(0.915 calc(0.008 * var(--nc)) var(--nh)),
+    oklch(0.286 calc(0.016 * var(--nc)) var(--nh))
+  );
+  --sidebar-accent-foreground: var(--secondary-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: light-dark(
+    oklch(0.737 calc(0.021 * var(--nc)) var(--nh)),
+    oklch(0.58 calc(0.031 * var(--nc)) var(--nh))
+  );
+}
+
+:root[data-palette].light {
+  color-scheme: light;
+}
+
+:root[data-palette].dark {
+  color-scheme: dark;
+}
+
+:root[data-palette='blue'] {
+  --nh: 250;
+  --nc: 1.5;
+  --bh: 255;
+  --bc: 0.14;
+}
+
+:root[data-palette='violet'] {
+  --nh: 295;
+  --nc: 1.5;
+  --bh: 295;
+  --bc: 0.16;
+  /* chart-4 is violet in the other palettes; keep the chart colors apart from chart-1. */
+  --chart-4: light-dark(oklch(0.55 0.12 340), oklch(0.72 0.12 340));
+}
+
+:root[data-palette='rose'] {
+  --nh: 5;
+  --nc: 1.2;
+  --bh: 355;
+  --bc: 0.16;
+}
+
+:root[data-palette='graphite'] {
+  --nh: 260;
+  --nc: 0.3;
+  --bh: 260;
+  --bc: 0.02;
+}
+
+/* Editor surfaces: the canvas area uses a checker-free tinted backdrop. */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 }

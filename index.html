@@ -1,81 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light" data-palette="blue">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-  <meta name="theme-color" content="#211f1a">
+  <meta name="theme-color" content="#2f6fb5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="LogoGo">
+  <meta name="apple-mobile-web-app-title" content="Designer">
 
-  <!-- PWA Support -->
-  <link rel="manifest" href="./manifest.json">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" href="/favicon.png">
 
-  <!-- SEO Meta Tags -->
-  <title id="seo-title">LogoGo | Free Logo & App Icon Designer</title>
-  <meta name="description" id="seo-description"
-    content="Design app icons and logos free, right in your browser — no login, no account. Lucide and Phosphor icons, custom shapes, text, and backgrounds, exported as SVG, PNG, WebP, or a full icon pack for iOS, Android, and Web.">
-  <meta name="keywords" id="seo-keywords"
-    content="logo generator, logo designer, app icon maker, android icon generator, ios icon generator, favicon creator, lucide icons, client-side logo maker, logogo">
+  <title>Designer | Free SVG editor in your browser</title>
+  <meta name="description"
+    content="Designer is a free, open SVG editor that runs entirely in your browser. Draw shapes, edit paths, use gradients and layers, and export clean SVG and PNG. No account, no server.">
+  <meta name="keywords"
+    content="svg editor, online vector editor, illustrator alternative, logo maker, icon editor, free design tool, browser svg editor">
   <meta name="author" content="Henrique Silva">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://logogo.hfps.dev/">
+  <link rel="canonical" href="https://designer.hfps.dev/">
 
-  <!-- Open Graph / Social Media Metas -->
-  <meta property="og:title" id="og-title" content="LogoGo | Free Logo & App Icon Designer">
-  <meta property="og:description" id="og-description"
-    content="Design app icons and logos free, right in your browser — no login, no account. Export as SVG, PNG, WebP, or a full icon pack for iOS, Android, and Web.">
+  <meta property="og:title" content="Designer | Free SVG editor in your browser">
+  <meta property="og:description"
+    content="A free, open SVG editor that runs entirely in your browser. No account, no server.">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="LogoGo">
-  <meta property="og:url" content="https://logogo.hfps.dev/">
-  <meta property="og:image" content="https://logogo.hfps.dev/og-image.jpg">
+  <meta property="og:site_name" content="Designer">
+  <meta property="og:url" content="https://designer.hfps.dev/">
+  <meta property="og:image" content="https://designer.hfps.dev/og-image.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="LogoGo | Free Logo & App Icon Designer">
-  <meta name="twitter:description"
-    content="Design app icons and logos free, right in your browser — no login, no account.">
-  <meta name="twitter:image" content="https://logogo.hfps.dev/og-image.jpg">
+  <meta name="twitter:title" content="Designer | Free SVG editor in your browser">
+  <meta name="twitter:description" content="A free, open SVG editor that runs entirely in your browser. No account, no server.">
+  <meta name="twitter:image" content="https://designer.hfps.dev/og-image.jpg">
 
-  <!-- Structured data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "LogoGo",
-    "url": "https://logogo.hfps.dev/",
-    "description": "Design app icons and logos free, right in your browser — no login, no account. Export as SVG, PNG, WebP, or a full icon pack for iOS, Android, and Web.",
+    "name": "Designer",
+    "url": "https://designer.hfps.dev/",
+    "description": "A free, open SVG editor that runs entirely in your browser. No account, no server.",
     "applicationCategory": "DesignApplication",
     "operatingSystem": "Any (runs in a web browser)",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "author": {
-      "@type": "Person",
-      "name": "Henrique Silva",
-      "url": "https://hfps.dev"
-    }
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Henrique Silva", "url": "https://hfps.dev" }
   }
-  </script>
-
-  <script>
-    (function () {
-      try {
-        var stored = localStorage.getItem('logogo-theme');
-        var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-      } catch (e) {
-        document.documentElement.classList.add('dark');
-      }
-    })();
   </script>
 </head>
 

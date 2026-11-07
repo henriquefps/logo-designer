@@ -1,37 +1,17 @@
 {
-  "name": "LogoGo",
-  "short_name": "LogoGo",
-  "description": "Premium Custom Logo Designer & Icon Pack Generator. 100% client-side and free.",
-  "start_url": "./index.html",
+  "name": "Designer",
+  "short_name": "Designer",
+  "description": "A free, open SVG editor that runs entirely in your browser.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#211f1a",
-  "theme_color": "#211f1a",
-  "categories": ["utilities", "productivity"],
+  "background_color": "#f4f6fa",
+  "theme_color": "#2f6fb5",
+  "categories": ["design", "graphics", "productivity"],
   "icons": [
-    {
-      "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
   ]
 }
