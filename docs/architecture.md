@@ -217,3 +217,11 @@ one-time LogoGo migration (`io/legacy/migrate.ts`: `logogo-project-storage` → 
 
 `bun run test` (Vitest, node environment). Model and store logic are tested in `src/**/__tests__` and
 `*.test.ts` next to the code; `fake-indexeddb` backs the projects store test.
+
+## Reference images (tracing)
+
+`NodeBase.reference?: boolean` marks a node as a tracing reference (Illustrator "template"). Reference
+nodes render normally but are skipped by `hitTest`/`nodesInRect`, snapping and every exporter (SVG,
+PNG, JPG, Copy SVG); they are selectable only from the Layers panel. `useEditorStore.showReferences`
+hides them all from the view without touching the document. Entry points: File → Place reference
+image, Alt-drop of an image, "Use as reference" in Properties/Object/context menu.
