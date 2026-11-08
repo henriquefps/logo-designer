@@ -49,9 +49,19 @@ export function AboutDialog({ open, onOpenChange }: { open: boolean; onOpenChang
               <AppMark />
             </span>
             <p className="text-muted-foreground">
-              Made by <Link href="https://hfps.dev">Henrique Silva</Link>. Source code on <Link href={REPO}>GitHub</Link>. Formerly LogoGo.
+              Made by <Link href="https://hfps.dev">Henrique Silva</Link>. Formerly LogoGo.
             </p>
           </div>
+          <section className="flex flex-col gap-2" aria-label="License">
+            <h3 className="eyebrow">License</h3>
+            <p>
+              <span className="font-medium">Free and open source — AGPL-3.0.</span>{' '}
+              <span className="text-muted-foreground">
+                Designer is free software under the GNU Affero General Public License, version 3 or later. Anyone using it over a network can get the
+                complete source code: <Link href={REPO}>source code on GitHub</Link>.
+              </span>
+            </p>
+          </section>
           <section className="flex flex-col gap-2" aria-label="Privacy">
             <h3 className="eyebrow">Privacy</h3>
             <ul className="flex flex-col gap-2">

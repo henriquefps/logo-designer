@@ -78,3 +78,25 @@ bun run build
   1280 × 640 at 2×, and with `#og` at 1200 × 630 for `public/og-image.jpg`).
 
 In development, `window.__designer` exposes the stores for browser tests.
+
+## Contributing
+
+Issues and pull requests are welcome at [github.com/henriquefps/logo-designer](https://github.com/henriquefps/logo-designer).
+By contributing you agree that your work is licensed under AGPL-3.0-or-later.
+
+## License
+
+Designer is free software, licensed under the [GNU Affero General Public License v3.0 or later](LICENSE)
+(AGPL-3.0-or-later). Copyright © 2026 [Henrique Silva](https://hfps.dev). Source code:
+[github.com/henriquefps/logo-designer](https://github.com/henriquefps/logo-designer).
+
+If you host a modified version as a service for other people, the AGPL requires you to publish
+its source code to those users.
+
+Third-party notices:
+
+- The bundled fonts are under the SIL Open Font License 1.1 (license texts in
+  [`src/fonts/files/licenses`](src/fonts/files/licenses)).
+- [Lucide](https://lucide.dev/license) icons: ISC.
+- [Phosphor](https://github.com/phosphor-icons/homepage/blob/master/LICENSE) icons: MIT.
+- [Iconify](https://iconify.design/) icons keep each collection's own license (shown in the app).
