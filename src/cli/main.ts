@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify, type ParseArgsConfig } from 'node:util';
-import { createDocument, findNode, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
+import { createDocument, findNode, skippedReferenceNodes, skippedReferenceNotice, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
 import { applyKnockout, gapUnit, knockout, targetsBelow } from '@/vector/knockout';
 import { loadPaper } from '@/vector/paperOps';
 import { serializeProject, validateDocument } from '@/io/projectFile';
@@ -221,6 +221,12 @@ interface InfoNode {
   hidden?: true;
   reference?: true;
   children?: InfoNode[];
+}
+
+/** to-svg / to-png leave reference nodes out: say so when that includes non-image ones. */
+function warnSkippedReferences(doc: DesignDocument, io: { err: (s: string) => void }) {
+  const notice = skippedReferenceNotice(skippedReferenceNodes(doc));
+  if (notice) io.err(`warning: ${notice}`);
 }
 
 async function info(doc: DesignDocument) {
@@ -527,6 +533,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       }
       case 'to-svg': {
         const { doc } = await loadDoc(requireArg(pos, 'project file'), io);
+        warnSkippedReferences(doc, io);
         const svg = values.glyph ? await exportGlyph(doc) : (await exportSvg(doc)).svg;
         await emit(svg, output, io, values.glyph ? 'glyph' : 'SVG');
         return 0;
@@ -536,6 +543,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const size = Number(str(values, 'size'));
         if (!(size > 0 && size <= 16384)) throw new UsageError('--size N is required (1..16384 px)');
         const { doc } = await loadDoc(path, io);
+        warnSkippedReferences(doc, io);
         const { svg } = await exportSvg(doc);
         const { Resvg } = await import('@resvg/resvg-js');
         const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();

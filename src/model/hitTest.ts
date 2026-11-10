@@ -119,6 +119,32 @@ export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}):
   return search(doc.children, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
 }
 
+/**
+ * Topmost visible *reference* node under a world point (the one `hitTest` ignores), or null.
+ * Used only to tell the user why a click selected nothing.
+ */
+export function hitTestReference(doc: DesignDocument, world: Vec, tolerance = 0): SceneNode | null {
+  const inside = (n: SceneNode, parentM: Matrix): boolean => {
+    const m = multiply(parentM, fromTransform(n.transform));
+    if (n.type === 'group') return n.children.some((c) => c.visible && inside(c, m));
+    return hitTestNode(n, m, world, tolerance);
+  };
+  const search = (nodes: SceneNode[], parentM: Matrix): SceneNode | null => {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      if (!n.visible) continue;
+      if (n.reference) {
+        if (inside(n, parentM)) return n;
+      } else if (n.type === 'group') {
+        const found = search(n.children, multiply(parentM, fromTransform(n.transform)));
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return search(doc.children, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+}
+
 /** Root-level (or all leaf, when deep) unlocked visible nodes whose world box intersects `rect`. */
 export function nodesInRect(doc: DesignDocument, rect: Rect, opts: { deep?: boolean } = {}): Id[] {
   const out: Id[] = [];

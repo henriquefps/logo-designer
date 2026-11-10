@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { paintPrimaryColor, splitColor, type DesignDocument, type Id } from '@/model';
+import { paintPrimaryColor, skippedReferenceNodes, skippedReferenceNotice, splitColor, type DesignDocument, type Id } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { downloadBlob, safeFileName } from './download';
@@ -79,7 +79,8 @@ export async function copySvgToClipboard(): Promise<void> {
   const selection = useEditorStore.getState().selection;
   try {
     const { svg } = await exportSvg(doc, { scope: selection.length ? 'selection' : 'artboard', selection });
-    if (await copyText(svg)) toast.success(selection.length ? 'Selection copied as SVG' : 'Artboard copied as SVG');
+    const notice = skippedReferenceNotice(skippedReferenceNodes(doc, selection.length ? selection : undefined));
+    if (await copyText(svg)) toast.success(selection.length ? 'Selection copied as SVG' : 'Artboard copied as SVG', notice ? { description: notice } : undefined);
     else toast.error('The clipboard is not available here.');
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'Could not copy SVG.');

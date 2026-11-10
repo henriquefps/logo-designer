@@ -1,5 +1,7 @@
 import { CursorIcon } from '@phosphor-icons/react';
-import { rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
+import { toast } from 'sonner';
+import { setReference } from '@/actions/modules/object';
+import { hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
 import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
@@ -42,6 +44,20 @@ function hitChain(ctx: ToolContext, point: Vec): Id[] {
   const deep = ctx.hitTest(point, { deep: true });
   const loc = deep ? locate(ctx.doc(), deep) : null;
   return loc ? [...loc.ancestors.map((a) => a.id), deep!] : [];
+}
+
+const hinted = new Set<Id>();
+
+/** A click that selects nothing because only a reference layer is under it: say so once per layer. */
+function hintReference(ctx: ToolContext, point: Vec) {
+  if (!ctx.editor().showReferences) return;
+  const ref = hitTestReference(ctx.doc(), point, ctx.px() * 2);
+  if (!ref || hinted.has(ref.id)) return;
+  hinted.add(ref.id);
+  toast(`“${ref.name}” is a reference layer`, {
+    description: 'Reference layers cannot be selected on the canvas. Click the reference icon on its row in Layers to make it editable.',
+    action: { label: 'Make editable', onClick: () => setReference(false, [ref.id]) },
+  });
 }
 
 const select: Tool = {
@@ -94,6 +110,7 @@ const select: Tool = {
       return;
     }
     if (!e.shift) ed.clearSelection();
+    hintReference(ctx, e.point);
     pending = { kind: 'marquee', start: e.point, additive: e.shift, base: e.shift ? ed.selection : [] };
   },
 

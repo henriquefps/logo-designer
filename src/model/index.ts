@@ -9,3 +9,4 @@ export * from './bounds';
 export * from './hitTest';
 export * from './transformOps';
 export * from './align';
+export * from './reference';
