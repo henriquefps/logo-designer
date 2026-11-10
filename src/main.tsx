@@ -2,13 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { initTheme } from './theme/theme';
-import { App } from './app/App';
+import { Root } from './Root';
 
 initTheme();
 if (import.meta.env.DEV) void import('./dev/debugHandle').then((m) => m.installDebugHandle());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Root />
   </StrictMode>,
 );

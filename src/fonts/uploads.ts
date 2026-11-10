@@ -19,6 +19,8 @@ export interface UploadedFace {
   format: FontFormat;
   size: number;
   addedAt: number;
+  /** Set when the family is renamed, so the rename syncs (the effective time is `updatedAt ?? addedAt`). */
+  updatedAt?: number;
 }
 
 let store: UseStore | null = null;
@@ -47,5 +49,5 @@ export async function deleteUpload(id: string): Promise<void> {
 
 /** Renames a whole family (all its faces). */
 export async function renameUploadFamily(from: string, to: string): Promise<void> {
-  await writeIndex((await listUploads()).map((f) => (f.family === from ? { ...f, family: to } : f)));
+  await writeIndex((await listUploads()).map((f) => (f.family === from ? { ...f, family: to, updatedAt: Date.now() } : f)));
 }

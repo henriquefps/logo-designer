@@ -85,7 +85,13 @@ src/
   components/ResponsiveDialog.tsx  Dialog on desktop, bottom Sheet below 768px
   components/color/     ColorPicker (SV square, hue/alpha, hex/RGB, document + recent colors), used by
                         ColorField, PaintEditor (inline) and the swatches popover
-  dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools) for browser QA scripts
+  sync/                 optional self-hosted project sync (docs/sync.md): plan.ts (pure merge: what to push/pull/
+                        delete/keep as a conflicted copy; Vitest), api.ts (HTTP client), state.ts (settings in
+                        localStorage; per-id base + local tombstones in IndexedDB `designer-sync`), engine.ts
+                        (useSyncStore, syncNow, startSync: pull on start/focus/30 s, push 2 s after autosave)
+  dialogs/sync/         Sync dialog (File → Sync…, status bar indicator)
+  pages/SyncSetup.tsx   the /sync guide (download, run, connect, tunnel); Root.tsx picks it by pathname
+  dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools, sync, fonts, theme) for browser QA scripts
 ```
 
 ## Core conventions

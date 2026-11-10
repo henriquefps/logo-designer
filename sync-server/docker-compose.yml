@@ -1,0 +1,39 @@
+services:
+  designer-sync:
+    image: ghcr.io/henriquefps/designer-sync:latest
+    # To build from this directory instead of pulling the published image:
+    # build: .
+    container_name: designer-sync
+    ports:
+      # BIND_IP limits the port to one interface (e.g. the Tailscale address).
+      - "${BIND_IP:-0.0.0.0}:3051:3051"
+    volumes:
+      # projects/ and fonts/ live here. The container runs as uid 65532: for a
+      # bind-mounted ./data on Linux run once
+      #   sudo chown -R 65532:65532 ./data
+      - ./data:/app/data
+    environment:
+      # Required once this is reachable through the cloudflared tunnel below
+      # (or any proxy): without a key the server refuses tunnelled requests.
+      # Generate one with `docker run --rm ghcr.io/henriquefps/designer-sync genkey`,
+      # keep it in your secret vault and pass it to compose at run time
+      # (README.md, "Secrets"). Do not write it into a file in the repository.
+      - SYNC_API_KEY=${SYNC_API_KEY:-}
+      # Optional CORS allow-list, comma separated. Empty = any origin.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+      # Largest single project or font, in MB.
+      - MAX_BODY_MB=${MAX_BODY_MB:-64}
+    restart: unless-stopped
+
+  # Optional: makes the server reachable over HTTPS from anywhere through a
+  # Cloudflare Tunnel. Remove this service if you only sync on your LAN.
+  # CLOUDFLARE_TUNNEL_TOKEN comes from the Zero Trust dashboard (see
+  # README.md) and is passed at run time like the key, never written here.
+  # LAN only, without the tunnel: docker compose up -d designer-sync
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.3
+    container_name: designer-sync-tunnel
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    restart: unless-stopped
+    depends_on:
+      - designer-sync

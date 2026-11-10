@@ -23,7 +23,8 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
 const PRIVACY = [
   ['No account', 'Open the page and start drawing. There is nothing to sign up for.'],
   ['Everything stays in your browser', 'Projects are saved in this browser’s storage (IndexedDB). Export a project file to back it up or move it.'],
-  ['Fonts never leave your device', 'Uploaded fonts are stored locally and only used to draw and outline your text.'],
+  ['Fonts stay on your device', 'Uploaded fonts are stored locally and only used to draw and outline your text. They leave only if you turn on Sync, and then go to your own server and nowhere else.'],
+  ['Sync is yours', 'File → Sync connects the app to a server you run yourself. Without one nothing is sent anywhere.'],
   ['No tracking', 'No analytics and no ads. The only requests to another server go to Iconify, when you browse the Phosphor or Iconify icon libraries.'],
 ] as const;
 

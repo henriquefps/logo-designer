@@ -28,14 +28,17 @@ which now redirects here).
 - **Files:** export SVG (text outlined), PNG and JPG at any scale; import SVG (Inkscape and
   Illustrator files, gradients, transforms, styles), paste or drop SVG and images, project files
   (`.designer.json`), autosave with a projects list, LogoGo projects migrated automatically.
+- **Sync:** optional, self-hosted: projects (and, if you want, uploaded fonts) sync between your devices
+  through a small server you run yourself (Docker or a single binary). See [`docs/sync.md`](docs/sync.md).
 - **Everywhere:** light and dark themes with color palettes, works offline (PWA), usable on a phone.
 
 ## Privacy
 
 - Projects are saved in your browser (IndexedDB). Export a project file to back one up.
-- Uploaded fonts never leave your device.
+- Uploaded fonts never leave your device, unless you turn on Sync (File → Sync…): then projects and fonts
+  go to the server you set up and to nowhere else. Sync is off by default.
 - No analytics, no ads. The only requests to another server go to the Iconify API, when you browse
-  the Phosphor or Iconify icon libraries.
+  the Phosphor or Iconify icon libraries, and to your own sync server if you turned Sync on.
 
 ## Shortcuts
 

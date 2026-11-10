@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# Release config for the sync server. Run from sync-server/:
+#   goreleaser check
+#   goreleaser release --snapshot --clean   # local dry run, nothing published
+# Real releases run in .github/workflows/sync-server-release.yml on a v* tag.
+version: 2
+
+project_name: designer-sync
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: designer-sync
+    binary: designer-sync
+    main: .
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    ids: [designer-sync]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # No version in the name, so releases/latest/download/<file> is a stable URL (the app links to it).
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - src: ../LICENSE
+        dst: .
+        strip_parent: true
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+dockers_v2:
+  - id: image
+    ids: [designer-sync]
+    dockerfile: Dockerfile.release
+    images:
+      - ghcr.io/henriquefps/designer-sync
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: designer-sync
+      org.opencontainers.image.description: Self-hosted project sync server for Designer
+      org.opencontainers.image.source: https://github.com/henriquefps/logo-designer
+      org.opencontainers.image.licenses: AGPL-3.0-or-later
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .CommitDate }}"
+
+release:
+  github:
+    owner: henriquefps
+    name: logo-designer
+  name_template: "Sync server {{ .Tag }}"
+
+changelog:
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
