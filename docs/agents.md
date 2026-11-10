@@ -24,6 +24,15 @@ bunx --bun github:henriquefps/logo-designer <command> …
 bunx --bun github:henriquefps/logo-designer designer <command> …   # same thing
 ```
 
+**Pin the commit.** Bun caches an unpinned `github:` spec and keeps serving that old build
+after `main` moves (for example `Unknown option --no-open` from a build older than `present`).
+Pin the current `main` commit so you always run the latest CLI:
+
+```sh
+DESIGNER="github:henriquefps/logo-designer#$(git ls-remote https://github.com/henriquefps/logo-designer.git main | cut -c1-12)"
+bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
+```
+
 | Command | What it does |
 | --- | --- |
 | `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
