@@ -12,20 +12,20 @@ const MASKS: { id: MaskId; label: string }[] = [
 ];
 
 /**
- * The script's review sheet, live: masks at 128 with the 0.63 T reference circle, launcher sizes
+ * The script's review sheet, live: masks at 128 (0.63 T reference circle on the first), launcher sizes
  * on a dark home screen, favicons on dark and white. `compact` scales row 1 to the panel width.
  */
 export function IconPreview({ sources, compact = false }: { sources: IconSources; compact?: boolean }) {
   const light = useIconStore((s) => s.light);
   const urls = useMemo(() => {
-    const masks = MASKS.map((m) => ({ ...m, url: dataUrl(maskedSvg(sources, m.id, true, { light })) }));
+    const masks = MASKS.map((m, i) => ({ ...m, url: dataUrl(maskedSvg(sources, m.id, i === 0, { light })) })) // guide only on the first: the others show the real icon;
     return { masks, launcher: dataUrl(maskedSvg(sources, 'squircle', false, { light })), favicon: dataUrl(faviconSvg(sources)) };
   }, [sources, light]);
   return (
     <div className="flex shrink-0 flex-col gap-2" aria-label="Icon preview">
       <div className={cn('grid grid-cols-3 gap-2', !compact && 'w-fit')}>
-        {urls.masks.map((m) => (
-          <img key={m.id} src={m.url} alt={`${m.label} mask`} title={`${m.label} mask, pink circle = 0.63 T`} width={128} height={128} className={cn(compact ? 'h-auto w-full' : 'size-32')} draggable={false} />
+        {urls.masks.map((m, i) => (
+          <img key={m.id} src={m.url} alt={`${m.label} mask`} title={i === 0 ? `${m.label} mask, pink circle = 0.63 T` : `${m.label} mask`} width={128} height={128} className={cn(compact ? 'h-auto w-full' : 'size-32')} draggable={false} />
         ))}
       </div>
       <div className="flex flex-wrap items-end gap-3 rounded-md p-3" style={{ background: SHEET.background }} title="Launcher sizes on a dark home screen">

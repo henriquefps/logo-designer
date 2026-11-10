@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { inkBox, report } from '../measure';
+import { REFERENCE_CIRCLE_SVG, sheetTiles } from '../outputs';
 import { buildIconSet } from '../iconSet';
 import { resvgRasterize, resvgRenderer } from '../resvgRenderer';
 
@@ -75,4 +76,14 @@ describe('icon set', () => {
     expect(new DataView(ico.buffer, ico.byteOffset).getUint16(4, true)).toBe(3);
     expect(ico[6]).toBe(16);
   }, 60_000);
+});
+
+describe('review sheet', () => {
+  it('draws the reference circle only on the first row-1 mask tile', async () => {
+    const box = await inkBox(fixture('glyph-sync.svg'), resvgRasterize);
+    const src = { glyph: { src: '<rect x="40" y="40" width="48" height="48"/>', box: box! }, shape: 'tall' as const };
+    const row1 = sheetTiles(src).filter((t) => t.top === 16);
+    expect(row1).toHaveLength(3);
+    expect(row1.map((t) => t.svg.includes(REFERENCE_CIRCLE_SVG))).toEqual([true, false, false]);
+  });
 });

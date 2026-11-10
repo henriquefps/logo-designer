@@ -252,8 +252,9 @@ export function sheetTiles(src: IconSources): SheetTile[] {
   const tiles: SheetTile[] = [];
   const masks: MaskId[] = ['squircle', 'circle', 'rounded'];
   let x = 16;
-  for (const m of masks) {
-    tiles.push({ svg: maskedSvg(src, m, true), size: 128, left: x, top: 16 });
+  for (const [i, m] of masks.entries()) {
+    // guide only on the first: the others show the real icon
+    tiles.push({ svg: maskedSvg(src, m, i === 0), size: 128, left: x, top: 16 });
     x += 148;
   }
   x = 16;
