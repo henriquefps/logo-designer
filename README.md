@@ -96,7 +96,7 @@ bun run build
 - Project format and JSON Schema: [`docs/project-format.md`](docs/project-format.md) (`bun run schema` regenerates
   `public/schema/designer-project.schema.json` after changing `src/model/types.ts`)
 - Agent workflow and the `designer` CLI: [`docs/agents.md`](docs/agents.md)
-- App icon: `scripts/glyph.svg` → `NODE_PATH=<folder with sharp>/node_modules node scripts/build-icons.mjs scripts/glyph.svg docs/img --site public`.
+- App icon: `scripts/glyph.svg` → `bun run designer icons scripts/glyph.designer.json -o <dir>`, then copy `docs-img/*` to `docs/img` and `site/*` to `public`.
   Social preview and Open Graph image: `scripts/social-preview.html` (render the page at
   1280 × 640 at 2×, and with `#og` at 1200 × 630 for `public/og-image.jpg`).
 

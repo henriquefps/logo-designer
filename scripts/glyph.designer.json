@@ -2,10 +2,10 @@
   "$schema": "https://designer.hfps.dev/schema/designer-project.schema.json",
   "format": "designer",
   "schemaVersion": 1,
-  "id": "dmwb2j7u19dpp6x2",
-  "name": "Designer glyph",
-  "createdAt": 1794338028649,
-  "updatedAt": 1794338028649,
+  "id": "dmwb6hfkr4kfqqej",
+  "name": "Designer app icon",
+  "createdAt": 1794344663835,
+  "updatedAt": 1794344693435,
   "artboard": {
     "width": 128,
     "height": 128,
@@ -15,257 +15,75 @@
   },
   "children": [
     {
-      "id": "nmwb2j7u055zrrtf",
-      "name": "Group",
+      "id": "nmwb6hfkr154temm",
+      "name": "triangulo",
       "visible": true,
       "locked": false,
-      "opacity": 1,
+      "opacity": 0.45,
       "transform": {
-        "x": 0,
-        "y": 0,
+        "x": 35.08,
+        "y": 42,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1
       },
-      "type": "group",
-      "children": [
+      "type": "path",
+      "subpaths": [
         {
-          "id": "nmwb2j7u01nymlej",
-          "name": "Path",
-          "visible": true,
-          "locked": false,
-          "opacity": 0.7,
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "rotation": 0,
-            "scaleX": 1,
-            "scaleY": 1
-          },
-          "type": "path",
-          "subpaths": [
+          "closed": true,
+          "points": [
             {
-              "closed": false,
-              "points": [
-                {
-                  "x": 18,
-                  "y": 102,
-                  "type": "corner"
-                },
-                {
-                  "x": 110,
-                  "y": 102,
-                  "type": "corner"
-                }
-              ]
-            }
-          ],
-          "fill": {
-            "kind": "none"
-          },
-          "stroke": {
-            "paint": {
-              "kind": "solid",
-              "color": "#000000"
+              "x": 8.920000000000002,
+              "y": -28,
+              "type": "corner"
             },
-            "width": 7,
-            "cap": "round",
-            "join": "round",
-            "dash": []
-          },
-          "fillRule": "nonzero"
-        },
-        {
-          "id": "nmwb2j7u0216ps22",
-          "name": "Path",
-          "visible": true,
-          "locked": false,
-          "opacity": 1,
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "rotation": 0,
-            "scaleX": 1,
-            "scaleY": 1
-          },
-          "type": "path",
-          "subpaths": [
             {
-              "closed": true,
-              "points": [
-                {
-                  "x": 64,
-                  "y": 100,
-                  "type": "corner"
-                },
-                {
-                  "x": 38,
-                  "y": 60,
-                  "type": "corner",
-                  "out": {
-                    "x": 38,
-                    "y": 46
-                  }
-                },
-                {
-                  "x": 54,
-                  "y": 32,
-                  "type": "corner",
-                  "in": {
-                    "x": 46,
-                    "y": 36
-                  }
-                },
-                {
-                  "x": 74,
-                  "y": 32,
-                  "type": "corner",
-                  "out": {
-                    "x": 82,
-                    "y": 36
-                  }
-                },
-                {
-                  "x": 90,
-                  "y": 60,
-                  "type": "corner",
-                  "in": {
-                    "x": 90,
-                    "y": 46
-                  }
-                }
-              ]
-            }
-          ],
-          "fill": {
-            "kind": "none"
-          },
-          "stroke": {
-            "paint": {
-              "kind": "solid",
-              "color": "#000000"
+              "x": 23.08,
+              "y": -3.220000000000013,
+              "type": "corner"
             },
-            "width": 7,
-            "cap": "round",
-            "join": "round",
-            "dash": []
-          },
-          "fillRule": "nonzero"
-        },
-        {
-          "id": "nmwb2j7u03qyx2wm",
-          "name": "Path",
-          "visible": true,
-          "locked": false,
-          "opacity": 1,
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "rotation": 0,
-            "scaleX": 1,
-            "scaleY": 1
-          },
-          "type": "path",
-          "subpaths": [
             {
-              "closed": false,
-              "points": [
-                {
-                  "x": 64,
-                  "y": 100,
-                  "type": "corner"
-                },
-                {
-                  "x": 64,
-                  "y": 74,
-                  "type": "corner"
-                }
-              ]
-            }
-          ],
-          "fill": {
-            "kind": "none"
-          },
-          "stroke": {
-            "paint": {
-              "kind": "solid",
-              "color": "#000000"
+              "x": 23.08,
+              "y": 6.117707153309659,
+              "type": "corner",
+              "out": {
+                "x": 9.300838543982252,
+                "y": 6.237187969424724
+              }
             },
-            "width": 7,
-            "cap": "round",
-            "join": "round",
-            "dash": []
-          },
-          "fillRule": "nonzero"
-        },
-        {
-          "id": "nmwb2j7u04m5m48r",
-          "name": "Path",
-          "visible": true,
-          "locked": false,
-          "opacity": 1,
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "rotation": 0,
-            "scaleX": 1,
-            "scaleY": 1
-          },
-          "type": "path",
-          "subpaths": [
             {
-              "closed": false,
-              "points": [
-                {
-                  "x": 50,
-                  "y": 16,
-                  "type": "corner"
-                },
-                {
-                  "x": 78,
-                  "y": 16,
-                  "type": "corner"
-                }
-              ]
-            }
-          ],
-          "fill": {
-            "kind": "none"
-          },
-          "stroke": {
-            "paint": {
-              "kind": "solid",
-              "color": "#000000"
+              "x": -7.906042483203841,
+              "y": 27.64941641611459,
+              "type": "smooth",
+              "in": {
+                "x": -1.7355313795541463,
+                "y": 15.917884463587704
+              },
+              "out": {
+                "x": -7.967410442428545,
+                "y": 27.766090734078333
+              }
             },
-            "width": 7,
-            "cap": "round",
-            "join": "round",
-            "dash": []
-          },
-          "fillRule": "nonzero"
+            {
+              "x": -8.086037718965677,
+              "y": 28,
+              "type": "corner",
+              "in": {
+                "x": -8.027396807832954,
+                "y": 27.882952732858868
+              }
+            },
+            {
+              "x": -23.08,
+              "y": 28,
+              "type": "corner"
+            }
+          ]
         }
-      ]
-    },
-    {
-      "id": "nmwb2j7u16a85u1b",
-      "name": "Rectangle",
-      "visible": true,
-      "locked": false,
-      "opacity": 1,
-      "transform": {
-        "x": 18,
-        "y": 102,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1
-      },
-      "type": "rect",
-      "width": 20,
-      "height": 20,
-      "radius": 4,
+      ],
       "fill": {
         "kind": "solid",
-        "color": "#000000"
+        "color": "#2063b0"
       },
       "stroke": {
         "paint": {
@@ -275,28 +93,26 @@
         "cap": "butt",
         "join": "miter",
         "dash": []
-      }
+      },
+      "fillRule": "evenodd"
     },
     {
-      "id": "nmwb2j7u177l26tl",
-      "name": "Rectangle",
+      "id": "nmwb6hfkr25ga0m4",
+      "name": "quadrado",
       "visible": true,
       "locked": false,
-      "opacity": 1,
+      "opacity": 0.7,
       "transform": {
-        "x": 110,
-        "y": 102,
+        "x": 87,
+        "y": 49,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1
       },
-      "type": "rect",
-      "width": 20,
-      "height": 20,
-      "radius": 4,
+      "type": "path",
       "fill": {
         "kind": "solid",
-        "color": "#000000"
+        "color": "#2063b0"
       },
       "stroke": {
         "paint": {
@@ -306,27 +122,118 @@
         "cap": "butt",
         "join": "miter",
         "dash": []
-      }
+      },
+      "subpaths": [
+        {
+          "closed": true,
+          "points": [
+            {
+              "x": -19,
+              "y": -25,
+              "type": "corner",
+              "in": {
+                "x": -22.313708498799997,
+                "y": -25
+              }
+            },
+            {
+              "x": 19,
+              "y": -25,
+              "type": "corner",
+              "out": {
+                "x": 22.313708498799997,
+                "y": -25
+              }
+            },
+            {
+              "x": 25,
+              "y": -19,
+              "type": "corner",
+              "in": {
+                "x": 25,
+                "y": -22.3137084988
+              }
+            },
+            {
+              "x": 25,
+              "y": 19,
+              "type": "corner",
+              "out": {
+                "x": 25,
+                "y": 22.313708498799997
+              }
+            },
+            {
+              "x": 19,
+              "y": 25,
+              "type": "corner",
+              "in": {
+                "x": 22.313708498799997,
+                "y": 25
+              }
+            },
+            {
+              "x": 7.653247860452609,
+              "y": 25,
+              "type": "corner",
+              "out": {
+                "x": 4.680783063626009,
+                "y": 15.033834548121902
+              }
+            },
+            {
+              "x": -12.649416416114605,
+              "y": 2.1739575167961576,
+              "type": "smooth",
+              "in": {
+                "x": -3.3383843650773315,
+                "y": 7.071342350239746
+              },
+              "out": {
+                "x": -16.583706528673943,
+                "y": 0.10461304219855094
+              }
+            },
+            {
+              "x": -25,
+              "y": -0.7068813021088829,
+              "type": "corner",
+              "in": {
+                "x": -20.73140042038132,
+                "y": -0.3937805621157082
+              }
+            },
+            {
+              "x": -25,
+              "y": -19,
+              "type": "corner",
+              "out": {
+                "x": -25,
+                "y": -22.3137084988
+              }
+            }
+          ]
+        }
+      ],
+      "fillRule": "evenodd"
     },
     {
-      "id": "nmwb2j7u18035wwj",
-      "name": "Ellipse",
+      "id": "nmwb6hfkr3feuxdf",
+      "name": "circulo",
       "visible": true,
       "locked": false,
       "opacity": 1,
       "transform": {
-        "x": 64,
-        "y": 60,
+        "x": 60,
+        "y": 84,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1
       },
       "type": "ellipse",
-      "rx": 6,
-      "ry": 6,
       "fill": {
         "kind": "solid",
-        "color": "#000000"
+        "color": "#2063b0"
       },
       "stroke": {
         "paint": {
@@ -336,7 +243,9 @@
         "cap": "butt",
         "join": "miter",
         "dash": []
-      }
+      },
+      "rx": 32,
+      "ry": 32
     }
   ],
   "icon": {
