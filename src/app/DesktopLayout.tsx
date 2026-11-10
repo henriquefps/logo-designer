@@ -4,6 +4,7 @@ import { MenuBar } from './MenuBar';
 import { OptionsBar } from './OptionsBar';
 import { PanelTabs } from './PanelTabs';
 import { AppMark, ProjectTitle } from './ProjectTitle';
+import { CliButton, SyncButton } from './TopBarButtons';
 import { StatusBar } from './StatusBar';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
@@ -20,6 +21,8 @@ export function DesktopLayout() {
           <ProjectTitle />
         </div>
         <div className="flex items-center justify-end gap-1">
+          <CliButton />
+          <SyncButton />
           <ThemeMenu />
         </div>
       </header>

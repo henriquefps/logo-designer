@@ -10,6 +10,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { MenuDropdownItems } from './MenuBar';
 import { PanelTabs } from './PanelTabs';
 import { ProjectTitle } from './ProjectTitle';
+import { SyncButton } from './TopBarButtons';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
 
@@ -46,6 +47,7 @@ export function MobileLayout() {
         <Button variant="ghost" size="icon" aria-label="Redo" disabled={!canRedo} onClick={() => runAction('edit.redo')}>
           <ArrowArcRightIcon />
         </Button>
+        <SyncButton />
         <ThemeMenu />
         <Button variant="ghost" size="icon" aria-label="Panels" onClick={() => setOpen(true)}>
           <SlidersHorizontalIcon />
