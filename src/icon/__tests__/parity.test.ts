@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { inkBox, report } from '../measure';
 import { BACKGROUND_COLOR_LINE, BACKGROUND_XML, mergeLauncherBackground, REFERENCE_CIRCLE_SVG, sheetTiles, splashVector } from '../outputs';
 import { buildIconSet } from '../iconSet';
+import { BRAND, IOS_DARK_GLYPH, iosDarkGlyphFor, normalizeTile } from '../rules';
 import { resvgRasterize, resvgRenderer } from '../resvgRenderer';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
@@ -139,5 +140,50 @@ describe('ic_launcher_background.xml merge', () => {
     expect(mergeLauncherBackground(null)).toBe(BACKGROUND_XML);
     expect(mergeLauncherBackground('')).toBe(BACKGROUND_XML);
     expect(mergeLauncherBackground('garbage')).toBe(BACKGROUND_XML);
+  });
+});
+
+// `--tile #5b7a3a` (older hfps repos keep the olive tile): text outputs of build-icons.mjs --tile, byte for byte.
+describe('tile colour (--tile) parity with build-icons.mjs', () => {
+  const olive = '#5b7a3a';
+  const tileFixture = (name: string) => fixture(`tile-olive/${name}`);
+  it('every tile / light / launcher / Icon Composer file matches the script', async () => {
+    const { files } = await buildIconSet({ glyph: fixture('glyph-sync.svg'), tile: olive }, resvgRenderer);
+    const get = (p: string) => files.find((f) => f.path === p)?.data;
+    expect(get('docs-img/icon.svg')).toBe(tileFixture('icon.svg'));
+    expect(get('docs-img/icon-light.svg')).toBe(tileFixture('icon-light.svg'));
+    expect(get('android/res/values/ic_launcher_background.xml')).toBe(tileFixture('ic_launcher_background.xml'));
+    expect(get('ios/AppIcon.icon/icon.json')).toBe(tileFixture('icon.json'));
+    expect(get('ios/AppIcon.icon/Assets/glyph.svg')).toBe(tileFixture('ios-glyph.svg'));
+    expect(get('site/icon.svg')).toBe(tileFixture('icon.svg'));
+    expect(String(get('docs-img/icon-light.svg'))).toContain(`fill="${olive}"`);
+    expect(String(get('docs-img/icon-light.svg'))).not.toContain(BRAND);
+    // no leftover default blue anywhere in the text outputs
+    for (const f of files) if (typeof f.data === 'string' && !f.path.endsWith('README.txt') && !f.path.endsWith('.designer.json')) expect(f.data.toLowerCase(), f.path).not.toContain(BRAND);
+  }, 60_000);
+
+  it('the default tile is unchanged', async () => {
+    const a = await buildIconSet({ glyph: fixture('glyph-sync.svg') }, resvgRenderer);
+    const b = await buildIconSet({ glyph: fixture('glyph-sync.svg'), tile: BRAND }, resvgRenderer);
+    expect(b.files.map((f) => f.path)).toEqual(a.files.map((f) => f.path));
+    for (const [i, f] of a.files.entries()) expect(b.files[i].data, f.path).toEqual(f.data);
+    expect(String(a.files.find((f) => f.path === 'docs-img/icon.svg')?.data)).toContain(`fill="${BRAND}"`);
+  }, 60_000);
+
+  it('derives the iOS Dark glyph from the tile (same hue / saturation at 62% lightness)', () => {
+    expect(iosDarkGlyphFor(BRAND)).toBe(IOS_DARK_GLYPH);
+    expect(iosDarkGlyphFor(olive)).toBe('#9fc17b');
+    expect(iosDarkGlyphFor('#808080')).toBe('#9e9e9e');
+  });
+
+  it('validates the colour', () => {
+    expect(normalizeTile('#5B7A3A')).toBe('#5b7a3a');
+    expect(normalizeTile('#abc')).toBe('#aabbcc');
+    for (const bad of ['5b7a3a', '#5b7a3', '#gggggg', 'red', '', '#5b7a3a80', 12, null]) expect(normalizeTile(bad), String(bad)).toBeNull();
+  });
+
+  it('merges the launcher background with the tile', () => {
+    expect(mergeLauncherBackground(null, olive)).toBe(tileFixture('ic_launcher_background.xml'));
+    expect(mergeLauncherBackground('<resources>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n', olive)).toContain(`>${olive}<`);
   });
 });

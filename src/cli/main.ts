@@ -15,6 +15,7 @@ import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
 import { CORS_HEADERS, galleryHtml, pickOpener, type GalleryItem } from './present';
 import { describeKeyline, fitDocument, keylineOf } from './fit';
+import { BRAND, normalizeTile } from '@/icon/rules';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 
 export interface CliIO {
@@ -36,8 +37,10 @@ export const USAGE = `designer — Designer projects from the command line (http
 
 Usage: designer <command> [options]
 
-  new [-o file] [--preset P] [--name N]       empty project (P: ${ICON_PRESETS.join(' | ')} | WxH)
-  from-svg <file.svg|-> [-o file] [--name N] [--icon P] [--no-fit]
+  new [-o file] [--preset P] [--name N] [--tile #hex]
+                                              empty project (P: ${ICON_PRESETS.join(' | ')} | WxH); --tile stores the
+                                              tile colour in an app icon project
+  from-svg <file.svg|-> [-o file] [--name N] [--icon P [--tile #hex]] [--no-fit]
                                               editable project from an SVG (shapes, paths, groups, gradients);
                                               with --icon the drawing is fitted to the keyline (--no-fit keeps it raw)
   fit <project> [-o file]                     scale + centre the glyph of an app icon project onto its keyline
@@ -46,9 +49,11 @@ Usage: designer <command> [options]
   to-svg <project> [-o file] [--glyph]        clean SVG (text outlined); --glyph = 128 box + currentColor
                                               fragment for scripts/build-icons.mjs
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
-  icons <project> -o <dir> [--small <project>] [--shape S] [--android <res>] [--ios <dir>] [--site <dir>]
+  icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--android <res>] [--ios <dir>] [--site <dir>]
                                               whole app icon set, same files and numbers as build-icons.mjs
                                               (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt);
+                                              --tile <#hex>: tile colour for everything (default: the project's
+                                              icon.tile, else the hfps blue #2063b0; olive repos: #5b7a3a);
                                               includes drawable/ic_splash.xml (Android 12+ splash VectorDrawable).
                                               --android/--ios/--site write that part straight into an app
                                               (res dir, ios dir, web root) instead of under -o; an existing
@@ -94,6 +99,7 @@ const COMMON: ParseArgsConfig['options'] = {
   ios: { type: 'string' },
   site: { type: 'string' },
   shape: { type: 'string' },
+  tile: { type: 'string' },
   cutter: { type: 'string' },
   targets: { type: 'string' },
   gap: { type: 'string' },
@@ -163,11 +169,24 @@ const requireArg = (pos: string[], what: string) => {
   return pos[0];
 };
 
+/** --tile <#hex>: validated, normalised to #rrggbb; undefined when absent. */
+function tileArg(v: Values): string | undefined {
+  const t = str(v, 'tile');
+  if (t === undefined) return undefined;
+  const n = normalizeTile(t);
+  if (!n) throw new UsageError(`--tile must be a hex colour like #2063b0 (got “${t}”)`);
+  return n;
+}
+
 function iconFor(v: Values): IconSettings | null {
   const p = str(v, 'icon');
-  if (!p) return null;
+  const tile = tileArg(v);
+  if (!p) {
+    if (tile) throw new UsageError('--tile needs --icon <preset> here (the tile colour is stored in an app icon project)');
+    return null;
+  }
   if (!isIconPreset(p)) throw new UsageError(`--icon must be one of ${ICON_PRESETS.join(', ')}`);
-  return { preset: p, shape: 'auto' };
+  return { preset: p, shape: 'auto', ...(tile && tile !== BRAND ? { tile } : {}) };
 }
 
 // ---------- info ----------
@@ -466,7 +485,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           name: str(values, 'name') ?? (output ? nameFromPath(output) : 'Untitled'),
           artboard: { width: p.width, height: p.height, background: p.icon ? { kind: 'none' } : { kind: 'solid', color: '#ffffff' } },
         });
-        await emit(serializeWithIcon(doc, p.icon ? { preset: p.icon, shape: 'auto' } : null), output, io, 'project');
+        const tile = tileArg(values);
+        if (tile && !p.icon) throw new UsageError('--tile needs an app icon preset (--preset app-icon | …)');
+        await emit(serializeWithIcon(doc, p.icon ? { preset: p.icon, shape: 'auto', ...(tile && tile !== BRAND ? { tile } : {}) } : null), output, io, 'project');
         return 0;
       }
       case 'from-svg': {
@@ -527,6 +548,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const targets = { 'android/res/': str(values, 'android'), 'ios/': str(values, 'ios'), 'site/': str(values, 'site') };
         if (!output && !Object.values(targets).some(Boolean)) throw new UsageError('icons needs -o <dir> (or --android / --ios / --site)');
         const shape = str(values, 'shape');
+        const tileFlag = tileArg(values);
         if (shape && !(ICON_SHAPES as readonly string[]).includes(shape)) throw new UsageError(`--shape must be one of ${ICON_SHAPES.join(', ')}`);
         const { doc } = await loadDoc(path, io);
         const glyph = await exportGlyph(doc);
@@ -537,8 +559,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const { mergeLauncherBackground } = await import('@/icon/outputs');
         const { resvgRenderer } = await import('@/icon/resvgRenderer');
         const base = (doc.name || 'icon').replace(/[\\/:*?"<>|]+/g, '-');
+        const tile = tileFlag ?? doc.icon?.tile ?? BRAND;
         const result = await buildIconSet(
-          { glyph, small, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
+          { glyph, small, tile, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
           resvgRenderer,
         );
         const cwd = io.cwd ?? process.cwd();
@@ -550,7 +573,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           const target = join(root, hit ? f.path.slice(hit[0].length) : f.path);
           await mkdir(dirname(target), { recursive: true });
           let data = f.data;
-          if (f.path === 'android/res/values/ic_launcher_background.xml') data = mergeLauncherBackground(await readFile(target, 'utf8').catch(() => null));
+          if (f.path === 'android/res/values/ic_launcher_background.xml') data = mergeLauncherBackground(await readFile(target, 'utf8').catch(() => null), tile);
           await writeFile(target, data);
           written++;
         }

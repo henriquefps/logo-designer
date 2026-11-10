@@ -60,6 +60,8 @@ export function generateSchema(): string {
     Object.values(o).forEach(walk);
   };
   walk(defs);
+  const tile = defs.IconDocInfo?.properties?.tile;
+  if (tile) Object.assign(tile, { pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$', description: 'Tile colour, #rrggbb (or #rgb); default #2063b0 (hfps blue). Older hfps repos keep olive #5b7a3a.' });
   const out = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: URL,

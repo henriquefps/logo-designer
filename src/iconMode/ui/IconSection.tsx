@@ -4,8 +4,9 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { fit, iconPresetDef, isFaviconPreset, strokeWarning, type IconShapeArg } from '@/icon';
+import { BRAND, fit, iconPresetDef, isFaviconPreset, normalizeTile, strokeWarning, type IconShapeArg } from '@/icon';
 import type { IconShapeSetting } from '@/model';
 import { FieldRow, Section } from '@/panels/shared/Section';
 import type { SelectionContext } from '@/panels/properties/types';
@@ -26,6 +27,42 @@ const SHAPES: { id: IconShapeSetting; label: string }[] = [
   { id: 'wide', label: 'Wide (0.68 T)' },
   { id: 'tall', label: 'Tall (0.68 T)' },
 ];
+
+/** Tile colour: colour well + hex field (validated); the default blue is stored as "no tile". */
+function TileColorField({ tile }: { tile: string | undefined }) {
+  const cur = tile ?? BRAND;
+  const [text, setText] = useState(cur);
+  const [prev, setPrev] = useState(cur);
+  if (prev !== cur) {
+    setPrev(cur);
+    setText(cur);
+  }
+  const commit = (v: string) => {
+    const n = normalizeTile(v);
+    if (!n) return setText(cur);
+    setText(n);
+    if (n !== cur) setIconInfo({ tile: n === BRAND ? undefined : n }, 'Tile colour');
+  };
+  const invalid = !normalizeTile(text);
+  return (
+    <div className="flex items-center gap-2">
+      <input type="color" aria-label="Tile colour picker" value={cur} onChange={(e) => commit(e.target.value)} className="size-7 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5" />
+      <Input
+        aria-label="Tile colour"
+        aria-invalid={invalid}
+        value={text}
+        spellCheck={false}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => commit(text)}
+        onKeyDown={(e) => e.key === 'Enter' && commit(text)}
+        className="h-7 font-mono text-xs"
+      />
+      <Button size="sm" variant="ghost" disabled={cur === BRAND} onClick={() => commit(BRAND)}>
+        Reset
+      </Button>
+    </div>
+  );
+}
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
@@ -99,6 +136,10 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
               ))}
             </SelectContent>
           </Select>
+        </FieldRow>
+
+        <FieldRow label="Tile colour">
+          <TileColorField tile={icon.tile} />
         </FieldRow>
 
         {analysis.status === 'empty' && <p className="text-sm text-muted-foreground">Draw the glyph inside the tile, or import an SVG. Its colours become currentColor on export.</p>}

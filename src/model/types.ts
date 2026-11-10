@@ -117,6 +117,8 @@ export interface IconDocInfo {
   shape: IconShapeSetting;
   /** Project used for the 16/32/48 px favicon glyph (glyph-small.svg) instead of this one. */
   smallGlyphProjectId?: string;
+  /** Tile colour `#rrggbb` (default: the hfps blue `#2063b0`; older repos keep olive `#5b7a3a`). */
+  tile?: string;
 }
 
 export interface DesignDocument {

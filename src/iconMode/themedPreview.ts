@@ -1,7 +1,7 @@
 // Approximate previews of how the OS recolours the icon: Android 13+ themed icons (Material You)
 // and iOS 18+ Light / Dark / Tinted. The OS renders these itself; these SVGs only approximate it
 // from the same glyph and keylines as the exported files (src/icon).
-import { BRAND, glyphG, IOS_DARK_BG, IOS_DARK_GLYPH, KEYLINE, type IconSources } from '@/icon';
+import { glyphG, iosDarkGlyphFor, IOS_DARK_BG, KEYLINE, tileOf, type IconSources } from '@/icon';
 
 export const DEFAULT_TINT = '#e8a33d';
 
@@ -58,10 +58,10 @@ const IOS_RX = 28.6;
 export function iosAppearanceSvg(src: IconSources, appearance: IosAppearance, tint: string): string {
   const clip = `<clipPath id="ios"><rect width="128" height="128" rx="${IOS_RX}"/></clipPath>`;
   const fill = KEYLINE[src.shape].long;
-  if (appearance === 'light') return svg(`<g clip-path="url(#ios)"><rect width="128" height="128" fill="${BRAND}"/>${glyphG(src.glyph, 128, fill, '#fff')}</g>`, clip);
+  if (appearance === 'light') return svg(`<g clip-path="url(#ios)"><rect width="128" height="128" fill="${tileOf(src)}"/>${glyphG(src.glyph, 128, fill, '#fff')}</g>`, clip);
   const [h, s] = hexToHsl(safeTint(tint));
   const [top, bottom] = appearance === 'dark' ? IOS_DARK_BG : [hsl(h, s * 0.35, 0.2), hsl(h, s * 0.35, 0.07)];
-  const glyph = appearance === 'dark' ? IOS_DARK_GLYPH : hsl(h, Math.max(s, 0.5), 0.68);
+  const glyph = appearance === 'dark' ? iosDarkGlyphFor(tileOf(src)) : hsl(h, Math.max(s, 0.5), 0.68);
   const grad = `<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>`;
   return svg(`<g clip-path="url(#ios)"><rect width="128" height="128" fill="url(#bg)"/>${glyphG(src.glyph, 128, fill, glyph)}</g>`, clip + grad);
 }

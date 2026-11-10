@@ -6,7 +6,8 @@ import { cleanGlyph, inkBox, report, shapeOf, type IconReport, type Rasterize } 
 import {
   ADAPTIVE_XML,
   ANDROID_DENSITIES,
-  BACKGROUND_XML,
+  backgroundXml,
+  tileOf,
   IOS_APPICON,
   IOS_CONTENTS_JSON,
   ICON_COMPOSER_GLYPH,
@@ -30,7 +31,7 @@ import {
   type Deflate,
   type IconSources,
 } from './outputs';
-import { BRAND, IOS_TINTED_BG, SMALL_FILL, type IconShape, type IconShapeArg } from './rules';
+import { IOS_TINTED_BG, SMALL_FILL, type IconShape, type IconShapeArg } from './rules';
 
 export interface IconRenderer {
   /** Raw pixels (RGBA) of an SVG rendered at px × px (used to measure and for the opaque iOS PNG). */
@@ -55,6 +56,8 @@ export interface IconSetInput {
   shape?: IconShapeArg;
   /** Extra files copied as-is (the .designer.json project, …). */
   extra?: IconFile[];
+  /** Tile colour `#rrggbb` (default BRAND `#2063b0`; older hfps repos: olive `#5b7a3a`). */
+  tile?: string;
 }
 
 export interface IconSetResult {
@@ -66,7 +69,7 @@ export interface IconSetResult {
 }
 
 /** Measures the glyph(s) and returns the sources every builder takes. */
-export async function prepareSources(input: Pick<IconSetInput, 'glyph' | 'small' | 'shape'>, rasterize: Rasterize) {
+export async function prepareSources(input: Pick<IconSetInput, 'glyph' | 'small' | 'shape' | 'tile'>, rasterize: Rasterize) {
   const src = cleanGlyph(input.glyph);
   const box = await inkBox(src, rasterize);
   if (!box) throw new Error('The glyph has no visible ink.');
@@ -74,7 +77,7 @@ export async function prepareSources(input: Pick<IconSetInput, 'glyph' | 'small'
   const smallBox = smallSrc ? await inkBox(smallSrc, rasterize) : undefined;
   if (smallSrc && !smallBox) throw new Error('The small glyph has no visible ink.');
   const shape = shapeOf(box, input.shape ?? 'auto');
-  const sources: IconSources = { glyph: { src, box }, shape, ...(smallSrc && smallBox ? { small: { src: smallSrc, box: smallBox } } : {}) };
+  const sources: IconSources = { glyph: { src, box }, shape, ...(input.tile ? { tile: input.tile } : {}), ...(smallSrc && smallBox ? { small: { src: smallSrc, box: smallBox } } : {}) };
   const smallShape = smallBox ? shapeOf(smallBox, input.shape ?? 'auto') : undefined;
   return { sources, report: report(box, input.shape ?? 'auto'), smallShape };
 }
@@ -110,7 +113,7 @@ Where each folder goes:
                         stays sharp where the PNG foreground would be upscaled and blurred.
   ios/AppIcon.appiconset/
                         goes into the app's Assets.xcassets (iOS 18+ Light / Dark / Tinted):
-                          AppIcon-1024.png         Light (Any): opaque, no alpha, brand blue tile
+                          AppIcon-1024.png         Light (Any): opaque, no alpha, brand blue tile (or --tile)
                           AppIcon-1024-dark.png    Dark: glyph in light blue on transparency; iOS
                                                    draws its own dark background behind it
                           AppIcon-1024-tinted.png  Tinted: opaque grayscale, white glyph on black;
@@ -135,7 +138,7 @@ type Add = (path: string, data: Uint8Array | string) => void;
 export async function addIosAppIconSet(sources: IconSources, r: IconRenderer, add: Add): Promise<void> {
   const dir = 'ios/AppIcon.appiconset';
   const light = await r.rasterize(squareSvg(sources), 1024);
-  add(`${dir}/${IOS_APPICON.light}`, await encodeOpaquePng(light.data, light.width, light.height, BRAND, r.deflate));
+  add(`${dir}/${IOS_APPICON.light}`, await encodeOpaquePng(light.data, light.width, light.height, tileOf(sources), r.deflate));
   add(`${dir}/${IOS_APPICON.dark}`, await r.png(iosDarkSvg(sources), 1024));
   const tinted = await r.rasterize(iosTintedSvg(sources), 1024);
   add(`${dir}/${IOS_APPICON.tinted}`, await encodeOpaquePng(tinted.data, tinted.width, tinted.height, IOS_TINTED_BG, r.deflate));
@@ -144,7 +147,7 @@ export async function addIosAppIconSet(sources: IconSources, r: IconRenderer, ad
 
 /** iOS 26 Icon Composer file: AppIcon.icon/icon.json + Assets/glyph.svg (background is a fill, not a layer). */
 export function addIconComposerFile(sources: IconSources, add: Add): void {
-  add('ios/AppIcon.icon/icon.json', iconComposerJson());
+  add('ios/AppIcon.icon/icon.json', iconComposerJson(tileOf(sources)));
   add(`ios/AppIcon.icon/Assets/${ICON_COMPOSER_GLYPH}`, iconComposerGlyphSvg(sources));
 }
 
@@ -188,7 +191,7 @@ export async function buildIconSet(input: IconSetInput, r: IconRenderer): Promis
   }
   add('android/res/mipmap-anydpi-v26/ic_launcher.xml', ADAPTIVE_XML);
   add('android/res/mipmap-anydpi-v26/ic_launcher_round.xml', ADAPTIVE_XML);
-  add('android/res/values/ic_launcher_background.xml', BACKGROUND_XML);
+  add('android/res/values/ic_launcher_background.xml', backgroundXml(tileOf(sources)));
   const splash = splashDrawable(sources);
   if (splash.xml) add('android/res/drawable/ic_splash.xml', splash.xml);
   else notes.push(`! android splash: no ic_splash.xml (${splash.error}); export the glyph from the Designer (to-svg --glyph) so it is plain paths`);

@@ -58,7 +58,7 @@ export async function buildIconZip(doc: DesignDocument): Promise<{ blob: Blob; r
   const base = safeFileName(doc.name);
   const extra = [{ path: base + PROJECT_EXTENSION, data: serializeProject(doc) }];
   if (small) extra.push({ path: safeFileName(small.doc.name) + '-small' + PROJECT_EXTENSION, data: serializeProject(small.doc) });
-  const result = await buildIconSet({ glyph, small: small?.glyph, shape: doc.icon?.shape ?? 'auto', extra }, browserIconRenderer);
+  const result = await buildIconSet({ glyph, small: small?.glyph, shape: doc.icon?.shape ?? 'auto', tile: doc.icon?.tile, extra }, browserIconRenderer);
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   for (const f of result.files) zip.file(f.path, f.data);

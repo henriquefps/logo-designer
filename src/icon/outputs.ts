@@ -8,7 +8,7 @@ import {
   FAVICON_RX,
   ICON_COMPOSER_CANVAS,
   IOS_DARK_BG,
-  IOS_DARK_GLYPH,
+  iosDarkGlyphFor,
   IOS_TINTED_BG,
   IOS_TINTED_GLYPH,
   KEYLINE,
@@ -31,7 +31,12 @@ export interface IconSources {
   /** Simplified favicon glyph (`--small`); absent = the main glyph. */
   small?: PlacedGlyph;
   shape: IconShape;
+  /** Tile colour (`#rrggbb`); absent = BRAND. */
+  tile?: string;
 }
+
+/** The tile colour of a set of sources. */
+export const tileOf = (src: Pick<IconSources, 'tile'>) => src.tile ?? BRAND;
 
 /** The glyph fitted into a tile of size T at (ox, oy) with `color` for currentColor. */
 export const glyphG = (g: PlacedGlyph, T: number, fill: number, color: string, ox = 0, oy = 0) =>
@@ -49,7 +54,7 @@ export interface TileOptions {
 
 /** 128 tile: rx 28 blue with a white glyph by default; `border` = the light variant. */
 export function tileSvg(src: IconSources, o: TileOptions = {}): string {
-  const { glyph = src.glyph, fill = KEYLINE[src.shape].long, rx = TILE_RX, bg = BRAND, color = '#fff', border = false, size = 512 } = o;
+  const { glyph = src.glyph, fill = KEYLINE[src.shape].long, rx = TILE_RX, bg = tileOf(src), color = '#fff', border = false, size = 512 } = o;
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="${size}" height="${size}">` +
     (border
@@ -61,7 +66,7 @@ export function tileSvg(src: IconSources, o: TileOptions = {}): string {
 }
 
 export const darkTile = (src: IconSources) => tileSvg(src);
-export const lightTile = (src: IconSources) => tileSvg(src, { border: true, color: BRAND });
+export const lightTile = (src: IconSources) => tileSvg(src, { border: true, color: tileOf(src) });
 
 /** Favicon tile: rx 24, the small glyph at SMALL_FILL (or the main one at min(0.76, long + 0.08)). */
 export const faviconSvg = (src: IconSources) =>
@@ -70,13 +75,13 @@ export const faviconSvg = (src: IconSources) =>
 /** Android adaptive layer: 108 canvas, visible tile T = 72 centred (18 inset). */
 export const layerSvg = (src: IconSources, color: string, withBg = false) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="432" height="432">` +
-  (withBg ? `<rect width="108" height="108" fill="${BRAND}"/>` : '') +
+  (withBg ? `<rect width="108" height="108" fill="${tileOf(src)}"/>` : '') +
   glyphG(src.glyph, ANDROID.tile, KEYLINE[src.shape].long, color, ANDROID.inset, ANDROID.inset) +
   `</svg>`;
 
 export const legacyLauncherSvg = (src: IconSources) => tileSvg(src, { rx: LEGACY_RX });
 export const legacyRoundSvg = (src: IconSources) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><circle cx="64" cy="64" r="64" fill="${BRAND}"/>${glyphG(src.glyph, 128, KEYLINE[src.shape].long, '#fff')}</svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><circle cx="64" cy="64" r="64" fill="${tileOf(src)}"/>${glyphG(src.glyph, 128, KEYLINE[src.shape].long, '#fff')}</svg>`;
 
 /** Full-bleed opaque square (apple-touch, maskable, iOS). */
 export const squareSvg = (src: IconSources) => tileSvg(src, { rx: 0 });
@@ -91,21 +96,24 @@ export const ADAPTIVE_XML = `<?xml version="1.0" encoding="utf-8"?>
 </adaptive-icon>
 `;
 
-export const BACKGROUND_XML = `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BRAND}</color>\n</resources>\n`;
+export const backgroundXml = (tile: string = BRAND) => `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${tile}</color>\n</resources>\n`;
+export const BACKGROUND_XML = backgroundXml();
 
 /** The launcher background colour line the script writes (and sets inside an existing file). */
-export const BACKGROUND_COLOR_LINE = `<color name="ic_launcher_background">${BRAND}</color>`;
+export const backgroundColorLine = (tile: string = BRAND) => `<color name="ic_launcher_background">${tile}</color>`;
+export const BACKGROUND_COLOR_LINE = backgroundColorLine();
 
 /**
  * values/ic_launcher_background.xml, mirroring build-icons.mjs: with an existing file that has the entry, only
  * that colour is replaced; else, if it has `</resources>`, the entry is inserted before it (other colours such as
  * splash_background are kept); otherwise a fresh file.
  */
-export function mergeLauncherBackground(prev: string | null | undefined): string {
+export function mergeLauncherBackground(prev: string | null | undefined, tile: string = BRAND): string {
+  const line = backgroundColorLine(tile);
   const re = /<color name="ic_launcher_background">[^<]*<\/color>/;
-  if (prev && re.test(prev)) return prev.replace(re, BACKGROUND_COLOR_LINE);
-  if (prev && prev.includes('</resources>')) return prev.replace('</resources>', `    ${BACKGROUND_COLOR_LINE}\n</resources>`);
-  return BACKGROUND_XML;
+  if (prev && re.test(prev)) return prev.replace(re, line);
+  if (prev && prev.includes('</resources>')) return prev.replace('</resources>', `    ${line}\n</resources>`);
+  return backgroundXml(tile);
 }
 
 /**
@@ -227,7 +235,7 @@ export const IOS_CONTENTS_JSON =
 /** iOS 18 Dark: the glyph in IOS_DARK_GLYPH on a TRANSPARENT square (the system supplies the dark background). */
 export const iosDarkSvg = (src: IconSources) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="1024" height="1024">` +
-  glyphG(src.glyph, 128, KEYLINE[src.shape].long, IOS_DARK_GLYPH) +
+  glyphG(src.glyph, 128, KEYLINE[src.shape].long, iosDarkGlyphFor(tileOf(src))) +
   `</svg>`;
 
 /** iOS 18 Tinted: grayscale, fully opaque: white glyph on black (flatten on IOS_TINTED_BG, no alpha). */
@@ -255,10 +263,10 @@ export const ICON_COMPOSER_GLYPH = 'glyph.svg';
  * to IOS_DARK_GLYPH in Dark and to white (extended-gray 1) in Tinted. Keys mirror files saved by
  * Icon Composer (see docs/app-icons-theming.md).
  */
-export function iconComposerJson(): string {
+export function iconComposerJson(tile: string = BRAND): string {
   const json = {
     'fill-specializations': [
-      { value: { solid: icSrgb(BRAND) } },
+      { value: { solid: icSrgb(tile) } },
       { appearance: 'dark', value: { 'linear-gradient': IOS_DARK_BG.map((c) => icSrgb(c)) } },
     ],
     groups: [
@@ -266,7 +274,7 @@ export function iconComposerJson(): string {
         layers: [
           {
             'fill-specializations': [
-              { appearance: 'dark', value: { solid: icSrgb(IOS_DARK_GLYPH) } },
+              { appearance: 'dark', value: { solid: icSrgb(iosDarkGlyphFor(tile)) } },
               { appearance: 'tinted', value: { solid: 'extended-gray:1.00000,1.00000' } },
             ],
             glass: true,
@@ -336,8 +344,8 @@ export type MaskId = keyof typeof MASKS;
 
 /** The icon under a launcher mask (blue tile, white glyph), optionally with the 0.63 T circle. */
 export function maskedSvg(src: IconSources, mask: MaskId, withRef: boolean, o: { light?: boolean } = {}): string {
-  const glyph = glyphG(src.glyph, 128, KEYLINE[src.shape].long, o.light ? BRAND : '#fff');
-  const bg = o.light ? `<rect width="128" height="128" fill="#fff"/>` : `<rect width="128" height="128" fill="${BRAND}"/>`;
+  const glyph = glyphG(src.glyph, 128, KEYLINE[src.shape].long, o.light ? tileOf(src) : '#fff');
+  const bg = o.light ? `<rect width="128" height="128" fill="#fff"/>` : `<rect width="128" height="128" fill="${tileOf(src)}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><defs><clipPath id="m">${MASKS[mask]}</clipPath></defs><g clip-path="url(#m)">${bg}${glyph}</g>${withRef ? REFERENCE_CIRCLE_SVG : ''}</svg>`;
 }
 

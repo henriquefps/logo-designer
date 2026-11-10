@@ -73,12 +73,16 @@ icon?: {
   preset: 'app-icon' | 'android-adaptive' | 'ios' | 'favicon-32' | 'favicon-16';
   shape: 'auto' | 'circle' | 'square' | 'wide' | 'tall'; // keyline; auto = square/wide/tall from the ink box
   smallGlyphProjectId?: string; // another project used as the favicon glyph (glyph-small.svg)
+  tile?: string; // tile colour '#rrggbb' (or '#rgb'); default '#2063b0'. Older hfps repos keep olive '#5b7a3a'
 }
 ```
 
 Artboards: `app-icon` 128 (the visible tile T is the whole artboard), `android-adaptive` 108 (T = the
 middle 72, 66 safe circle), `ios` 1024, `favicon-32` 32, `favicon-16` 16. A missing `preset`/`shape`
 defaults to `app-icon`/`auto`; an unknown value is an error naming `icon.preset` / `icon.shape`.
+`tile` is the colour of every tile in the exported set and of the tile under the glyph in the app (Icon panel →
+“Tile colour”); it is normalised to lowercase `#rrggbb` and omitted when it is the default blue, and an invalid
+value is an error naming `icon.tile`. `designer icons --tile <#hex>` overrides it for one run.
 `designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with `shape: "auto"`.
 
 ## Nodes

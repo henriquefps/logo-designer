@@ -35,7 +35,7 @@ dark mode. Nothing to export; the panel shows an approximation.
 | File | Appearance | Content |
 | --- | --- | --- |
 | `AppIcon-1024.png` | Any (Light) | unchanged: opaque RGB, brand blue square, white glyph on the 1024 keyline |
-| `AppIcon-1024-dark.png` | `luminosity: dark` | RGBA: **transparent** background, glyph in `IOS_DARK_GLYPH` `#5b9ae1` (brand blue lifted to 62% lightness so it reads on the system's near-black). Apple: transparent "so the system-provided background can show through"; HIG: dark icons "more subdued", "avoid excessively bright images". |
+| `AppIcon-1024-dark.png` | `luminosity: dark` | RGBA: **transparent** background, glyph in `IOS_DARK_GLYPH` `#5b9ae1` (brand blue lifted to 62% lightness so it reads on the system's near-black). With a custom tile (`--tile`, `icon.tile`) the glyph is derived the same way: the tile's HSL hue and saturation, rounded to whole degrees / percent, at 62% lightness (`iosDarkGlyphFor()`; `#2063b0` = HSL 212°, 69%, 41% gives exactly `#5b9ae1`, olive `#5b7a3a` gives `#9fc17b`). Apple: transparent "so the system-provided background can show through"; HIG: dark icons "more subdued", "avoid excessively bright images". |
 | `AppIcon-1024-tinted.png` | `luminosity: tinted` | opaque RGB grayscale: **white glyph on black**. Apple: "grayscale image"; the system recolours it with the tint (white → full tint) over its own gradient. |
 
 `Contents.json`:

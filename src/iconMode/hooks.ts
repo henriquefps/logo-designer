@@ -40,8 +40,9 @@ export function useSmallGlyph(doc: DesignDocument): PlacedGlyph | null {
 export function useIconSources(doc: DesignDocument): IconSources | null {
   const a = useIconStore((s) => s.analysis);
   const small = useSmallGlyph(doc);
+  const tile = doc.icon?.tile;
   return useMemo(() => {
     if (a.status !== 'ready' || !a.box || !a.report) return null;
-    return { glyph: { src: a.glyph, box: a.box }, shape: a.report.shape, ...(small ? { small } : {}) };
-  }, [a, small]);
+    return { glyph: { src: a.glyph, box: a.box }, shape: a.report.shape, ...(tile ? { tile } : {}), ...(small ? { small } : {}) };
+  }, [a, small, tile]);
 }
