@@ -99,7 +99,17 @@ describe('designer CLI', () => {
     const big = await json('svg.designer.json');
     big.artboard = { width: 256, height: 128, background: { kind: 'none' } };
     await writeFile(join(dir, 'big.designer.json'), JSON.stringify(big));
-    expect((await cli('to-svg', 'big.designer.json', '--glyph')).out).toContain('<g transform="translate(0 32) scale(0.5)">');
+    expect((await cli('to-svg', 'big.designer.json', '--glyph')).out).toContain('<g fill="currentColor" transform="translate(0 32) scale(0.5)">');
+  });
+
+  it('round-trips build-icons glyph fragments (no <svg> root, default black fill)', async () => {
+    await writeFile(join(dir, 'frag.svg'), '<!-- glyph -->\n<rect x="8" y="92" width="20" height="20" rx="4" fill="currentColor"/>\n<path d="M18 102 H110" stroke="currentColor" stroke-width="7"/>');
+    const r = await cli('from-svg', 'frag.svg', '-o', 'frag.designer.json');
+    expect(r.err).toContain('glyph fragment');
+    expect((await json('frag.designer.json')).artboard).toMatchObject({ width: 128, height: 128 });
+    const glyph = (await cli('to-svg', 'frag.designer.json', '--glyph')).out;
+    expect(glyph).toMatch(/^<!--.*-->\n<g fill="currentColor">\n {2}<rect x="8" y="92" width="20" height="20" rx="4"\/>/);
+    expect(glyph).toContain('stroke="currentColor"');
   });
 
   it('to-png renders with resvg', async () => {

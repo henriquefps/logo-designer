@@ -59,7 +59,13 @@ src/
   dialogs/              DialogHost + <id>/ (newDocument = welcome/File → New, projects, shortcuts, about,
                         export, convertToPath); each Component is React.lazy and mounts on first open
   io/
-    projectFile.ts      .designer.json save/open + validateDocument (schemaVersion, every node checked)
+    projectFile.ts      .designer.json serialize ($schema) + validateDocument (errors name the JSON path, defaults)
+    projectFileTypes.ts file shape for the JSON Schema (scripts/gen-schema.ts → public/schema/)
+    fileAccess.ts       save in place (File System Access handles per project in IndexedDB), Save as, Open
+    shareLink.ts        #open= (deflate-raw + base64url) / ?import= links: build, read, resolve to a document
+    launch.ts           handles those URLs at startup/hashchange → dialogs/openLink confirm → new project
+    svgDocument.ts      svgToDocument (SVG → whole document; app + CLI)
+    glyphExport.ts      document → 128-box currentColor glyph fragment (build-icons.mjs)
     download.ts         downloadBlob, pickFiles
     svgExport.ts        exportSvg(doc, {scope, selection, padding, background}) → clean SVG string
     outlineText.ts      adapter to fonts/outline.ts textToPaths (glob: picked up when it exists, else <text>)
@@ -72,6 +78,8 @@ src/
     legacy/             LogoGo → Designer migration (logogo.ts pure, migrate.ts runs once from init)
     exporters/          registry + <id>/index.ts (extra formats; SVG/PNG/JPG are built into the dialog)
     importers/          registry + <id>/index.ts (svg: SVG + PNG/JPG/WebP)
+  cli/                  `designer` CLI (bin/designer.ts): main.ts commands, env.ts headless shim (happy-dom
+                        DOMParser, fonts read from disk), presets.ts. See docs/agents.md
   theme/                theme.ts (Light/Dark/System + palettes, keys designer.theme / designer.palette), ThemeMenu
   components/ui/        shadcn radix-vega primitives (generated; local edits: tabs focus fix, sonner theme prop)
   components/ResponsiveDialog.tsx  Dialog on desktop, bottom Sheet below 768px
@@ -212,6 +220,13 @@ full `DesignDocument`. The active project id is in `localStorage['designer.activ
 600 ms after the last change (not during a transaction) and on `pagehide`/hidden. `init` first runs the
 one-time LogoGo migration (`io/legacy/migrate.ts`: `logogo-project-storage` → new projects, flag
 `designer.logogoMigrated`; the old key is left untouched).
+
+## Agents, links and the CLI
+
+See `docs/agents.md` and `docs/project-format.md`. Keep `src/model`, `src/io/projectFile.ts`,
+`svgImport.ts`, `svgExport.ts` and `shareLink.ts` free of React/store imports: the CLI imports them
+under Bun. After changing `src/model/types.ts`, run `bun run schema` (a test compares the committed
+schema) and update the `OPTIONAL` list in `scripts/gen-schema.ts` if the importer gives a field a default.
 
 ## Tests
 

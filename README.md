@@ -52,6 +52,20 @@ which now redirects here).
 | Hand / zoom | `H` (or Space) / `Z` | Fit / 100% | `⌘0` / `⌘1` |
 | Edit points | `↵` or double-click | Grid / snap to grid | `⌘'` / `⇧⌘'` |
 
+## For agents and scripts
+
+Projects are plain JSON ([format](docs/project-format.md), [JSON Schema](https://designer.hfps.dev/schema/designer-project.schema.json)),
+and the `designer` CLI creates, converts, checks and shares them without the browser:
+
+```sh
+bun run designer from-svg glyph.svg -o glyph.designer.json   # in this repo
+bunx --bun github:henriquefps/logo-designer link glyph.designer.json   # anywhere: prints an open link
+```
+
+`https://designer.hfps.dev/#open=…` links carry a project or SVG and import it as a new project
+after a confirmation; `?import=<url>` fetches one from a URL. In Chrome and Edge, ⌘S / Ctrl+S saves
+back to the `.designer.json` you opened. The whole workflow: [`docs/agents.md`](docs/agents.md).
+
 ## Stack
 
 Vite, React 19, TypeScript, Tailwind CSS 4 and shadcn/ui (Radix), zustand with immer for state
@@ -73,6 +87,9 @@ bun run build
 - Architecture and extension points (tools, actions, panels, dialogs, importers, exporters):
   [`docs/architecture.md`](docs/architecture.md)
 - Deploy: [`docs/deploy.md`](docs/deploy.md)
+- Project format and JSON Schema: [`docs/project-format.md`](docs/project-format.md) (`bun run schema` regenerates
+  `public/schema/designer-project.schema.json` after changing `src/model/types.ts`)
+- Agent workflow and the `designer` CLI: [`docs/agents.md`](docs/agents.md)
 - App icon: `scripts/glyph.svg` → `NODE_PATH=<folder with sharp>/node_modules node scripts/build-icons.mjs scripts/glyph.svg docs/img --site public`.
   Social preview and Open Graph image: `scripts/social-preview.html` (render the page at
   1280 × 640 at 2×, and with `#og` at 1200 × 630 for `public/og-image.jpg`).

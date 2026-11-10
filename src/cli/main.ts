@@ -8,7 +8,7 @@ import { createDocument, worldBounds, type DesignDocument, type Rect, type Scene
 import { serializeProject, validateDocument } from '@/io/projectFile';
 import { svgToDocument } from '@/io/svgDocument';
 import { exportSvg } from '@/io/svgExport';
-import { exportGlyph } from '@/io/glyphExport';
+import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
 import { ICON_PRESETS, isIconPreset, parsePreset, type IconSettings } from './presets';
 
@@ -92,6 +92,13 @@ function serializeWithIcon(doc: DesignDocument, icon?: IconSettings | null): str
 }
 
 const isSvgText = (t: string) => t.trimStart().startsWith('<');
+
+/** build-icons glyph fragments (no <svg> root, drawn in a 128 box) get a 128 viewBox. */
+export function wrapGlyphFragment(text: string): { text: string; wrapped: boolean } {
+  const body = text.replace(/<!--[\s\S]*?-->/g, '').replace(/<\?xml[^>]*>/, '').trim();
+  if (/^<svg[\s>]/i.test(body)) return { text, wrapped: false };
+  return { text: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GLYPH_BOX} ${GLYPH_BOX}">\n${body}\n</svg>`, wrapped: true };
+}
 
 /** Reads a project file (or SVG, converted) into a validated document; keeps a raw `icon` field. */
 async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; icon: IconSettings | null; svg: boolean }> {
@@ -287,7 +294,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       case 'from-svg': {
         const path = requireArg(pos, 'SVG file');
         const icon = iconFor(values);
-        const text = await readInput(path, io);
+        const raw = wrapGlyphFragment(await readInput(path, io));
+        if (raw.wrapped) io.err(`Note: ${path} has no <svg> root; read as a glyph fragment in a ${GLYPH_BOX} × ${GLYPH_BOX} box.`);
+        const text = raw.text;
         const name = str(values, 'name') ?? (path === '-' ? (output ? nameFromPath(output) : 'Imported') : nameFromPath(path));
         const { doc, warnings } = svgToDocument(text, name);
         for (const w of warnings) io.err(`Warning: ${w}`);

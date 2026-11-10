@@ -24,11 +24,10 @@ export async function exportGlyph(doc: DesignDocument, opts: { comment?: string 
     .map((l) => l.replace(/^ {2}/, ''))
     .join('\n')
     .trim();
+  // The wrapper's fill reaches shapes whose fill is SVG's default (black, written without an attribute).
   const identity = Math.abs(k - 1) < 1e-9 && Math.abs(tx) < 1e-9 && Math.abs(ty) < 1e-9;
-  if (!identity) {
-    const t = `${tx || ty ? `translate(${n(tx)} ${n(ty)}) ` : ''}scale(${n(k)})`;
-    body = `<g transform="${t}">\n${body.replace(/^/gm, '  ')}\n</g>`;
-  }
+  const t = identity ? '' : ` transform="${tx || ty ? `translate(${n(tx)} ${n(ty)}) ` : ''}scale(${n(k)})"`;
+  body = `<g fill="currentColor"${t}>\n${body.replace(/^/gm, '  ')}\n</g>`;
   const comment = opts.comment ?? `${doc.name}: glyph in a ${GLYPH_BOX} box, \`currentColor\` is replaced by the build script. Made with Designer.`;
   return `<!-- ${comment.replace(/--/g, '-')} -->\n${body}\n`;
 }

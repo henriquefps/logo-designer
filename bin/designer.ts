@@ -5,7 +5,10 @@ import { setupHeadless } from '../src/cli/env.ts';
 import { main } from '../src/cli/main.ts';
 
 await setupHeadless();
-const code = await main(process.argv.slice(2), {
+// `bunx … designer <cmd>` passes the bin name along; accept it.
+const args = process.argv.slice(2);
+if (args[0] === 'designer') args.shift();
+const code = await main(args, {
   out: (s) => console.log(s),
   err: (s) => console.error(s),
   stdin: async () => {
