@@ -25,9 +25,11 @@ interface ViewPrefs {
   snapToGrid: boolean;
   gridSize: number;
   showReferences: boolean;
+  /** Canvas and Transform-panel resizes keep the aspect ratio (Shift inverts it on canvas). */
+  keepProportions: boolean;
 }
 const VIEW_KEY = 'designer.view';
-const DEFAULT_VIEW: ViewPrefs = { showRulers: false, showGrid: false, snapToGrid: false, gridSize: 16, showReferences: true };
+const DEFAULT_VIEW: ViewPrefs = { showRulers: false, showGrid: false, snapToGrid: false, gridSize: 16, showReferences: true, keepProportions: false };
 function loadView(): ViewPrefs {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null');
@@ -37,6 +39,7 @@ function loadView(): ViewPrefs {
         showGrid: v.showGrid === true,
         snapToGrid: v.snapToGrid === true,
         showReferences: v.showReferences !== false,
+        keepProportions: v.keepProportions === true,
         gridSize: typeof v.gridSize === 'number' && v.gridSize >= 1 && v.gridSize <= 1000 ? v.gridSize : DEFAULT_VIEW.gridSize,
       };
     }
@@ -142,9 +145,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setSnapping: (snapping) => set({ snapping }),
   setViewPrefs: (patch) => {
     set(patch);
-    const { showRulers, showGrid, snapToGrid, gridSize, showReferences } = get();
+    const { showRulers, showGrid, snapToGrid, gridSize, showReferences, keepProportions } = get();
     try {
-      localStorage.setItem(VIEW_KEY, JSON.stringify({ showRulers, showGrid, snapToGrid, gridSize, showReferences }));
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ showRulers, showGrid, snapToGrid, gridSize, showReferences, keepProportions }));
     } catch {
       /* storage unavailable */
     }

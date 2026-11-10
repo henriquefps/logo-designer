@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { AngleIcon, ArrowsHorizontalIcon, ArrowsVerticalIcon, LinkSimpleIcon, LinkSimpleBreakIcon } from '@phosphor-icons/react';
 import { rotationAbout, scaleAbout, selectionBounds, translation } from '@/model';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEditorStore } from '@/store/useEditorStore';
 import { runAction } from '@/actions/registry';
 import { getSelectionFrame } from '@/canvas/selectionFrame';
 import { NumberField } from '../../../shared/NumberField';
@@ -12,7 +12,8 @@ import { editNodes, transformNodes } from '../../edit';
 import type { SelectionContext } from '../../types';
 
 export function TransformSection({ ctx }: { ctx: SelectionContext }) {
-  const [lockRatio, setLockRatio] = useState(false);
+  const lockRatio = useEditorStore((s) => s.keepProportions);
+  const setLockRatio = (on: boolean) => useEditorStore.getState().setViewPrefs({ keepProportions: on });
   const box = selectionBounds(ctx.doc, ctx.ids);
   const frame = getSelectionFrame(ctx.doc, ctx.ids);
   if (!box || !frame) return null;
