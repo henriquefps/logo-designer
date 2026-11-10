@@ -97,12 +97,15 @@ export const BACKGROUND_XML = `<?xml version="1.0" encoding="utf-8"?>\n<resource
 export const BACKGROUND_COLOR_LINE = `<color name="ic_launcher_background">${BRAND}</color>`;
 
 /**
- * values/ic_launcher_background.xml: with an existing file that has the entry, only that colour is set
- * (other colours such as splash_background are kept); otherwise a fresh file.
+ * values/ic_launcher_background.xml, mirroring build-icons.mjs: with an existing file that has the entry, only
+ * that colour is replaced; else, if it has `</resources>`, the entry is inserted before it (other colours such as
+ * splash_background are kept); otherwise a fresh file.
  */
 export function mergeLauncherBackground(prev: string | null | undefined): string {
   const re = /<color name="ic_launcher_background">[^<]*<\/color>/;
-  return prev && re.test(prev) ? prev.replace(re, BACKGROUND_COLOR_LINE) : BACKGROUND_XML;
+  if (prev && re.test(prev)) return prev.replace(re, BACKGROUND_COLOR_LINE);
+  if (prev && prev.includes('</resources>')) return prev.replace('</resources>', `    ${BACKGROUND_COLOR_LINE}\n</resources>`);
+  return BACKGROUND_XML;
 }
 
 /**
