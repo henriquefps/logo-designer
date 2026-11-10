@@ -2,7 +2,23 @@
 // container and the review sheet. MIRRORS ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs:
 // change both together. Pure string / byte builders, no DOM.
 import { faviconFill, fit, type InkBox } from './measure';
-import { ANDROID, BRAND, FAVICON_RX, KEYLINE, LEGACY_RX, LIGHT_BORDER, REFERENCE_CIRCLE, REFERENCE_PINK, TILE_RX, type IconShape } from './rules';
+import {
+  ANDROID,
+  BRAND,
+  FAVICON_RX,
+  ICON_COMPOSER_CANVAS,
+  IOS_DARK_BG,
+  IOS_DARK_GLYPH,
+  IOS_TINTED_BG,
+  IOS_TINTED_GLYPH,
+  KEYLINE,
+  LEGACY_RX,
+  LIGHT_BORDER,
+  REFERENCE_CIRCLE,
+  REFERENCE_PINK,
+  TILE_RX,
+  type IconShape,
+} from './rules';
 
 /** A measured glyph ready to place: its source (128 space, currentColor) and ink box. */
 export interface PlacedGlyph {
@@ -77,15 +93,95 @@ export const ADAPTIVE_XML = `<?xml version="1.0" encoding="utf-8"?>
 
 export const BACKGROUND_XML = `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BRAND}</color>\n</resources>\n`;
 
+// ---------- iOS: AppIcon.appiconset with the iOS 18 appearances ----------
+
+/** File names inside AppIcon.appiconset: Light (any), Dark, Tinted, all 1024 × 1024. */
+export const IOS_APPICON = {
+  light: 'AppIcon-1024.png',
+  dark: 'AppIcon-1024-dark.png',
+  tinted: 'AppIcon-1024-tinted.png',
+} as const;
+
+/**
+ * Contents.json: one universal 1024 image per appearance. Dark and Tinted carry
+ * `appearances: [{ appearance: 'luminosity', value: 'dark' | 'tinted' }]` (what Xcode writes when
+ * Appearance = "Any, Dark, Tinted" is set on a Single Size iOS icon).
+ */
 export const IOS_CONTENTS_JSON =
   JSON.stringify(
     {
-      images: [{ filename: 'AppIcon-1024.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }],
+      images: [
+        { filename: IOS_APPICON.light, idiom: 'universal', platform: 'ios', size: '1024x1024' },
+        { appearances: [{ appearance: 'luminosity', value: 'dark' }], filename: IOS_APPICON.dark, idiom: 'universal', platform: 'ios', size: '1024x1024' },
+        { appearances: [{ appearance: 'luminosity', value: 'tinted' }], filename: IOS_APPICON.tinted, idiom: 'universal', platform: 'ios', size: '1024x1024' },
+      ],
       info: { author: 'hfps build-icons', version: 1 },
     },
     null,
     2,
   ) + '\n';
+
+/** iOS 18 Dark: the glyph in IOS_DARK_GLYPH on a TRANSPARENT square (the system supplies the dark background). */
+export const iosDarkSvg = (src: IconSources) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="1024" height="1024">` +
+  glyphG(src.glyph, 128, KEYLINE[src.shape].long, IOS_DARK_GLYPH) +
+  `</svg>`;
+
+/** iOS 18 Tinted: grayscale, fully opaque: white glyph on black (flatten on IOS_TINTED_BG, no alpha). */
+export const iosTintedSvg = (src: IconSources) => tileSvg(src, { rx: 0, bg: IOS_TINTED_BG, color: IOS_TINTED_GLYPH, size: 1024 });
+
+// ---------- iOS 26: Icon Composer file (AppIcon.icon) ----------
+
+/** Icon Composer colour string: `srgb:r,g,b,a` with 5 decimals, as Icon Composer saves it. */
+export function icSrgb(hexColor: string, alpha = 1): string {
+  const [r, g, b] = hex(hexColor).map((v) => (v / 255).toFixed(5));
+  return `srgb:${r},${g},${b},${alpha.toFixed(5)}`;
+}
+
+/** The glyph layer for Icon Composer: full 1024 canvas, transparent, white glyph on the keyline, no mask. */
+export const iconComposerGlyphSvg = (src: IconSources) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${ICON_COMPOSER_CANVAS} ${ICON_COMPOSER_CANVAS}" width="${ICON_COMPOSER_CANVAS}" height="${ICON_COMPOSER_CANVAS}">` +
+  glyphG(src.glyph, ICON_COMPOSER_CANVAS, KEYLINE[src.shape].long, '#ffffff') +
+  `</svg>`;
+
+export const ICON_COMPOSER_GLYPH = 'glyph.svg';
+
+/**
+ * icon.json of AppIcon.icon: background fill = brand blue (dark: IOS_DARK_BG gradient), one group with
+ * the glyph layer (Liquid Glass on, Icon Composer's default shadow/translucency), the glyph recoloured
+ * to IOS_DARK_GLYPH in Dark and to white (extended-gray 1) in Tinted. Keys mirror files saved by
+ * Icon Composer (see docs/app-icons-theming.md).
+ */
+export function iconComposerJson(): string {
+  const json = {
+    'fill-specializations': [
+      { value: { solid: icSrgb(BRAND) } },
+      { appearance: 'dark', value: { 'linear-gradient': IOS_DARK_BG.map((c) => icSrgb(c)) } },
+    ],
+    groups: [
+      {
+        layers: [
+          {
+            'fill-specializations': [
+              { appearance: 'dark', value: { solid: icSrgb(IOS_DARK_GLYPH) } },
+              { appearance: 'tinted', value: { solid: 'extended-gray:1.00000,1.00000' } },
+            ],
+            glass: true,
+            'image-name': ICON_COMPOSER_GLYPH,
+            name: 'glyph',
+            position: { scale: 1, 'translation-in-points': [0, 0] },
+          },
+        ],
+        name: 'Glyph',
+        shadow: { kind: 'neutral', opacity: 0.5 },
+        translucency: { enabled: true, value: 0.5 },
+      },
+    ],
+    'supported-platforms': { circles: ['watchOS'], squares: 'shared' },
+  };
+  // Icon Composer writes `"key" : value` with 2-space indent; JSON.stringify spacing is equivalent JSON.
+  return JSON.stringify(json, null, 2) + '\n';
+}
 
 /** .ico container with PNG entries (16/32/48), as the script writes it. */
 export function encodeIco(pngs: Uint8Array[], sizes: number[]): Uint8Array {

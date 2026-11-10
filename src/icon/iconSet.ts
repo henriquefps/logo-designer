@@ -7,7 +7,13 @@ import {
   ADAPTIVE_XML,
   ANDROID_DENSITIES,
   BACKGROUND_XML,
+  IOS_APPICON,
   IOS_CONTENTS_JSON,
+  ICON_COMPOSER_GLYPH,
+  iconComposerGlyphSvg,
+  iconComposerJson,
+  iosDarkSvg,
+  iosTintedSvg,
   darkTile,
   encodeIco,
   encodeOpaquePng,
@@ -23,7 +29,7 @@ import {
   type Deflate,
   type IconSources,
 } from './outputs';
-import { BRAND, SMALL_FILL, type IconShape, type IconShapeArg } from './rules';
+import { BRAND, IOS_TINTED_BG, SMALL_FILL, type IconShape, type IconShapeArg } from './rules';
 
 export interface IconRenderer {
   /** Raw pixels (RGBA) of an SVG rendered at px × px (used to measure and for the opaque iOS PNG). */
@@ -93,10 +99,46 @@ Where each folder goes:
                         _foreground,_monochrome}.png, mipmap-anydpi-v26/*.xml,
                         values/ic_launcher_background.xml. Delete an older vector
                         drawable/ic_launcher_foreground.xml so the new mipmaps win.
-  ios/                  AppIcon.appiconset goes into the app's Assets.xcassets (one opaque 1024 PNG)
+                        Android 13+ themed icons use <monochrome> (ic_launcher_monochrome: the
+                        glyph alone); the launcher tints it with the wallpaper colours.
+  ios/AppIcon.appiconset/
+                        goes into the app's Assets.xcassets (iOS 18+ Light / Dark / Tinted):
+                          AppIcon-1024.png         Light (Any): opaque, no alpha, brand blue tile
+                          AppIcon-1024-dark.png    Dark: glyph in light blue on transparency; iOS
+                                                   draws its own dark background behind it
+                          AppIcon-1024-tinted.png  Tinted: opaque grayscale, white glyph on black;
+                                                   iOS recolours it with the user's tint
+                          Contents.json            the three images with their "luminosity" appearances
+  ios/AppIcon.icon/     iOS 26 Icon Composer file (Liquid Glass, layered): icon.json + Assets/glyph.svg.
+                        Drag it into the Xcode project (Xcode 26+) and set the target's App Icon
+                        name to "AppIcon"; it then replaces the asset catalog icon, and Xcode
+                        generates the older-iOS images from it. Open it in Icon Composer to check
+                        Default / Dark / Clear / Tinted. Keep the .appiconset for Xcode < 26.
   review-sheet.png      row 1: masks at 128 px with the pink 0.63 T reference circle; row 2:
                         launcher sizes; row 3: favicons on dark and on white. Always look at it.
 `;
+}
+
+type Add = (path: string, data: Uint8Array | string) => void;
+
+/**
+ * iOS 18+ AppIcon.appiconset: Light = one opaque 1024 PNG flattened on the brand blue (no alpha);
+ * Dark = the glyph in IOS_DARK_GLYPH on transparency; Tinted = opaque grayscale (white glyph on black).
+ */
+export async function addIosAppIconSet(sources: IconSources, r: IconRenderer, add: Add): Promise<void> {
+  const dir = 'ios/AppIcon.appiconset';
+  const light = await r.rasterize(squareSvg(sources), 1024);
+  add(`${dir}/${IOS_APPICON.light}`, await encodeOpaquePng(light.data, light.width, light.height, BRAND, r.deflate));
+  add(`${dir}/${IOS_APPICON.dark}`, await r.png(iosDarkSvg(sources), 1024));
+  const tinted = await r.rasterize(iosTintedSvg(sources), 1024);
+  add(`${dir}/${IOS_APPICON.tinted}`, await encodeOpaquePng(tinted.data, tinted.width, tinted.height, IOS_TINTED_BG, r.deflate));
+  add(`${dir}/Contents.json`, IOS_CONTENTS_JSON);
+}
+
+/** iOS 26 Icon Composer file: AppIcon.icon/icon.json + Assets/glyph.svg (background is a fill, not a layer). */
+export function addIconComposerFile(sources: IconSources, add: Add): void {
+  add('ios/AppIcon.icon/icon.json', iconComposerJson());
+  add(`ios/AppIcon.icon/Assets/${ICON_COMPOSER_GLYPH}`, iconComposerGlyphSvg(sources));
 }
 
 /** Builds every file of the set (paths relative to the ZIP root). */
@@ -140,10 +182,9 @@ export async function buildIconSet(input: IconSetInput, r: IconRenderer): Promis
   add('android/res/mipmap-anydpi-v26/ic_launcher_round.xml', ADAPTIVE_XML);
   add('android/res/values/ic_launcher_background.xml', BACKGROUND_XML);
 
-  // iOS: one opaque 1024 PNG flattened on the brand blue, no alpha channel.
-  const iosPx = await r.rasterize(squareSvg(sources), 1024);
-  add('ios/AppIcon.appiconset/AppIcon-1024.png', await encodeOpaquePng(iosPx.data, iosPx.width, iosPx.height, BRAND, r.deflate));
-  add('ios/AppIcon.appiconset/Contents.json', IOS_CONTENTS_JSON);
+  // iOS
+  await addIosAppIconSet(sources, r, add);
+  addIconComposerFile(sources, add);
 
   // review sheet
   const tiles = await Promise.all(sheetTiles(sources).map(async (t) => ({ ...t, png: await r.png(t.svg, t.size) })));

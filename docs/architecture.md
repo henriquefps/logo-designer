@@ -252,14 +252,17 @@ other documents.
   of the icon set, the .ico encoder, the review sheet, an RGB PNG encoder for iOS). Rendering is
   injected (`Rasterize`, `IconRenderer`). It must change together with the script;
   `src/icon/__tests__/parity.test.ts` measures the skill's glyphs with `@resvg/resvg-js` and checks
-  the script's printed numbers.
+  the script's printed numbers. iOS ships Light / Dark / Tinted (`AppIcon.appiconset`) and an
+  iOS 26 Icon Composer `AppIcon.icon`; rules, schema and sources in `docs/app-icons-theming.md`,
+  script port in `docs/build-icons-port-notes.md`.
 - `src/iconMode/`: `glyph.ts` exports the glyph as the script's input (fragment, 128 space = the
   visible tile, every paint → `currentColor` with its alpha, references/hidden skipped, text
   outlined); `analysis.ts` measures it live (offscreen canvas, debounced) into `useIconStore`;
   `fit.ts` is Fit to keyline (strokes scale with the glyph, like the script's `scale()`);
   `commands.ts` builds the ZIP (jszip, lazy). The tile (`canvas/TileLayer.tsx`, under the artwork,
   plus a filter that previews the glyph in white) and the keylines (`canvas/KeylinesOverlay.tsx`,
-  screen space, labels on hover) are view-only, never document nodes.
+  screen space, labels on hover) are view-only, never document nodes. `themedPreview.ts` builds the
+  approximate "System themes" previews (Android themed, iOS Light/Dark/Tinted; `ui/ThemedPreview.tsx`).
 - UI: Properties section `icon` (nothing selected), dialog `exportIcon` (File → Export icon…),
   exporter `app-icon` in the Export dialog (`Exporter.when` hides it for other documents), actions
   in `actions/modules/icon.ts`.

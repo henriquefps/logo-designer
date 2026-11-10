@@ -54,6 +54,10 @@ describe('icon set', () => {
       'android/res/values/ic_launcher_background.xml',
       'ios/AppIcon.appiconset/AppIcon-1024.png',
       'ios/AppIcon.appiconset/Contents.json',
+      'ios/AppIcon.appiconset/AppIcon-1024-dark.png',
+      'ios/AppIcon.appiconset/AppIcon-1024-tinted.png',
+      'ios/AppIcon.icon/icon.json',
+      'ios/AppIcon.icon/Assets/glyph.svg',
       'review-sheet.png',
       'README.txt',
     ])

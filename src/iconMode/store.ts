@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { InkBox, IconReport } from '@/icon';
+import { DEFAULT_TINT } from './themedPreview';
 
 /** Icon view preferences (per browser, not in the document). */
 interface IconPrefs {
@@ -9,16 +10,23 @@ interface IconPrefs {
   showTile: boolean;
   /** Light variant: white tile with a border and the glyph in brand blue. */
   light: boolean;
+  /** Tint / wallpaper accent for the approximate system-theme previews (iOS Tinted, Android themed). */
+  tint: string;
 }
 
 const KEY = 'designer.icon';
-const DEFAULTS: IconPrefs = { showKeylines: true, showTile: true, light: false };
+const DEFAULTS: IconPrefs = { showKeylines: true, showTile: true, light: false, tint: DEFAULT_TINT };
 
 function load(): IconPrefs {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? 'null');
     if (v && typeof v === 'object')
-      return { showKeylines: v.showKeylines !== false, showTile: v.showTile !== false, light: v.light === true };
+      return {
+        showKeylines: v.showKeylines !== false,
+        showTile: v.showTile !== false,
+        light: v.light === true,
+        tint: typeof v.tint === 'string' && /^#[0-9a-f]{6}$/i.test(v.tint) ? v.tint : DEFAULT_TINT,
+      };
   } catch {
     /* storage unavailable */
   }
@@ -50,9 +58,9 @@ export const useIconStore = create<IconState>()((set, get) => ({
   analysis: EMPTY_ANALYSIS,
   setPrefs: (patch) => {
     set(patch);
-    const { showKeylines, showTile, light } = get();
+    const { showKeylines, showTile, light, tint } = get();
     try {
-      localStorage.setItem(KEY, JSON.stringify({ showKeylines, showTile, light }));
+      localStorage.setItem(KEY, JSON.stringify({ showKeylines, showTile, light, tint }));
     } catch {
       /* storage unavailable */
     }

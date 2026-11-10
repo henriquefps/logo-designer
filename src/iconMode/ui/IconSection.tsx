@@ -16,6 +16,7 @@ import { leaveIconMode, setIconInfo } from '../document';
 import { isOnKeyline, keylineFill } from '../fit';
 import { useIconStore } from '../store';
 import { IconPreview } from './IconPreview';
+import { ThemedPreview } from './ThemedPreview';
 import { useIconSources } from '../hooks';
 
 const SHAPES: { id: IconShapeSetting; label: string }[] = [
@@ -145,6 +146,12 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
       {sources && !fav && (
         <Section title="Preview">
           <IconPreview sources={sources} compact />
+        </Section>
+      )}
+
+      {sources && !fav && (
+        <Section title="System themes">
+          <ThemedPreview sources={sources} />
         </Section>
       )}
 
