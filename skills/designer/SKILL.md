@@ -38,10 +38,12 @@ Below, `designer` means either form.
 2. **Make it a project:**
    `designer from-svg scripts/glyph.svg -o scripts/glyph.designer.json --name "Glyph A" [--icon app-icon]`
    (rect/circle/ellipse stay shapes, everything else becomes editable Bézier paths, groups and
-   gradients are kept).
+   gradients are kept). With `--icon` it **fits the drawing to the keyline** by default, so the project
+   opens centred and at the right size (`--no-fit` keeps the raw drawing). After manual changes or
+   `knockout`, run `designer fit <project>` again (exports fit anyway; this keeps the canvas in line).
 3. **Check your own work before handing it over:**
    - `designer validate <project>` (errors name the JSON path);
-   - `designer info <project>` (node tree, ids, bounds: is it centred, inside the box?);
+   - `designer info <project>` (node tree, ids, bounds: is it centred, inside the box? icon projects also show whether the glyph is on its keyline);
    - `designer to-png <project> --size 512 -o /tmp/x.png` and **look at the PNG**;
    - app icons: `designer icons <project> -o /tmp/icons` prints the keyline report (glyph size as a
      fraction of the tile, ink %, Android safe zone) and writes `review-sheet.png`: open it. Fix the

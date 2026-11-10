@@ -59,6 +59,8 @@ and the `designer` CLI creates, converts, checks and shares them without the bro
 
 ```sh
 bun run designer from-svg glyph.svg -o glyph.designer.json   # in this repo
+bun run designer from-svg glyph.svg --icon app-icon -o icon.designer.json   # app icon: fitted to the keyline (--no-fit to skip)
+bun run designer fit icon.designer.json   # re-fit after manual edits
 bunx --bun github:henriquefps/logo-designer open glyph.designer.json   # anywhere: opens it in Designer
 bun run designer present a.designer.json b.designer.json   # local gallery with an "Open in Designer" button per file
 ```

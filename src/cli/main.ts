@@ -14,6 +14,7 @@ import { exportSvg } from '@/io/svgExport';
 import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
 import { CORS_HEADERS, galleryHtml, pickOpener, type GalleryItem } from './present';
+import { describeKeyline, fitDocument, keylineOf } from './fit';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 
 export interface CliIO {
@@ -36,8 +37,12 @@ export const USAGE = `designer — Designer projects from the command line (http
 Usage: designer <command> [options]
 
   new [-o file] [--preset P] [--name N]       empty project (P: ${ICON_PRESETS.join(' | ')} | WxH)
-  from-svg <file.svg|-> [-o file] [--name N] [--icon P]
-                                              editable project from an SVG (shapes, paths, groups, gradients)
+  from-svg <file.svg|-> [-o file] [--name N] [--icon P] [--no-fit]
+                                              editable project from an SVG (shapes, paths, groups, gradients);
+                                              with --icon the drawing is fitted to the keyline (--no-fit keeps it raw)
+  fit <project> [-o file]                     scale + centre the glyph of an app icon project onto its keyline
+                                              (same as 'Fit to keyline' in the app, strokes scale too; default:
+                                              in place). Run it after manual changes or knockout
   to-svg <project> [-o file] [--glyph]        clean SVG (text outlined); --glyph = 128 box + currentColor
                                               fragment for scripts/build-icons.mjs
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
@@ -48,8 +53,10 @@ Usage: designer <command> [options]
                                               --android/--ios/--site write that part straight into an app
                                               (res dir, ios dir, web root) instead of under -o; an existing
                                               values/ic_launcher_background.xml keeps its other colours
-  validate <project…>                         check files; errors name the JSON path
-  info <project> [--json]                     artboard, tree summary and bounds, node ids and names
+  validate <project…>                         check files; errors name the JSON path (a note when an
+                                              icon project is off its keyline)
+  info <project> [--json]                     artboard, tree summary and bounds, node ids and names; for icon
+                                              projects whether the glyph is on its keyline
   knockout <project> --cutter <id|name>[,…] [--targets <id|name>,…] [--gap N|NT] [--outline-only] [-o file]
                                               cut the objects behind the cutter where it sits (its whole
                                               silhouette; --outline-only: only under its strokes), with a
@@ -80,6 +87,7 @@ const COMMON: ParseArgsConfig['options'] = {
   github: { type: 'boolean' },
   port: { type: 'string' },
   'no-open': { type: 'boolean' },
+  'no-fit': { type: 'boolean' },
   'no-wait': { type: 'boolean' },
   small: { type: 'string' },
   android: { type: 'string' },
@@ -471,7 +479,29 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         await ensureSvgGeometry(text);
         const { doc, warnings } = svgToDocument(text, name);
         for (const w of warnings) io.err(`Warning: ${w}`);
-        await emit(serializeWithIcon(doc, icon), output, io, `project (${doc.artboard.width}×${doc.artboard.height}, ${doc.children.length} top-level objects)`);
+        let out = doc;
+        let note = '';
+        if (icon && !values['no-fit']) {
+          const fitted = await fitDocument({ ...doc, icon }).catch((e: unknown) => {
+            io.err(`Note: not fitted to the keyline (${e instanceof Error ? e.message : e}).`);
+            return null;
+          });
+          if (fitted) {
+            out = fitted.doc;
+            note = `, fitted to the keyline: ${describeKeyline(fitted.before)} → ${describeKeyline(fitted.after)}`;
+          }
+        }
+        await emit(serializeWithIcon(out, icon), output, io, `project (${doc.artboard.width}×${doc.artboard.height}, ${doc.children.length} top-level objects${note})`);
+        return 0;
+      }
+      case 'fit': {
+        const path = requireArg(pos, 'project file');
+        const { doc, icon, svg } = await loadDoc(path, io);
+        if (svg || !icon) throw new Error(`${path} is not an app icon project (create one with \`designer new --preset app-icon\`, or \`from-svg --icon app-icon\`)`);
+        const r = await fitDocument(doc);
+        io.err(`before: ${describeKeyline(r.before)}\nafter:  ${describeKeyline(r.after)}`);
+        const dest = output ?? (path === '-' ? undefined : path);
+        await emit(serializeWithIcon(r.doc, icon), dest, io, 'fitted project');
         return 0;
       }
       case 'to-svg': {
@@ -539,6 +569,8 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
             const walk = (ns: SceneNode[]) => ns.forEach((c) => (count++, c.type === 'group' && walk(c.children)));
             walk(doc.children);
             io.out(`ok   ${path}: “${doc.name}”, ${doc.artboard.width}×${doc.artboard.height}, ${count} objects`);
+            const k = await keylineOf(doc).catch(() => null);
+            if (k && !k.onKeyline) io.out(`     note: the glyph is off its keyline (${describeKeyline(k)}); run \`designer fit ${path}\` (exports fit automatically, only the canvas is off)`);
           } catch (e) {
             failed++;
             io.out(`FAIL ${path}: ${e instanceof Error ? e.message : e}`);
@@ -549,8 +581,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       case 'info': {
         const { doc, icon } = await loadDoc(requireArg(pos, 'project file'), io);
         const r = await info(doc);
+        const keyline = await keylineOf(doc).catch(() => null);
         if (values.json) {
-          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, contentBounds: r.content, nodes: r.nodes }, null, 2));
+          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, ...(keyline ? { keyline } : {}), contentBounds: r.content, nodes: r.nodes }, null, 2));
           return 0;
         }
         const bg = doc.artboard.background.kind === 'none' ? 'transparent' : doc.artboard.background.kind === 'solid' ? doc.artboard.background.color : doc.artboard.background.kind;
@@ -558,6 +591,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           [
             `“${doc.name}” — artboard ${doc.artboard.width}×${doc.artboard.height}, background ${bg}${icon ? `, icon ${icon.preset}/${icon.shape}` : ''}`,
             `content bounds: ${fmtRect(r.content)}`,
+            ...(keyline ? [`keyline: ${describeKeyline(keyline)}${keyline.onKeyline ? '' : ' — run `designer fit`'}`] : []),
             ...r.lines,
           ].join('\n'),
         );
