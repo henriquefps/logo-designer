@@ -62,6 +62,10 @@ export function generateSchema(): string {
   walk(defs);
   const tile = defs.IconDocInfo?.properties?.tile;
   if (tile) Object.assign(tile, { pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$', description: 'Tile colour, #rrggbb (or #rgb); default #2063b0 (hfps blue). Older hfps repos keep olive #5b7a3a.' });
+  const glyph = defs.IconDocInfo?.properties?.glyph;
+  if (glyph) Object.assign(glyph, { pattern: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$', description: 'One-colour mode: the glyph colour, #rrggbb (or #rgb); default #ffffff (white). Ignored when colour is "full-colour".' });
+  const colour = defs.IconDocInfo?.properties?.colour;
+  if (colour) Object.assign(colour, { description: '"one-colour" (default): every paint becomes the glyph colour. "full-colour": the document\'s own paints (solids, gradients, opacity) are kept.' });
   const out = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: URL,

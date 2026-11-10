@@ -15,7 +15,9 @@ import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
 import { CORS_HEADERS, galleryHtml, pickOpener, type GalleryItem } from './present';
 import { describeKeyline, fitDocument, keylineOf } from './fit';
-import { BRAND, normalizeTile } from '@/icon/rules';
+import { BRAND, GLYPH_DEFAULT, normalizeTile } from '@/icon/rules';
+import { contrastWarnings } from '@/icon/colour';
+import type { IconColourMode } from '@/model';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 
 export interface CliIO {
@@ -37,23 +39,31 @@ export const USAGE = `designer — Designer projects from the command line (http
 
 Usage: designer <command> [options]
 
-  new [-o file] [--preset P] [--name N] [--tile #hex]
-                                              empty project (P: ${ICON_PRESETS.join(' | ')} | WxH); --tile stores the
-                                              tile colour in an app icon project
-  from-svg <file.svg|-> [-o file] [--name N] [--icon P [--tile #hex]] [--no-fit]
+  new [-o file] [--preset P] [--name N] [--tile #hex] [--colour one|full] [--glyph #hex]
+                                              empty project (P: ${ICON_PRESETS.join(' | ')} | WxH); --tile / --colour /
+                                              --glyph are stored in an app icon project (see from-svg)
+  from-svg <file.svg|-> [-o file] [--name N] [--icon P [--tile #hex] [--colour one|full] [--glyph #hex]] [--no-fit]
                                               editable project from an SVG (shapes, paths, groups, gradients);
-                                              with --icon the drawing is fitted to the keyline (--no-fit keeps it raw)
+                                              with --icon the drawing is fitted to the keyline (--no-fit keeps it raw).
+                                              App icons are ONE colour by default (every paint becomes the glyph
+                                              colour: white, or --glyph #hex); --colour full keeps the drawing's own
+                                              colours, gradients and opacity (a colour per shape, a rainbow, …)
   fit <project> [-o file]                     scale + centre the glyph of an app icon project onto its keyline
                                               (same as 'Fit to keyline' in the app, strokes scale too; default:
                                               in place). Run it after manual changes or knockout
-  to-svg <project> [-o file] [--glyph]        clean SVG (text outlined); --glyph = 128 box + currentColor
-                                              fragment for scripts/build-icons.mjs
+  to-svg <project> [-o file] [--glyph [--colour one|full]]
+                                              clean SVG (text outlined); --glyph = 128 box + currentColor
+                                              fragment for scripts/build-icons.mjs (a full-colour icon project, or
+                                              --colour full, keeps the real paints instead of currentColor)
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
-  icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--android <res>] [--ios <dir>] [--site <dir>]
+  icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--colour one|full] [--glyph <#hex>] [--android <res>] [--ios <dir>] [--site <dir>]
                                               whole app icon set, same files and numbers as build-icons.mjs
                                               (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt);
                                               --tile <#hex>: tile colour for everything (default: the project's
                                               icon.tile, else the hfps blue #2063b0; olive repos: #5b7a3a);
+                                              --colour / --glyph override the project's icon.colour / icon.glyph for
+                                              the run (full colour keeps the paints; Android monochrome = silhouette,
+                                              iOS Tinted = grayscale, iOS Dark = the colours on transparency);
                                               includes drawable/ic_splash.xml (Android 12+ splash VectorDrawable).
                                               --android/--ios/--site write that part straight into an app
                                               (res dir, ios dir, web root) instead of under -o; an existing
@@ -100,6 +110,8 @@ const COMMON: ParseArgsConfig['options'] = {
   site: { type: 'string' },
   shape: { type: 'string' },
   tile: { type: 'string' },
+  colour: { type: 'string' },
+  'glyph-colour': { type: 'string' },
   cutter: { type: 'string' },
   targets: { type: 'string' },
   gap: { type: 'string' },
@@ -178,15 +190,62 @@ function tileArg(v: Values): string | undefined {
   return n;
 }
 
+/** --colour one|full (also one-colour | full-colour): the colour mode; undefined when absent. */
+function colourArg(v: Values): IconColourMode | undefined {
+  const c = str(v, 'colour');
+  if (c === undefined) return undefined;
+  if (c === 'full' || c === 'full-colour') return 'full-colour';
+  if (c === 'one' || c === 'one-colour') return 'one-colour';
+  throw new UsageError(`--colour must be one or full (got “${c}”)`);
+}
+
+/** --glyph <#hex> (one-colour glyph colour): validated, normalised to #rrggbb; undefined when absent. */
+function glyphColourArg(v: Values): string | undefined {
+  const t = str(v, 'glyph-colour');
+  if (t === undefined) return undefined;
+  const n = normalizeTile(t);
+  if (!n) throw new UsageError(`--glyph must be a hex colour like #ffffff (got “${t}”)`);
+  return n;
+}
+
+/** The colour-related `icon` fields of the flags (tile, colour, glyph), omitting defaults. */
+function iconColours(v: Values): Pick<IconSettings, 'tile' | 'colour' | 'glyph'> {
+  const tile = tileArg(v);
+  const colour = colourArg(v);
+  const glyph = glyphColourArg(v);
+  if (glyph && colour === 'full-colour') throw new UsageError('--glyph is the one-colour glyph colour; it has no effect with --colour full');
+  return { ...(tile && tile !== BRAND ? { tile } : {}), ...(colour === 'full-colour' ? { colour } : {}), ...(glyph && glyph !== GLYPH_DEFAULT ? { glyph } : {}) };
+}
+
+/** `--glyph <#hex>` is the glyph colour; a bare `--glyph` (to-svg) stays the fragment switch. */
+function remapGlyphFlag(args: string[]): string[] {
+  return args.flatMap((a, i) => {
+    if (a.startsWith('--glyph=')) return ['--glyph-colour', a.slice(8)];
+    if (a === '--glyph' && /^#?[0-9a-f]{3,6}$/i.test(args[i + 1] ?? '') && args[i + 1].startsWith('#')) return ['--glyph-colour'];
+    return [a];
+  });
+}
+
 function iconFor(v: Values): IconSettings | null {
   const p = str(v, 'icon');
-  const tile = tileArg(v);
+  const extra = iconColours(v);
   if (!p) {
-    if (tile) throw new UsageError('--tile needs --icon <preset> here (the tile colour is stored in an app icon project)');
+    if (Object.keys(extra).length || str(v, 'colour') !== undefined) throw new UsageError('--tile / --colour / --glyph need --icon <preset> here (they are stored in an app icon project)');
     return null;
   }
   if (!isIconPreset(p)) throw new UsageError(`--icon must be one of ${ICON_PRESETS.join(', ')}`);
-  return { preset: p, shape: 'auto', ...(tile && tile !== BRAND ? { tile } : {}) };
+  return { preset: p, shape: 'auto', ...extra };
+}
+
+/** "one colour: glyph #ffffff on tile #2063b0" / "full colour on tile …", plus the contrast warnings of the glyph on its tile. */
+async function colourSummary(doc: DesignDocument): Promise<{ line: string; warnings: string[] } | null> {
+  const icon = doc.icon;
+  if (!icon) return null;
+  const tile = icon.tile ?? BRAND;
+  const full = icon.colour === 'full-colour';
+  const fragment = await exportGlyph(doc).catch(() => '');
+  const warnings = fragment ? contrastWarnings({ glyph: fragment, full, glyphColour: icon.glyph, tile }).map((w) => w.replace(/^\s*!\s*/, '')) : [];
+  return { line: full ? `full colour on tile ${tile} (the drawing's own paints)` : `one colour: glyph ${icon.glyph ?? GLYPH_DEFAULT} on tile ${tile}`, warnings };
 }
 
 // ---------- info ----------
@@ -470,7 +529,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   let values: Values;
   let pos: string[];
   try {
-    const parsed = parseArgs({ args: rest, options: COMMON, allowPositionals: true, strict: true });
+    const parsed = parseArgs({ args: remapGlyphFlag(rest), options: COMMON, allowPositionals: true, strict: true });
     values = parsed.values as Values;
     pos = parsed.positionals;
   } catch (e) {
@@ -491,9 +550,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           name: str(values, 'name') ?? (output ? nameFromPath(output) : 'Untitled'),
           artboard: { width: p.width, height: p.height, background: p.icon ? { kind: 'none' } : { kind: 'solid', color: '#ffffff' } },
         });
-        const tile = tileArg(values);
-        if (tile && !p.icon) throw new UsageError('--tile needs an app icon preset (--preset app-icon | …)');
-        await emit(serializeWithIcon(doc, p.icon ? { preset: p.icon, shape: 'auto', ...(tile && tile !== BRAND ? { tile } : {}) } : null), output, io, 'project');
+        const extra = iconColours(values);
+        if ((Object.keys(extra).length || str(values, 'colour') !== undefined) && !p.icon) throw new UsageError('--tile / --colour / --glyph need an app icon preset (--preset app-icon | …)');
+        await emit(serializeWithIcon(doc, p.icon ? { preset: p.icon, shape: 'auto', ...extra } : null), output, io, 'project');
         return 0;
       }
       case 'from-svg': {
@@ -534,7 +593,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       case 'to-svg': {
         const { doc } = await loadDoc(requireArg(pos, 'project file'), io);
         warnSkippedReferences(doc, io);
-        const svg = values.glyph ? await exportGlyph(doc) : (await exportSvg(doc)).svg;
+        const colour = colourArg(values);
+        if (colour && !values.glyph) throw new UsageError('--colour applies to --glyph (the 128 fragment); a plain SVG always keeps its paints');
+        const svg = values.glyph ? await exportGlyph(doc, colour) : (await exportSvg(doc)).svg;
         await emit(svg, output, io, values.glyph ? 'glyph' : 'SVG');
         return 0;
       }
@@ -557,19 +618,23 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         if (!output && !Object.values(targets).some(Boolean)) throw new UsageError('icons needs -o <dir> (or --android / --ios / --site)');
         const shape = str(values, 'shape');
         const tileFlag = tileArg(values);
+        const colourFlag = colourArg(values);
+        const glyphFlag = glyphColourArg(values);
         if (shape && !(ICON_SHAPES as readonly string[]).includes(shape)) throw new UsageError(`--shape must be one of ${ICON_SHAPES.join(', ')}`);
         const { doc } = await loadDoc(path, io);
-        const glyph = await exportGlyph(doc);
+        const colour = colourFlag ?? doc.icon?.colour ?? 'one-colour';
+        if (glyphFlag && colour === 'full-colour') throw new UsageError('--glyph is the one-colour glyph colour; it has no effect in full colour');
+        const glyph = await exportGlyph(doc, colour);
         if (!glyph) throw new Error(`${path}: the glyph is empty`);
         const smallPath = str(values, 'small');
-        const small = smallPath ? await exportGlyph((await loadDoc(smallPath, io)).doc) : undefined;
+        const small = smallPath ? await exportGlyph((await loadDoc(smallPath, io)).doc, colour) : undefined;
         const { buildIconSet } = await import('@/icon/iconSet');
         const { mergeLauncherBackground } = await import('@/icon/outputs');
         const { resvgRenderer } = await import('@/icon/resvgRenderer');
         const base = (doc.name || 'icon').replace(/[\\/:*?"<>|]+/g, '-');
         const tile = tileFlag ?? doc.icon?.tile ?? BRAND;
         const result = await buildIconSet(
-          { glyph, small, tile, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
+          { glyph, small, tile, full: colour === 'full-colour', glyphColour: glyphFlag ?? doc.icon?.glyph, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
           resvgRenderer,
         );
         const cwd = io.cwd ?? process.cwd();
@@ -600,6 +665,11 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
             const walk = (ns: SceneNode[]) => ns.forEach((c) => (count++, c.type === 'group' && walk(c.children)));
             walk(doc.children);
             io.out(`ok   ${path}: “${doc.name}”, ${doc.artboard.width}×${doc.artboard.height}, ${count} objects`);
+            const colour = await colourSummary(doc);
+            if (colour) {
+              io.out(`     icon colour: ${colour.line}`);
+              for (const w of colour.warnings) io.out(`     note: ${w}`);
+            }
             const k = await keylineOf(doc).catch(() => null);
             if (k && !k.onKeyline) io.out(`     note: the glyph is off its keyline (${describeKeyline(k)}); run \`designer fit ${path}\` (exports fit automatically, only the canvas is off)`);
           } catch (e) {
@@ -613,8 +683,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const { doc, icon } = await loadDoc(requireArg(pos, 'project file'), io);
         const r = await info(doc);
         const keyline = await keylineOf(doc).catch(() => null);
+        const colour = await colourSummary(doc);
         if (values.json) {
-          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, ...(keyline ? { keyline } : {}), contentBounds: r.content, nodes: r.nodes }, null, 2));
+          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, ...(colour ? { colour: colour.line, contrastWarnings: colour.warnings } : {}), ...(keyline ? { keyline } : {}), contentBounds: r.content, nodes: r.nodes }, null, 2));
           return 0;
         }
         const bg = doc.artboard.background.kind === 'none' ? 'transparent' : doc.artboard.background.kind === 'solid' ? doc.artboard.background.color : doc.artboard.background.kind;
@@ -623,6 +694,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
             `“${doc.name}” — artboard ${doc.artboard.width}×${doc.artboard.height}, background ${bg}${icon ? `, icon ${icon.preset}/${icon.shape}` : ''}`,
             `content bounds: ${fmtRect(r.content)}`,
             ...(keyline ? [`keyline: ${describeKeyline(keyline)}${keyline.onKeyline ? '' : ' — run `designer fit`'}`] : []),
+            ...(colour ? [`colour: ${colour.line}`, ...colour.warnings.map((w) => `note: ${w}`)] : []),
             ...r.lines,
           ].join('\n'),
         );

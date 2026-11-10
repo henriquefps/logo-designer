@@ -53,6 +53,8 @@ Below, `designer` means either form.
      `--tile <#hex>` sets the tile colour of the whole set (repos that keep their olive tile: `--tile
      #5b7a3a`; default `#2063b0`); it can also live in the project (`icon.tile`, `new --preset app-icon
      --tile #hex`), so `designer icons` uses it without the flag. Ask which tile the repo uses if unsure.
+     `--colour one|full` and `--glyph <#hex>` (also stored in the project) choose the colour mode and the one-colour glyph colour
+     (see "App icons" below).
 4. **Hand it over:** `designer open <project>` (one file) or `designer present a.json b.json c.json`
    (several concepts: a local gallery with previews and an *Open in Designer* button each; run it in
    the background and leave it running until the person has imported). The browser asks the person
@@ -74,9 +76,15 @@ Below, `designer` means either form.
   `designer knockout <project> --cutter "<name|id>" [--gap 0.03T] [--outline-only] -o <project>`
   cuts every object below the cutter where it sits, with a small gap, as plain editable paths
   (same code as the app's Object → Knock out).
-- **App icons** (`--icon app-icon`) are **one colour**: every paint becomes `currentColor` (white on
-  the tile, themed on Android 13+). Express depth with opacity (1, 0.7, 0.45 front to back) and separate
-  overlapping shapes with `knockout`, never with a tile-coloured shape. Sizes and keylines follow the `hfps-repo-assets` skill ("The icon: rules");
+- **App icons** (`--icon app-icon`) are **one colour by default** (the hfps style): every paint becomes
+  `currentColor` (the glyph colour: white on the tile, or `--glyph <#hex>`, e.g. `--tile #ffffff --glyph #ff0000`;
+  themed on Android 13+). Express depth with opacity (1, 0.7, 0.45 front to back) and separate
+  overlapping shapes with `knockout`, never with a tile-coloured shape (knockout stays the recommended way in both
+  modes). **Only when the person asks for colour** (each shape its own colour, a rainbow or other gradient) use
+  `--colour full` (`from-svg --icon app-icon --colour full`, `new … --colour full`; stored as `icon.colour:
+  "full-colour"`): the drawing's solids, gradients and opacity are kept in every output; Android monochrome becomes
+  the silhouette, iOS Tinted the grayscale, iOS Dark the same colours on transparency. Heed a `! contrast:` warning
+  (glyph colours too close to the tile). The tile is always one solid colour. Sizes and keylines follow the `hfps-repo-assets` skill ("The icon: rules");
   the Designer's numbers are a port of its `build-icons.mjs`. Export for that script with
   `designer to-svg <project> --glyph -o scripts/glyph.svg`, or skip it with `designer icons`.
 - Several concepts = several files, one project each, named so the person can tell them apart.

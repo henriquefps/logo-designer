@@ -76,6 +76,12 @@ describe('project file', () => {
     expect(validateDocument({ ...createDocument(), icon: { tile: '#5B7A3A' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto', tile: '#5b7a3a' });
     expect(validateDocument({ ...createDocument(), icon: { tile: '#2063b0' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
     expect(() => validateDocument({ ...createDocument(), icon: { tile: 'olive' } })).toThrow(/icon\.tile/);
+    // colour mode and glyph colour: defaults are omitted, values are normalised, errors name the path
+    expect(validateDocument({ ...createDocument(), icon: { colour: 'full-colour' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto', colour: 'full-colour' });
+    expect(validateDocument({ ...createDocument(), icon: { colour: 'one-colour', glyph: '#FFFFFF' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    expect(validateDocument({ ...createDocument(), icon: { glyph: '#F00' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto', glyph: '#ff0000' });
+    expect(() => validateDocument({ ...createDocument(), icon: { colour: 'rainbow' } })).toThrow(/icon\.colour/);
+    expect(() => validateDocument({ ...createDocument(), icon: { glyph: 'red' } })).toThrow(/icon\.glyph/);
     expect('icon' in validateDocument(createDocument())).toBe(false);
   });
 });

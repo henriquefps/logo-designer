@@ -36,16 +36,18 @@ function useCurrentPaint() {
 /** "None" swatch: white with a red diagonal, like Illustrator. */
 const NONE_BG = 'linear-gradient(to top right, transparent calc(50% - 1px), var(--destructive) calc(50% - 1px), var(--destructive) calc(50% + 1px), transparent calc(50% + 1px))';
 
-/** App icon documents: the glyph colour (white at the paint's alpha) on the brand tile. */
-function glyphCss(p: Paint, tile: string): string {
+/** One-colour app icon documents: the glyph colour (at the paint's alpha) on the tile. */
+function glyphCss(p: Paint, tile: string, glyph: string): string {
   const a = p.kind === 'solid' ? splitColor(p.color).opacity : 1;
-  return `linear-gradient(rgb(255 255 255 / ${a}), rgb(255 255 255 / ${a})), linear-gradient(${tile}, ${tile})`;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(glyph.slice(i, i + 2), 16));
+  return `linear-gradient(rgb(${r} ${g} ${b} / ${a}), rgb(${r} ${g} ${b} / ${a})), linear-gradient(${tile}, ${tile})`;
 }
 
 function Swatch({ paint, kind, front, onClick, glyph }: { paint: Paint; kind: 'fill' | 'stroke'; front: boolean; onClick: () => void; glyph: boolean }) {
   const tile = useDocStore((s) => s.doc.icon?.tile) ?? BRAND;
+  const glyphColour = useDocStore((s) => s.doc.icon?.glyph) ?? '#ffffff';
   const bg =
-    paint.kind === 'none' ? `${NONE_BG}, linear-gradient(var(--card), var(--card))` : glyph ? glyphCss(paint, tile) : `${paintCss(paint)}, ${checker}`;
+    paint.kind === 'none' ? `${NONE_BG}, linear-gradient(var(--card), var(--card))` : glyph ? glyphCss(paint, tile, glyphColour) : `${paintCss(paint)}, ${checker}`;
   return (
     <button
       type="button"

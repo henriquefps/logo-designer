@@ -1,7 +1,7 @@
 // The glyph of an icon document as build-icons.mjs expects it: an SVG fragment in a 128 × 128
-// space (the visible tile mapped to 0..128) painted with currentColor (alpha kept).
+// space (the visible tile mapped to 0..128) painted with currentColor (alpha kept), or with the real paints in full-colour mode.
 import { iconTile, docToGlyphSpace } from '@/icon';
-import type { DesignDocument } from '@/model';
+import type { DesignDocument, IconColourMode } from '@/model';
 import { bakeTransforms } from '@/io/bakeTransforms';
 import { exportSvg } from '@/io/svgExport';
 
@@ -28,9 +28,13 @@ function glyphTile(doc: DesignDocument) {
   return { x: (doc.artboard.width - side) / 2, y: (doc.artboard.height - side) / 2, size: side };
 }
 
-/** glyph.svg for build-icons.mjs: hidden and reference objects skipped, text outlined. */
-export async function glyphFragment(doc: DesignDocument): Promise<string> {
-  const { svg } = await exportSvg(await bakeTransforms(doc), { scope: 'artboard', background: false, currentColor: true });
+/**
+ * glyph.svg for build-icons.mjs: hidden and reference objects skipped, text outlined. One colour (default):
+ * every paint is currentColor with its alpha. `colour: 'full-colour'` (default: the document's icon.colour)
+ * keeps the real paints: solid colours, gradients and opacity.
+ */
+export async function glyphFragment(doc: DesignDocument, colour: IconColourMode = doc.icon?.colour ?? 'one-colour'): Promise<string> {
+  const { svg } = await exportSvg(await bakeTransforms(doc), { scope: 'artboard', background: false, currentColor: colour !== 'full-colour' });
   const body = svgBody(svg);
   if (!body) return '';
   const { k, e, f } = docToGlyphSpace(glyphTile(doc));

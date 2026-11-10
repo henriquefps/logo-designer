@@ -390,4 +390,64 @@ describe('open / present', () => {
       expect(await readFile(join(dir, 'icons-grp/android/res/drawable/ic_splash.xml'), 'utf8')).toContain('<vector');
     }, 60_000);
   });
+  it('icons --colour full / --glyph: colour modes stored in the project, overridden per run, validated', async () => {
+    const colourDir = join(__dirname, '../icon/__tests__/fixtures/colour');
+    const rainbow = readFileSync(join(colourDir, 'designer-rainbow.designer.json'), 'utf8');
+    await writeFile(join(dir, 'rainbow.designer.json'), rainbow);
+    const text = (f: string) => readFile(join(dir, f), 'utf8');
+    // from-svg / new store the mode; the default (one colour, white) stores nothing
+    const sync = readFileSync(join(__dirname, '../icon/__tests__/fixtures/glyph-sync.svg'), 'utf8');
+    await writeFile(join(dir, 'sync3.svg'), sync);
+    await cli('from-svg', 'sync3.svg', '-o', 'c-default.designer.json', '--icon', 'app-icon', '--no-fit');
+    expect((await json('c-default.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    await cli('from-svg', 'sync3.svg', '-o', 'c-full.designer.json', '--icon', 'app-icon', '--no-fit', '--colour', 'full');
+    expect((await json('c-full.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto', colour: 'full-colour' });
+    await cli('new', '--preset', 'app-icon', '--tile', '#ffffff', '--glyph', '#FF0000', '-o', 'c-red.designer.json');
+    expect((await json('c-red.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto', tile: '#ffffff', glyph: '#ff0000' });
+    await cli('new', '--preset', 'app-icon', '--glyph', '#fff', '--colour', 'one', '-o', 'c-white.designer.json');
+    expect((await json('c-white.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    // usage errors
+    expect((await cli('new', '--preset', 'app-icon', '--glyph', '#ff0000', '--colour', 'full')).err).toMatch(/no effect with --colour full/);
+    expect((await cli('new', '--preset', 'app-icon', '--colour', 'rainbow')).err).toMatch(/--colour must be one or full/);
+    expect((await cli('new', '--preset', 'app-icon', '--glyph', '#ff00')).err).toMatch(/--glyph must be a hex colour/);
+    expect((await cli('new', '--colour', 'full')).code).toBe(2); // not an icon preset
+
+    // a full-colour project: the glyph keeps its paints, icons use them
+    const g = await cli('to-svg', 'rainbow.designer.json', '--glyph');
+    expect(g.out).toContain('url(#g1)');
+    expect(g.out).not.toContain('currentColor');
+    expect((await cli('to-svg', 'rainbow.designer.json', '--glyph', '--colour', 'one')).out).toContain('currentColor');
+    expect((await cli('to-svg', 'c-default.designer.json', '--glyph', '--colour', 'full')).out).not.toContain('currentColor');
+    expect((await cli('to-svg', 'rainbow.designer.json', '--colour', 'one')).code).toBe(2); // --colour only applies to --glyph
+    const r = await cli('icons', 'rainbow.designer.json', '-o', 'icons-rainbow');
+    expect(r.code).toBe(0);
+    expect(await text('icons-rainbow/docs-img/icon.svg')).toContain('linearGradient');
+    expect(await text('icons-rainbow/android/res/drawable/ic_splash.xml')).toContain('aapt:attr');
+    expect(await text('icons-rainbow/glyph.svg')).toContain('stop-color="#ff3b30"');
+    // --colour one overrides the project for one run (back to currentColor / white)
+    await cli('icons', 'rainbow.designer.json', '-o', 'icons-rainbow-one', '--colour', 'one');
+    expect(await text('icons-rainbow-one/docs-img/icon.svg')).not.toContain('linearGradient');
+    expect(await text('icons-rainbow-one/docs-img/icon.svg')).toContain('fill="#fff"');
+    // --glyph recolours a one-colour icon for a run; a stored glyph colour is used by default
+    await cli('icons', 'c-default.designer.json', '-o', 'icons-g', '--tile', '#ffffff', '--glyph', '#ff0000');
+    expect(await text('icons-g/docs-img/icon.svg')).toContain('fill="#ff0000"');
+    const d0 = await json('c-default.designer.json');
+    await writeFile(join(dir, 'c-red-glyph.designer.json'), JSON.stringify({ ...d0, icon: { ...d0.icon, tile: '#ffffff', glyph: '#ff0000' } }));
+    expect((await cli('icons', 'c-red-glyph.designer.json', '-o', 'icons-red')).code).toBe(0);
+    expect(await text('icons-red/docs-img/icon.svg')).toContain('fill="#ff0000"');
+    expect((await cli('icons', 'rainbow.designer.json', '-o', 'icons-bad', '--glyph', '#ff0000')).err).toMatch(/no effect/);
+    // contrast: a white glyph on a white tile warns (icons, validate, info)
+    await cli('new', '--preset', 'app-icon', '--tile', '#ffffff', '-o', 'c-vanish.designer.json');
+    const doc = await json('c-vanish.designer.json');
+    await writeFile(join(dir, 'c-vanish.designer.json'), JSON.stringify({ ...doc, children: (await json('c-default.designer.json')).children }));
+    const v = await cli('validate', 'c-vanish.designer.json');
+    expect(v.out).toContain('icon colour: one colour: glyph #ffffff on tile #ffffff');
+    expect(v.out).toMatch(/note: contrast: the glyph colour too close to the tile #ffffff/);
+    const i = await cli('info', 'c-vanish.designer.json');
+    expect(i.out).toContain('colour: one colour: glyph #ffffff on tile #ffffff');
+    expect(i.out).toContain('note: contrast:');
+    expect((await cli('info', 'rainbow.designer.json')).out).toContain('colour: full colour on tile #14141f');
+    const ic = await cli('icons', 'c-vanish.designer.json', '-o', 'icons-vanish');
+    expect(ic.out).toMatch(/! contrast: the glyph colour too close/);
+  }, 180_000);
 });

@@ -36,10 +36,10 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | Command | What it does |
 | --- | --- |
 | `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
-| `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P] [--no-fit]` | editable project from an SVG (**with `--icon`, the drawing is fitted to its keyline** so the project opens centred and at the right size; `--no-fit` keeps the raw drawing): `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. `clip-path` and solid `mask`s become real geometry (see below). Warnings go to stderr |
+| `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P [--tile #hex] [--colour one\|full] [--glyph #hex]] [--no-fit]` | editable project from an SVG (**with `--icon`, the drawing is fitted to its keyline** so the project opens centred and at the right size; `--no-fit` keeps the raw drawing): `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. `clip-path` and solid `mask`s become real geometry (see below). Warnings go to stderr |
 | `designer to-svg <project> [-o file]` | clean SVG of the artboard, text outlined with the bundled fonts |
-| `designer to-svg <project> --glyph [-o file]` | glyph fragment for `build-icons.mjs`, byte-identical to the app's File → Export icon → Glyph SVG: the visible tile (icon projects) or the artboard's long side mapped to a 128 box, every paint → `currentColor` keeping its alpha, references and hidden objects skipped, all group/object transforms baked into plain coordinates (strokes scale with them; so the Android splash drawable always works), no `<svg>` wrapper |
-| `designer icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>]` | the whole icon set, same files and numbers as `build-icons.mjs` (ported to `src/icon/`, rendered with resvg): `docs-img/`, `site/`, `android/res/`, `ios/` (`AppIcon.appiconset` Light/Dark/Tinted + iOS 26 `AppIcon.icon`), `review-sheet.png`, `README.txt`, `glyph.svg` and the project. Prints the script's report (`shape tall: glyph 48% x 68% of the tile, ink 11.0%` …). Look at `review-sheet.png`. `--tile <#hex>` sets the tile colour everywhere (tiles, favicons, Android launcher background, iOS Light and `AppIcon.icon` fill, the light variant's glyph, the review sheet) and derives the iOS Dark glyph from it; default: the project's `icon.tile`, else the hfps blue `#2063b0`. Older hfps repos keep their olive tile: `--tile #5b7a3a`. `new --preset app-icon --tile #hex` / `from-svg --icon app-icon --tile #hex` store it in the project |
+| `designer to-svg <project> --glyph [--colour one\|full] [-o file]` | glyph fragment for `build-icons.mjs`, byte-identical to the app's File → Export icon → Glyph SVG: the visible tile (icon projects) or the artboard's long side mapped to a 128 box, every paint → `currentColor` keeping its alpha (a **full-colour** icon project, or `--colour full`, keeps the real paints instead: solids, gradients, opacity; pass `--colour full` to `build-icons.mjs` too), references and hidden objects skipped, all group/object transforms baked into plain coordinates (strokes scale with them; so the Android splash drawable always works), no `<svg>` wrapper |
+| `designer icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--colour one\|full] [--glyph <#hex>]` | the whole icon set, same files and numbers as `build-icons.mjs` (ported to `src/icon/`, rendered with resvg): `docs-img/`, `site/`, `android/res/`, `ios/` (`AppIcon.appiconset` Light/Dark/Tinted + iOS 26 `AppIcon.icon`), `review-sheet.png`, `README.txt`, `glyph.svg` and the project. Prints the script's report (`shape tall: glyph 48% x 68% of the tile, ink 11.0%` …). Look at `review-sheet.png`. `--tile <#hex>` sets the tile colour everywhere (tiles, favicons, Android launcher background, iOS Light and `AppIcon.icon` fill, the light variant's glyph, the review sheet) and derives the iOS Dark glyph from it; default: the project's `icon.tile`, else the hfps blue `#2063b0`. Older hfps repos keep their olive tile: `--tile #5b7a3a`. `new --preset app-icon --tile #hex` / `from-svg --icon app-icon --tile #hex` store it in the project |
 | `designer fit <project> [-o file]` | **scale and centre the glyph of an app icon project onto its keyline**: the same transform as the app's *Fit to keyline* (shared code, strokes scale with the glyph), measured like `icons`. In place unless `-o`. Prints before/after (long side as a fraction of T, on keyline yes/no). Error if the project is not an app icon. Run it after manual edits or `knockout`; exports fit automatically, so this only keeps the canvas in line with them. Idempotent |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure. For icon projects, a `note:` (not an error) when the glyph is off its keyline |
@@ -59,11 +59,25 @@ The CLI runs the app's own code (`src/model`, `src/io`, the fonts module) with a
 (happy-dom), so a file that passes `designer validate` opens in the app, and `to-svg` matches the
 app's File → Export.
 
+## App icon colours: one colour by default, full colour when asked
+
+App icon glyphs are **one colour** by default (`icon.colour: "one-colour"`: every paint becomes the glyph
+colour, white unless `icon.glyph` / `--glyph <#hex>` says otherwise, e.g. a red glyph on a white tile with `--tile #ffffff`;
+themed on Android). That is the hfps house style: use it unless the person asks for colour. When they do
+(the Designer logo with each shape in its own colour, a rainbow gradient, a multicolour brand mark), use
+**`--colour full`** (`new` / `from-svg --icon … --colour full`, or `icon.colour: "full-colour"` in the project; `icons`
+and `to-svg --glyph` accept it too): the drawing's solids, gradients and opacity are kept in every output. The set
+stays correct on every platform without extra work: Android 13+ monochrome is the glyph's silhouette, iOS Tinted its
+grayscale on black, iOS Dark the same colours on transparency (so pick colours that read on near-black), the splash
+VectorDrawable keeps solids and gradients, `icon-light.svg` puts the glyph on a white tile. Check the report: a
+`! contrast:` line means a glyph colour is too close to the tile (WCAG 3:1). The tile is always one solid colour.
+
 ## Knockouts, not clip paths or tile-coloured shapes
 
-App icon glyphs are **one colour** (`currentColor`: white on the tile, themed on Android). A shape
+One-colour glyphs paint every shape the glyph colour, so a shape
 painted in the tile colour to hide what is behind it does not work: Designer paints it white like
-everything else, and themed icons would show it. To make one object sit "in front of" another
+everything else, and themed icons would show it. Full-colour glyphs have the same problem on the themed variants (the
+silhouette and the grayscale would show the cover shape), so knockouts stay the right tool in both modes. To make one object sit "in front of" another
 (an overlapping back file, a ring behind a dot), **cut the back object**:
 
 ```sh

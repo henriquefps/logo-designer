@@ -1,0 +1,13 @@
+<defs>
+<linearGradient id="g1" x1="0.146" y1="0.146" x2="0.854" y2="0.854">
+  <stop offset="0" stop-color="#ff3b30"/>
+  <stop offset="0.2" stop-color="#ff9500"/>
+  <stop offset="0.4" stop-color="#ffcc00"/>
+  <stop offset="0.6" stop-color="#34c759"/>
+  <stop offset="0.8" stop-color="#007aff"/>
+  <stop offset="1" stop-color="#af52de"/>
+</linearGradient>
+</defs>
+<path d="M50.447 25.6L61.109 44.258L61.109 51.289C50.734 51.379 42.424 58.668 37.778 67.501C37.732 67.589 37.687 67.677 37.643 67.765L26.353 67.765Z" fill-rule="evenodd" fill="url(#g1)"/>
+<path d="M68.518 33.129L97.129 33.129C99.624 33.129 101.647 35.152 101.647 37.647L101.647 66.259C101.647 68.754 99.624 70.776 97.129 70.776L88.586 70.776C86.348 63.273 80.31 57.277 73.299 53.59C70.337 52.032 67.214 51.656 64 51.421L64 37.647C64 35.152 66.023 33.129 68.518 33.129Z" fill-rule="evenodd" fill="url(#g1)"/>
+<circle cx="62.494" cy="78.306" r="24.094" fill="url(#g1)"/>

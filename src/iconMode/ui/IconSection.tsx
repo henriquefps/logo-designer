@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { BRAND, fit, iconPresetDef, isFaviconPreset, normalizeTile, strokeWarning, type IconShapeArg } from '@/icon';
-import type { IconShapeSetting } from '@/model';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { BRAND, contrastWarnings, fit, GLYPH_DEFAULT, iconPresetDef, isFaviconPreset, normalizeTile, strokeWarning, type IconShapeArg } from '@/icon';
+import type { IconColourMode, IconShapeSetting } from '@/model';
 import { FieldRow, Section } from '@/panels/shared/Section';
 import type { SelectionContext } from '@/panels/properties/types';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -28,9 +29,9 @@ const SHAPES: { id: IconShapeSetting; label: string }[] = [
   { id: 'tall', label: 'Tall (0.68 T)' },
 ];
 
-/** Tile colour: colour well + hex field (validated); the default blue is stored as "no tile". */
-function TileColorField({ tile }: { tile: string | undefined }) {
-  const cur = tile ?? BRAND;
+/** A hex colour field: colour well + hex input (validated) + reset. Stores "no value" for the default. */
+function HexColorField({ value, def, label, onChange }: { value: string | undefined; def: string; label: string; onChange: (v: string | undefined) => void }) {
+  const cur = value ?? def;
   const [text, setText] = useState(cur);
   const [prev, setPrev] = useState(cur);
   if (prev !== cur) {
@@ -41,14 +42,14 @@ function TileColorField({ tile }: { tile: string | undefined }) {
     const n = normalizeTile(v);
     if (!n) return setText(cur);
     setText(n);
-    if (n !== cur) setIconInfo({ tile: n === BRAND ? undefined : n }, 'Tile colour');
+    if (n !== cur) onChange(n === def ? undefined : n);
   };
   const invalid = !normalizeTile(text);
   return (
     <div className="flex items-center gap-2">
-      <input type="color" aria-label="Tile colour picker" value={cur} onChange={(e) => commit(e.target.value)} className="size-7 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5" />
+      <input type="color" aria-label={`${label} picker`} value={cur} onChange={(e) => commit(e.target.value)} className="size-7 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5" />
       <Input
-        aria-label="Tile colour"
+        aria-label={label}
         aria-invalid={invalid}
         value={text}
         spellCheck={false}
@@ -57,12 +58,17 @@ function TileColorField({ tile }: { tile: string | undefined }) {
         onKeyDown={(e) => e.key === 'Enter' && commit(text)}
         className="h-7 font-mono text-xs"
       />
-      <Button size="sm" variant="ghost" disabled={cur === BRAND} onClick={() => commit(BRAND)}>
+      <Button size="sm" variant="ghost" disabled={cur === def} onClick={() => commit(def)}>
         Reset
       </Button>
     </div>
   );
 }
+
+const COLOUR_MODES: { id: IconColourMode; label: string }[] = [
+  { id: 'one-colour', label: 'One colour' },
+  { id: 'full-colour', label: 'Full colour' },
+];
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 
@@ -85,6 +91,10 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
   const [fitting, setFitting] = useState(false);
   const fav = isFaviconPreset(icon.preset);
   const { box, report } = analysis;
+  const full = icon.colour === 'full-colour';
+  const colourMode: IconColourMode = full ? 'full-colour' : 'one-colour';
+  const contrast = analysis.glyph && box ? contrastWarnings({ glyph: analysis.glyph, full, glyphColour: icon.glyph, tile: icon.tile }) : [];
+  const warnings = report ? [...report.warnings, ...contrast] : [];
 
   const onKeyline = box ? isOnKeyline(doc, box) : false;
   const fill = box ? keylineFill(doc, box) : null;
@@ -139,10 +149,36 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
         </FieldRow>
 
         <FieldRow label="Tile colour">
-          <TileColorField tile={icon.tile} />
+          <HexColorField value={icon.tile} def={BRAND} label="Tile colour" onChange={(tile) => setIconInfo({ tile }, 'Tile colour')} />
         </FieldRow>
 
-        {analysis.status === 'empty' && <p className="text-sm text-muted-foreground">Draw the glyph inside the tile, or import an SVG. Its colours become currentColor on export.</p>}
+        <FieldRow label="Colour">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={colourMode}
+            onValueChange={(v) => v && setIconInfo({ colour: v === 'full-colour' ? 'full-colour' : undefined }, 'Icon colour mode')}
+            aria-label="Colour mode"
+            className="w-full"
+          >
+            {COLOUR_MODES.map((m) => (
+              <ToggleGroupItem key={m.id} value={m.id} aria-label={m.label} className="flex-1 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+                {m.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </FieldRow>
+
+        {full ? (
+          <p className="text-xs text-muted-foreground">Full colour keeps each shape’s own colours, gradients and opacity. Android’s themed icon becomes the silhouette, iOS Tinted the grayscale, iOS Dark the same colours on transparency.</p>
+        ) : (
+          <FieldRow label="Glyph colour">
+            <HexColorField value={icon.glyph} def={GLYPH_DEFAULT} label="Glyph colour" onChange={(glyph) => setIconInfo({ glyph }, 'Glyph colour')} />
+          </FieldRow>
+        )}
+
+        {analysis.status === 'empty' && <p className="text-sm text-muted-foreground">Draw the glyph inside the tile, or import an SVG. {full ? 'Its colours are kept on export.' : 'Its colours become the glyph colour on export (switch to Full colour to keep them).'}</p>}
         {analysis.status === 'error' && <p className="text-sm text-destructive">{analysis.error}</p>}
 
         {box && report && fill !== null && (
@@ -153,9 +189,9 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
             {!fav && <Stat label="Android" value={`${report.halfDiag.toFixed(1)} dp half-diagonal`} warn={report.halfDiag > 33} />}
             {drawn.length > 0 && <Stat label="Strokes" value={`${span(fitted)} units after fit (drawn ${span(drawn)})`} warn={strokeOut} />}
             <p className="text-xs text-muted-foreground">Numbers after the fit, as build-icons.mjs prints them. Ink 8–32%{drawn.length ? ', strokes target 0.05–0.07 T = 6.4–9 units after fitting' : ''}.</p>
-            {(report.warnings.length > 0 || strokeOut) && (
+            {(warnings.length > 0 || strokeOut) && (
               <ul className="flex flex-col gap-1.5" aria-label="Warnings">
-                {report.warnings.map((w) => (
+                {warnings.map((w) => (
                   <li key={w} className="flex gap-1.5 text-sm text-destructive">
                     <WarningIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                     <span>{w.replace(/^\s*!\s*/, '')}</span>

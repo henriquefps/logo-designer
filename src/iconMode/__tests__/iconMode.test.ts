@@ -27,6 +27,16 @@ const measure = async (doc: DesignDocument) => {
 };
 
 describe('icon documents', () => {
+  it('full colour exports the real paints instead of currentColor', async () => {
+    const doc = iconDoc(fixture('glyph-sync.svg'));
+    const full = { ...doc, icon: { ...doc.icon!, colour: 'full-colour' as const } };
+    expect(await glyphFragment(full)).not.toContain('currentColor');
+    expect(await glyphFragment(full)).toContain('#123456');
+    expect(await glyphFragment(doc)).toContain('currentColor'); // one colour stays the default
+    expect(await glyphFragment(doc, 'full-colour')).toContain('#123456'); // explicit override
+    expect(await glyphFragment(full, 'one-colour')).toContain('currentColor');
+  });
+
   it('exports the glyph as a currentColor fragment that measures like the original', async () => {
     const doc = iconDoc(fixture('glyph-sync.svg'));
     const glyph = await glyphFragment(doc);

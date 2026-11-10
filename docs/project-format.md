@@ -74,6 +74,8 @@ icon?: {
   shape: 'auto' | 'circle' | 'square' | 'wide' | 'tall'; // keyline; auto = square/wide/tall from the ink box
   smallGlyphProjectId?: string; // another project used as the favicon glyph (glyph-small.svg)
   tile?: string; // tile colour '#rrggbb' (or '#rgb'); default '#2063b0'. Older hfps repos keep olive '#5b7a3a'
+  colour?: 'one-colour' | 'full-colour'; // default one-colour (omitted); full-colour keeps the document's own paints
+  glyph?: string; // one-colour glyph colour '#rrggbb' (or '#rgb'); default '#ffffff' (omitted); ignored in full-colour
 }
 ```
 
@@ -83,7 +85,28 @@ defaults to `app-icon`/`auto`; an unknown value is an error naming `icon.preset`
 `tile` is the colour of every tile in the exported set and of the tile under the glyph in the app (Icon panel →
 “Tile colour”); it is normalised to lowercase `#rrggbb` and omitted when it is the default blue, and an invalid
 value is an error naming `icon.tile`. `designer icons --tile <#hex>` overrides it for one run.
-`designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with `shape: "auto"`.
+`colour` / `glyph` choose how the glyph is painted in every output:
+
+- **`one-colour`** (default, the minimal hfps style): every paint of the drawing becomes the one glyph colour, with its
+  alpha (opacity gives depth). The glyph colour is `glyph`, white by default, so `tile: "#ffffff"` with
+  `glyph: "#e5322d"` is a red glyph on a white tile. The light variant (`icon-light.svg`) paints the
+  glyph in `glyph` when it is set, else in the tile colour. Android 13+ themed icons still recolour it.
+- **`full-colour`**: the document's own paints are kept: a solid colour per shape, linear / radial gradients (a rainbow),
+  opacity. `glyph` is ignored. Derived variants: Android monochrome = the glyph's silhouette (alpha only, black);
+  iOS Tinted = the luminance grayscale of the glyph on black; iOS Dark = the same colours on transparency (the system
+  supplies the dark background; pick colours that read on near-black); `icon-light.svg` = the glyph on a white tile;
+  the Android splash `ic_splash.xml` keeps solid colours and writes gradients as `aapt:attr` gradients on each
+  shape's bounding box (a paint it cannot translate, e.g. `gradientTransform`, is painted white with a warning).
+  In the app the canvas then shows the paints as drawn (no white override) and the paint editor is the normal one.
+
+The tile stays one solid colour (`tile`): Android's `ic_launcher_background` is a `@color`, iOS Light is flattened on a
+single colour and the light variant derives from it, so a gradient tile does not fit every output; use a gradient
+*glyph* in full-colour mode. Both modes check the contrast of the glyph colour(s) against the tile (WCAG ratio, 3:1
+for graphics) and warn in `designer icons`, `validate`, `info` and the Icon panel when they nearly vanish.
+`colour` must be `"one-colour"` or `"full-colour"` (an error names `icon.colour`); `glyph` is normalised to lowercase
+`#rrggbb`, omitted when white, and an invalid value is an error naming `icon.glyph`.
+`designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with `shape: "auto"`
+(`--tile`, `--colour one|full`, `--glyph <#hex>` add the colour fields).
 
 ## Nodes
 

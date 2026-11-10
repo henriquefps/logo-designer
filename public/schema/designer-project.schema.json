@@ -716,6 +716,15 @@
           "type": "string",
           "description": "Tile colour, #rrggbb (or #rgb); default #2063b0 (hfps blue). Older hfps repos keep olive #5b7a3a.",
           "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+        },
+        "colour": {
+          "$ref": "#/definitions/IconColourMode",
+          "description": "\"one-colour\" (default): every paint becomes the glyph colour. \"full-colour\": the document's own paints (solids, gradients, opacity) are kept."
+        },
+        "glyph": {
+          "type": "string",
+          "description": "One-colour mode: the glyph colour, #rrggbb (or #rgb); default #ffffff (white). Ignored when colour is \"full-colour\".",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
         }
       },
       "required": [
@@ -743,6 +752,14 @@
         "wide",
         "tall"
       ]
+    },
+    "IconColourMode": {
+      "type": "string",
+      "enum": [
+        "one-colour",
+        "full-colour"
+      ],
+      "description": "one-colour: every paint becomes the glyph colour (default). full-colour: the document's own paints are kept."
     }
   }
 }
