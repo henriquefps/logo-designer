@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { fit, iconPresetDef, isFaviconPreset, STROKE_MAX, STROKE_MIN, type IconShapeArg } from '@/icon';
+import { fit, iconPresetDef, isFaviconPreset, strokeWarning, type IconShapeArg } from '@/icon';
 import type { IconShapeSetting } from '@/model';
 import { FieldRow, Section } from '@/panels/shared/Section';
 import type { SelectionContext } from '@/panels/properties/types';
@@ -51,11 +51,10 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
   const onKeyline = box ? isOnKeyline(doc, box) : false;
   const fill = box ? keylineFill(doc, box) : null;
   const s128 = box && report ? fit(box, 128, report.long).s : 1;
-  // Stroke hint (0.055–0.07 T = 7–9 units): warn only when neither the drawn width nor the width
-  // after the fit is in range (the skill's own glyphs are drawn at 7 and fitted slightly smaller).
-  const outOfRange = (w: number) => w < STROKE_MIN * 128 - 0.05 || w > STROKE_MAX * 128 + 0.05;
+  // Stroke check: only the width after the fit (what the user sees) counts.
   const drawn = analysis.strokes;
-  const strokeOut = drawn.some((w) => outOfRange(w) && outOfRange(w * s128));
+  const fitted = drawn.map((w) => w * s128);
+  const strokeOut = strokeWarning(fitted);
   const span = (ws: number[]) => {
     const lo = Math.min(...ws),
       hi = Math.max(...ws);
@@ -110,8 +109,8 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
             <Stat label="Glyph" value={`${pct(report.w)} × ${pct(report.h)} of T`} warn={report.warnings.some((w) => w.includes('short side'))} />
             <Stat label="Ink" value={pct(report.coverage, 1)} warn={report.coverage < 0.08 || report.coverage > 0.32} />
             {!fav && <Stat label="Android" value={`${report.halfDiag.toFixed(1)} dp half-diagonal`} warn={report.halfDiag > 33} />}
-            {drawn.length > 0 && <Stat label="Strokes" value={`${span(drawn)} units · ${span(drawn.map((w) => w * s128))} after fit`} warn={strokeOut} />}
-            <p className="text-xs text-muted-foreground">Numbers after the fit, as build-icons.mjs prints them. Ink 8–32%{drawn.length ? ', strokes 0.055–0.07 T = 7–9 units' : ''}.</p>
+            {drawn.length > 0 && <Stat label="Strokes" value={`${span(fitted)} units after fit (drawn ${span(drawn)})`} warn={strokeOut} />}
+            <p className="text-xs text-muted-foreground">Numbers after the fit, as build-icons.mjs prints them. Ink 8–32%{drawn.length ? ', strokes target 0.05–0.07 T = 6.4–9 units after fitting' : ''}.</p>
             {(report.warnings.length > 0 || strokeOut) && (
               <ul className="flex flex-col gap-1.5" aria-label="Warnings">
                 {report.warnings.map((w) => (
@@ -123,7 +122,7 @@ export function IconSection({ ctx }: { ctx: SelectionContext }) {
                 {strokeOut && (
                   <li className="flex gap-1.5 text-sm text-destructive">
                     <WarningIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <span>strokes should be 0.055–0.07 T (7–9 units in the 128 space), with round caps and joins</span>
+                    <span>strokes: target 0.05–0.07 T (6.4–9 units after fitting); thinner than 0.045 T looks like a hairline. Use round caps and joins</span>
                   </li>
                 )}
               </ul>
