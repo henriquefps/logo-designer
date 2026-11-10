@@ -34,7 +34,9 @@ bunx --bun github:henriquefps/logo-designer designer <command> …   # same thin
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure |
 | `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with world bounds and ids |
-| `designer link <project\|svg> [--name N]` | prints a `https://designer.hfps.dev/#open=…` link that carries the file |
+| `designer open <project\|svg> [more…] [--no-wait]` | **the way to hand a file over.** One file: opens Designer in the default browser (macOS `open`, Linux `xdg-open`, Windows) with the file and prints one short line; the browser asks Henrique to confirm the import. Several files, or no GUI (SSH without a display): same as `present` |
+| `designer present <files…> [--port 8765] [--no-open]` | **the way to hand over several files.** Local gallery at `http://localhost:<port>/`: a card per file (SVG preview, name, artboard size) with an **Open in Designer** button. Opens the browser unless `--no-open`, prints one short URL, runs until Ctrl+C (run it in the background) |
+| `designer link <project\|svg> [--name N]` | (avoid; for scripts) prints a `https://designer.hfps.dev/#open=…` link that carries the file |
 | `designer link <file> --github` | prints a `?import=` link to the file's raw URL on GitHub (current branch; it must be pushed) |
 | `designer link --url <url>` | prints a `?import=` link for any URL that allows CORS |
 | `designer serve <project\|svg> [--port 8765]` | serves one file on `http://localhost:<port>/` with CORS and prints its `?import=` link (Ctrl+C to stop) |
@@ -63,8 +65,16 @@ app's File → Export.
    ```
 
 3. **Hand it over** with one of:
-   - `bun run designer link scripts/glyph.designer.json` → send Henrique the `#open=` link. Works
-     anywhere, no server, nothing to commit. Best for anything up to a few hundred KB.
+   - **`bun run designer open scripts/glyph.designer.json`** (recommended): launches the browser
+     straight into Designer, nothing to paste. For several files or variants,
+     **`bun run designer present a.designer.json b.designer.json`** (run in the background): a gallery
+     page with previews and an *Open in Designer* button per file. The buttons use `?import=` links
+     to the gallery's own `localhost` server, so every URL stays short.
+
+     **Never paste `#open=` links into chat; they are 750–1000+ characters, wrap, and the click opens
+     a truncated URL ("links don't work").** If you must send a link, commit the file and use `--github`.
+   - `bun run designer link scripts/glyph.designer.json` → an `#open=` link (prints a warning when
+     stdout is a terminal). Only for scripts that pass it to a browser themselves; never print it to chat.
    - Commit and push the file, then `bun run designer link scripts/glyph.designer.json --github`
      → a `?import=` link to raw.githubusercontent.com. Best for big files or a file that should
      stay the source of truth.

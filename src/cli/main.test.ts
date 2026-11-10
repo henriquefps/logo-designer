@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { decodePayload, readLaunchRequest } from '@/io/shareLink';
-import { main, startServer } from './main';
+import { main, startGallery, startServer } from './main';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs><linearGradient id="g"><stop offset="0" stop-color="#2f6fb5"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
@@ -166,6 +166,50 @@ describe('designer CLI', () => {
       const pre = await fetch(url, { method: 'OPTIONS' });
       expect(pre.headers.get('access-control-allow-private-network')).toBe('true');
       expect((await fetch(url.replace('glyph.svg', 'other.svg'))).status).toBe(404);
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('open / present', () => {
+  it('open: one file launches the browser and prints a short confirmation', async () => {
+    const opened: string[] = [];
+    const out: string[] = [];
+    const code = await main(['open', 'glyph.svg'], { out: (s) => out.push(s), err: () => {}, cwd: dir, openUrl: async (u) => (opened.push(u), true) });
+    expect(code).toBe(0);
+    expect(out.join('')).toBe("Opened 'glyph' in Designer — confirm the import in the browser.");
+    expect(opened).toHaveLength(1);
+    expect(readLaunchRequest(opened[0])).toMatchObject({ kind: 'data', name: 'glyph' });
+  });
+
+  it('link warns on stderr only when stdout is a TTY', async () => {
+    const run = async (isTTY: boolean) => {
+      const err: string[] = [];
+      await main(['link', 'glyph.svg'], { out: () => {}, err: (s) => err.push(s), cwd: dir, isTTY });
+      return err.join('');
+    };
+    expect(await run(true)).toContain('designer open');
+    expect(await run(false)).toBe('');
+  });
+
+  it('startGallery serves the gallery, previews and files with CORS', async () => {
+    await cli('from-svg', 'glyph.svg', '-o', 'second.designer.json', '--name', 'Second');
+    const { server, url } = await startGallery(['glyph.svg', 'second.designer.json'], 0, 'https://app.test', { cwd: dir });
+    try {
+      const page = await fetch(url);
+      const html = await page.text();
+      expect(html.match(/class="card"/g)).toHaveLength(2);
+      expect(html).toContain('Second');
+      const m = html.match(/href="(https:\/\/app\.test\/\?import=[^"]+)"/)!;
+      const target = new URL(m[1].replace(/&amp;/g, '&')).searchParams.get('import')!;
+      expect(target.startsWith(url.slice(0, -1))).toBe(true);
+      const f = await fetch(target);
+      expect(f.headers.get('access-control-allow-origin')).toBe('*');
+      expect(await f.text()).toContain('<svg');
+      const p = await fetch(`${url}preview/1.svg`);
+      expect(p.headers.get('content-type')).toBe('image/svg+xml');
+      expect((await fetch(`${url}nope`)).status).toBe(404);
     } finally {
       server.close();
     }

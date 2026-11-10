@@ -11,6 +11,7 @@ if (args[0] === 'designer') args.shift();
 const code = await main(args, {
   out: (s) => console.log(s),
   err: (s) => console.error(s),
+  isTTY: !!process.stdout.isTTY,
   stdin: async () => {
     let text = '';
     for await (const chunk of process.stdin) text += chunk;
