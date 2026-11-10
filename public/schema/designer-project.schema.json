@@ -1,0 +1,740 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://designer.hfps.dev/schema/designer-project.schema.json",
+  "title": "Designer project (.designer.json)",
+  "description": "A Designer (https://designer.hfps.dev) project file. Field reference: https://github.com/henriquefps/logo-designer/blob/main/docs/project-format.md",
+  "$ref": "#/definitions/DesignerProjectFile",
+  "definitions": {
+    "DesignerProjectFile": {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Points editors at the JSON Schema: https://designer.hfps.dev/schema/designer-project.schema.json"
+        },
+        "format": {
+          "type": "string",
+          "const": "designer",
+          "description": "Always \"designer\"."
+        },
+        "icon": {
+          "$ref": "#/definitions/IconSettings"
+        },
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "number"
+        },
+        "artboard": {
+          "$ref": "#/definitions/Artboard"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SceneNode"
+          }
+        }
+      },
+      "required": [
+        "artboard",
+        "children",
+        "schemaVersion"
+      ],
+      "description": "A Designer project file (`*.designer.json`)."
+    },
+    "IconSettings": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "$ref": "#/definitions/IconPresetId"
+        },
+        "shape": {
+          "$ref": "#/definitions/IconShapeId"
+        },
+        "smallGlyphProjectId": {
+          "type": "string",
+          "description": "Project used for the 16/32 px favicon glyph instead of this one."
+        }
+      },
+      "required": [
+        "preset",
+        "shape"
+      ],
+      "description": "Icon mode settings (optional)."
+    },
+    "IconPresetId": {
+      "type": "string",
+      "enum": [
+        "app-icon",
+        "android-adaptive",
+        "ios",
+        "favicon-32",
+        "favicon-16"
+      ]
+    },
+    "IconShapeId": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "circle",
+        "square",
+        "wide",
+        "tall"
+      ]
+    },
+    "Id": {
+      "type": "string"
+    },
+    "Artboard": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "background": {
+          "$ref": "#/definitions/Paint"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ]
+    },
+    "Paint": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "solid"
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+              "description": "#rrggbb or #rrggbbaa"
+            }
+          },
+          "required": [
+            "kind",
+            "color"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "linear",
+                "radial"
+              ]
+            },
+            "stops": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/GradientStop"
+              }
+            },
+            "angle": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "stops"
+          ]
+        }
+      ]
+    },
+    "GradientStop": {
+      "type": "object",
+      "properties": {
+        "offset": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "#rrggbb or #rrggbbaa"
+        }
+      },
+      "required": [
+        "offset",
+        "color"
+      ]
+    },
+    "SceneNode": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GroupNode"
+        },
+        {
+          "$ref": "#/definitions/PathNode"
+        },
+        {
+          "$ref": "#/definitions/RectNode"
+        },
+        {
+          "$ref": "#/definitions/EllipseNode"
+        },
+        {
+          "$ref": "#/definitions/PolygonNode"
+        },
+        {
+          "$ref": "#/definitions/TextNode"
+        },
+        {
+          "$ref": "#/definitions/ImageNode"
+        }
+      ]
+    },
+    "GroupNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "group"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SceneNode"
+          }
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "children",
+        "type"
+      ]
+    },
+    "Transform": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "scaleX": {
+          "type": "number"
+        },
+        "scaleY": {
+          "type": "number"
+        }
+      },
+      "description": "Node is drawn at translate(x,y) rotate(rotation) scale(scaleX,scaleY) around its local origin."
+    },
+    "PathNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "path"
+        },
+        "subpaths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SubPath"
+          }
+        },
+        "fillRule": {
+          "type": "string",
+          "enum": [
+            "nonzero",
+            "evenodd"
+          ]
+        },
+        "fill": {
+          "$ref": "#/definitions/Paint"
+        },
+        "stroke": {
+          "$ref": "#/definitions/Stroke"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "subpaths",
+        "type"
+      ]
+    },
+    "SubPath": {
+      "type": "object",
+      "properties": {
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BezierPoint"
+          }
+        },
+        "closed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "points"
+      ]
+    },
+    "BezierPoint": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "in": {
+          "$ref": "#/definitions/Vec"
+        },
+        "out": {
+          "$ref": "#/definitions/Vec"
+        },
+        "type": {
+          "$ref": "#/definitions/PointType"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "description": "in/out handles are absolute in local coords."
+    },
+    "Vec": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "PointType": {
+      "type": "string",
+      "enum": [
+        "corner",
+        "smooth",
+        "symmetric"
+      ]
+    },
+    "Stroke": {
+      "type": "object",
+      "properties": {
+        "paint": {
+          "$ref": "#/definitions/Paint"
+        },
+        "width": {
+          "type": "number"
+        },
+        "cap": {
+          "$ref": "#/definitions/LineCap"
+        },
+        "join": {
+          "$ref": "#/definitions/LineJoin"
+        },
+        "dash": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "paint",
+        "width"
+      ]
+    },
+    "LineCap": {
+      "type": "string",
+      "enum": [
+        "butt",
+        "round",
+        "square"
+      ]
+    },
+    "LineJoin": {
+      "type": "string",
+      "enum": [
+        "miter",
+        "round",
+        "bevel"
+      ]
+    },
+    "RectNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "rect"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/definitions/Paint"
+        },
+        "stroke": {
+          "$ref": "#/definitions/Stroke"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "height",
+        "type",
+        "width"
+      ],
+      "description": "Centered on its local origin: spans -width/2..width/2, -height/2..height/2."
+    },
+    "EllipseNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "ellipse"
+        },
+        "rx": {
+          "type": "number"
+        },
+        "ry": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/definitions/Paint"
+        },
+        "stroke": {
+          "$ref": "#/definitions/Stroke"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "rx",
+        "ry",
+        "type"
+      ],
+      "description": "Centered on its local origin."
+    },
+    "PolygonNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "polygon"
+        },
+        "sides": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number"
+        },
+        "innerRadius": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/definitions/Paint"
+        },
+        "stroke": {
+          "$ref": "#/definitions/Stroke"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "radius",
+        "sides",
+        "type"
+      ],
+      "description": "Centered on its local origin; first vertex points up. Star when innerRadius is set."
+    },
+    "TextNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "text"
+        },
+        "text": {
+          "type": "string"
+        },
+        "fontFamily": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "type": "number"
+        },
+        "fontStyle": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "letterSpacing": {
+          "type": "number"
+        },
+        "lineHeight": {
+          "type": "number"
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "fill": {
+          "$ref": "#/definitions/Paint"
+        },
+        "stroke": {
+          "$ref": "#/definitions/Stroke"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "fontSize",
+        "text",
+        "type"
+      ],
+      "description": "Local origin is the anchor of the first line's top edge, at left/center/right per `align`."
+    },
+    "ImageNode": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "image"
+        },
+        "href": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "reference": {
+          "type": "boolean",
+          "description": "Tracing reference: drawn, but never hit-tested, snapped to or exported. Absent = false."
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "blendMode": {
+          "type": "string"
+        },
+        "transform": {
+          "$ref": "#/definitions/Transform"
+        }
+      },
+      "required": [
+        "height",
+        "href",
+        "type",
+        "width"
+      ],
+      "description": "Centered on its local origin."
+    }
+  }
+}

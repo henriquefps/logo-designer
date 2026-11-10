@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
-import { downloadProject, parseProject, PROJECT_EXTENSION } from '@/io/projectFile';
 import { pickFiles } from '@/io/download';
+import { browserDeps, openProjectFile, saveProject, saveProjectAs, type FileAccessDeps, type SaveResult } from '@/io/fileAccess';
+import type { DesignDocument } from '@/model';
 import { getImporter } from '@/io/importers/registry';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -10,6 +11,17 @@ import { copySvgToClipboard } from '@/io/exportActions';
 import type { Action } from '../types';
 
 const open = (id: string) => useEditorStore.getState().openDialog(id);
+const mod = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+
+async function runSave(save: (doc: DesignDocument, deps: FileAccessDeps) => Promise<SaveResult>) {
+  await useProjectsStore.getState().flush();
+  try {
+    const r = await save(useDocStore.getState().doc, browserDeps());
+    if (r.kind === 'saved') toast.success(`Saved to ${r.fileName}`);
+  } catch (e) {
+    toast.error(e instanceof Error ? `Could not save: ${e.message}` : 'Could not save the project file.');
+  }
+}
 
 const actions: Action[] = [
   {
@@ -37,12 +49,12 @@ const actions: Action[] = [
     group: 'file',
     order: 10,
     run: async () => {
-      const [file] = await pickFiles(`${PROJECT_EXTENSION},.json,application/json`);
-      if (!file) return;
       try {
-        const doc = parseProject(await file.text());
-        await useProjectsStore.getState().importDocument(doc);
-        toast.success(`Opened “${doc.name}”`);
+        const opened = await openProjectFile(browserDeps());
+        if (!opened) return;
+        const id = await useProjectsStore.getState().importDocument(opened.doc);
+        if (opened.handle) await browserDeps().saveHandle(id, opened.handle);
+        toast.success(`Opened “${opened.doc.name}”`, opened.handle ? { description: `${mod}S saves back to ${opened.fileName}` } : undefined);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Could not open this file.');
       }
@@ -56,7 +68,17 @@ const actions: Action[] = [
     order: 11,
     shortcut: 'mod+s',
     allowInInput: true,
-    run: () => downloadProject(useDocStore.getState().doc),
+    run: () => runSave(saveProject),
+  },
+  {
+    id: 'file.saveProjectFileAs',
+    label: 'Save project file as…',
+    menu: 'file',
+    group: 'file',
+    order: 11.5,
+    shortcut: 'mod+shift+s',
+    allowInInput: true,
+    run: () => runSave(saveProjectAs),
   },
   {
     id: 'file.importSvg',
