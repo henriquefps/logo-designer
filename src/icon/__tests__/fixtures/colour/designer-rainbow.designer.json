@@ -1,0 +1,335 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/designer-project.schema.json",
+  "format": "designer",
+  "schemaVersion": 1,
+  "id": "dmwb6hfkr4kfqqej",
+  "name": "Designer logo, rainbow",
+  "createdAt": 1794344663835,
+  "updatedAt": 1794345646297,
+  "artboard": {
+    "width": 128,
+    "height": 128,
+    "background": {
+      "kind": "none"
+    }
+  },
+  "children": [
+    {
+      "id": "nmwb6hfkr154temm",
+      "name": "triangulo",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 43.730824,
+        "y": 46.682353,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "path",
+      "fill": {
+        "kind": "linear",
+        "angle": 45,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff3b30"
+          },
+          {
+            "offset": 0.2,
+            "color": "#ff9500"
+          },
+          {
+            "offset": 0.4,
+            "color": "#ffcc00"
+          },
+          {
+            "offset": 0.6,
+            "color": "#34c759"
+          },
+          {
+            "offset": 0.8,
+            "color": "#007aff"
+          },
+          {
+            "offset": 1,
+            "color": "#af52de"
+          }
+        ]
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 0.7529411764705882,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      },
+      "subpaths": [
+        {
+          "closed": true,
+          "points": [
+            {
+              "x": 6.716233720000001,
+              "y": -21.082348,
+              "type": "corner"
+            },
+            {
+              "x": 17.377878279999997,
+              "y": -2.4244700200000096,
+              "type": "corner"
+            },
+            {
+              "x": 17.377878279999997,
+              "y": 4.606272541720128,
+              "type": "corner",
+              "out": {
+                "x": 7.0029826741445405,
+                "y": 4.696234546886621
+              }
+            },
+            {
+              "x": -5.952783533345983,
+              "y": 20.818379245765733,
+              "type": "smooth",
+              "in": {
+                "x": -1.3067527324528785,
+                "y": 11.985227845898189
+              },
+              "out": {
+                "x": -5.998989985932591,
+                "y": 20.906228123407672
+              }
+            },
+            {
+              "x": -6.088309326155736,
+              "y": 21.082348,
+              "type": "corner",
+              "in": {
+                "x": -6.044156179886552,
+                "y": 20.99421831363149
+              }
+            },
+            {
+              "x": -17.377878279999997,
+              "y": 21.082348,
+              "type": "corner"
+            }
+          ]
+        }
+      ],
+      "fillRule": "evenodd"
+    },
+    {
+      "id": "nmwb6hfkr25ga0m4",
+      "name": "quadrado",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 82.823529,
+        "y": 51.952941,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "path",
+      "fill": {
+        "kind": "linear",
+        "angle": 45,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff3b30"
+          },
+          {
+            "offset": 0.2,
+            "color": "#ff9500"
+          },
+          {
+            "offset": 0.4,
+            "color": "#ffcc00"
+          },
+          {
+            "offset": 0.6,
+            "color": "#34c759"
+          },
+          {
+            "offset": 0.8,
+            "color": "#007aff"
+          },
+          {
+            "offset": 1,
+            "color": "#af52de"
+          }
+        ]
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 0.7529411764705882,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      },
+      "subpaths": [
+        {
+          "closed": true,
+          "points": [
+            {
+              "x": -14.305879,
+              "y": -18.823525,
+              "type": "corner",
+              "in": {
+                "x": -16.800905990794966,
+                "y": -18.823525
+              }
+            },
+            {
+              "x": 14.305879,
+              "y": -18.823525,
+              "type": "corner",
+              "out": {
+                "x": 16.800905990794966,
+                "y": -18.823525
+              }
+            },
+            {
+              "x": 18.823525,
+              "y": -14.305879,
+              "type": "corner",
+              "in": {
+                "x": 18.823525,
+                "y": -16.80090599079497
+              }
+            },
+            {
+              "x": 18.823525,
+              "y": 14.305879,
+              "type": "corner",
+              "out": {
+                "x": 18.823525,
+                "y": 16.800905990794966
+              }
+            },
+            {
+              "x": 14.305879,
+              "y": 18.823525,
+              "type": "corner",
+              "in": {
+                "x": 16.800905990794966,
+                "y": 18.823525
+              }
+            },
+            {
+              "x": 5.762444097297048,
+              "y": 18.823525,
+              "type": "corner",
+              "out": {
+                "x": 3.524353480709631,
+                "y": 11.319590418497453
+              }
+            },
+            {
+              "x": -9.524264245765746,
+              "y": 1.6368617466540156,
+              "type": "smooth",
+              "in": {
+                "x": -2.513606462225691,
+                "y": 5.324303580531865
+              },
+              "out": {
+                "x": -12.486552577406288,
+                "y": 0.07876744860601914
+              }
+            },
+            {
+              "x": -18.823525,
+              "y": -0.5322399144911644,
+              "type": "corner",
+              "in": {
+                "x": -15.609521363922331,
+                "y": -0.29649353021996344
+              }
+            },
+            {
+              "x": -18.823525,
+              "y": -14.305879,
+              "type": "corner",
+              "out": {
+                "x": -18.823525,
+                "y": -16.80090599079497
+              }
+            }
+          ]
+        }
+      ],
+      "fillRule": "evenodd"
+    },
+    {
+      "id": "nmwb6hfkr3feuxdf",
+      "name": "circulo",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 62.494118,
+        "y": 78.305882,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "ellipse",
+      "fill": {
+        "kind": "linear",
+        "angle": 45,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff3b30"
+          },
+          {
+            "offset": 0.2,
+            "color": "#ff9500"
+          },
+          {
+            "offset": 0.4,
+            "color": "#ffcc00"
+          },
+          {
+            "offset": 0.6,
+            "color": "#34c759"
+          },
+          {
+            "offset": 0.8,
+            "color": "#007aff"
+          },
+          {
+            "offset": 1,
+            "color": "#af52de"
+          }
+        ]
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 0.7529411764705882,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      },
+      "rx": 24.094112,
+      "ry": 24.094112
+    }
+  ],
+  "icon": {
+    "preset": "app-icon",
+    "shape": "auto",
+    "tile": "#14141f",
+    "colour": "full-colour"
+  }
+}

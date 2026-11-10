@@ -108,6 +108,8 @@ export interface Artboard {
 
 export type IconPreset = 'app-icon' | 'android-adaptive' | 'ios' | 'favicon-32' | 'favicon-16';
 export type IconShapeSetting = 'auto' | 'circle' | 'square' | 'wide' | 'tall';
+/** one-colour: every paint becomes the glyph colour (default). full-colour: the document's own paints are kept. */
+export type IconColourMode = 'one-colour' | 'full-colour';
 
 /** Marks an app icon document (keylines, icon panel, icon-set export). See src/icon/. */
 export interface IconDocInfo {
@@ -119,6 +121,10 @@ export interface IconDocInfo {
   smallGlyphProjectId?: string;
   /** Tile colour `#rrggbb` (default: the hfps blue `#2063b0`; older repos keep olive `#5b7a3a`). */
   tile?: string;
+  /** Omitted = one-colour: the whole glyph is `glyph` (default white). full-colour keeps solids, gradients and opacity. */
+  colour?: IconColourMode;
+  /** One-colour mode: the glyph colour `#rrggbb` (default white `#ffffff`, omitted). Ignored in full-colour mode. */
+  glyph?: string;
 }
 
 export interface DesignDocument {

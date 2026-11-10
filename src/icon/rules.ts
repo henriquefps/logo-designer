@@ -27,6 +27,8 @@ export function normalizeTile(v: unknown): string | null {
   const h = m[1].toLowerCase();
   return '#' + (h.length === 3 ? [...h].map((c) => c + c).join('') : h);
 }
+/** Default glyph colour (one-colour mode): white. Stored as "no glyph colour". */
+export const GLYPH_DEFAULT = '#ffffff';
 export const LIGHT_BORDER = '#d3d4cb';
 /** Signal / WhatsApp glyph size, drawn as the pink dashed reference circle. */
 export const REFERENCE_CIRCLE = 0.63;

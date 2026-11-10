@@ -19,7 +19,7 @@ export function IconTileLayer() {
   const tile = icon.tile ?? BRAND;
   const t = iconTile(icon.preset, artboard);
   const rx = ((isFaviconPreset(icon.preset) ? FAVICON_RX : TILE_RX) / 128) * t.size;
-  const [r, g, b] = rgb(light ? tile : '#ffffff');
+  const [r, g, b] = rgb(light ? (icon.glyph ?? tile) : (icon.glyph ?? '#ffffff'));
   const android = icon.preset === 'android-adaptive';
   const k = t.size / 128;
   return (

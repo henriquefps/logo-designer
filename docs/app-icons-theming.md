@@ -38,6 +38,23 @@ dark mode. Nothing to export; the panel shows an approximation.
 | `AppIcon-1024-dark.png` | `luminosity: dark` | RGBA: **transparent** background, glyph in `IOS_DARK_GLYPH` `#5b9ae1` (brand blue lifted to 62% lightness so it reads on the system's near-black). With a custom tile (`--tile`, `icon.tile`) the glyph is derived the same way: the tile's HSL hue and saturation, rounded to whole degrees / percent, at 62% lightness (`iosDarkGlyphFor()`; `#2063b0` = HSL 212°, 69%, 41% gives exactly `#5b9ae1`, olive `#5b7a3a` gives `#9fc17b`). Apple: transparent "so the system-provided background can show through"; HIG: dark icons "more subdued", "avoid excessively bright images". |
 | `AppIcon-1024-tinted.png` | `luminosity: tinted` | opaque RGB grayscale: **white glyph on black**. Apple: "grayscale image"; the system recolours it with the tint (white → full tint) over its own gradient. |
 
+**Full colour** (`icon.colour: "full-colour"`, `--colour full`): the glyph keeps its own paints, and the variants are
+derived so each platform still gets what it expects:
+
+| Output | Full-colour result |
+| --- | --- |
+| Android 13+ `ic_launcher_monochrome` | the glyph's **silhouette** (alpha only, black): the launcher tints it, so gradients and colours cannot leak into the themed icon |
+| iOS Light, Android foreground / legacy, web, docs, favicon | the real colours on the tile |
+| iOS Dark | the **same colours on transparency** (the system draws the dark background; there is no recolour to a "light blue", so choose colours that read on near-black; the report does not check this) |
+| iOS Tinted | opaque **grayscale of the glyph** on black (luminance, sRGB), i.e. what the system tints. A glyph colour with low luminance becomes dark gray on the black background |
+| `AppIcon.icon` | the glyph SVG layer keeps its colours; the layer has no `fill-specializations` (no recolour in Dark, the system derives Tinted); the background fill is still the tile with the dark gradient in Dark |
+| Android splash `ic_splash.xml` | solid colours and fill / stroke opacity; linear and radial gradients as `aapt:attr` gradients placed on each path's bounding box (radial radius uses the longer side); `gradientTransform` or a non-hex colour is painted white with a warning |
+| `icon-light.svg` | the glyph on a white, bordered tile (one colour: the glyph colour if `icon.glyph` is set, else the tile colour) |
+
+One colour with a custom glyph colour (`icon.glyph`, `--glyph #ff0000`) uses it wherever the glyph is white today
+(tile outputs, foreground, Icon Composer layer). Dark uses that colour when it reads on the dark background (WCAG 3:1
+against `#3a3a3c`), else its lightened version (same HSL rule as the tile-derived Dark glyph). Tinted stays white on black.
+
 `Contents.json`:
 
 ```json

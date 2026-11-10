@@ -1,4 +1,4 @@
-import { BRAND, normalizeTile } from '@/icon/rules';
+import { BRAND, GLYPH_DEFAULT, normalizeTile } from '@/icon/rules';
 import { newId, type Artboard, type DesignDocument, type IconDocInfo, type Paint, type SceneNode, type Stroke, type SubPath } from '@/model';
 import { downloadBlob, safeFileName } from './download';
 
@@ -202,6 +202,13 @@ function iconInfo(v: unknown, path: string): { icon?: IconDocInfo } {
     const t = normalizeTile(o.tile);
     if (!t) fail(at(path, 'tile'), 'must be a hex colour like #2063b0');
     if (t !== BRAND) icon.tile = t!;
+  }
+  const colour = oneOf(o.colour, ['one-colour', 'full-colour'] as const, 'one-colour', at(path, 'colour'));
+  if (colour === 'full-colour') icon.colour = colour;
+  if (o.glyph !== undefined && o.glyph !== null) {
+    const g = normalizeTile(o.glyph);
+    if (!g) fail(at(path, 'glyph'), 'must be a hex colour like #ffffff');
+    if (g !== GLYPH_DEFAULT) icon.glyph = g!;
   }
   return { icon };
 }
