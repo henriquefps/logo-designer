@@ -1,3 +1,4 @@
+import { BRAND, normalizeTile } from '@/icon/rules';
 import { newId, type Artboard, type DesignDocument, type IconDocInfo, type Paint, type SceneNode, type Stroke, type SubPath } from '@/model';
 import { downloadBlob, safeFileName } from './download';
 
@@ -195,6 +196,11 @@ function iconInfo(v: unknown, path: string): { icon?: IconDocInfo } {
   if (o.smallGlyphProjectId !== undefined) {
     const id = str(o.smallGlyphProjectId, at(path, 'smallGlyphProjectId'));
     if (id) icon.smallGlyphProjectId = id;
+  }
+  if (o.tile !== undefined && o.tile !== null) {
+    const t = normalizeTile(o.tile);
+    if (!t) fail(at(path, 'tile'), 'must be a hex colour like #2063b0');
+    if (t !== BRAND) icon.tile = t!;
   }
   return { icon };
 }

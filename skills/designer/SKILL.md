@@ -50,6 +50,9 @@ Below, `designer` means either form.
      drawing, rebuild, repeat until there are no warnings. It also writes `drawable/ic_splash.xml` (the
      glyph as a VectorDrawable: point the Android 12+ splash theme at `@drawable/ic_splash`); `--android
      <res>`, `--ios <dir>`, `--site <dir>` write straight into an app (existing `splash_background` kept).
+     `--tile <#hex>` sets the tile colour of the whole set (repos that keep their olive tile: `--tile
+     #5b7a3a`; default `#2063b0`); it can also live in the project (`icon.tile`, `new --preset app-icon
+     --tile #hex`), so `designer icons` uses it without the flag. Ask which tile the repo uses if unsure.
 4. **Hand it over:** `designer open <project>` (one file) or `designer present a.json b.json c.json`
    (several concepts: a local gallery with previews and an *Open in Designer* button each; run it in
    the background and leave it running until the person has imported). The browser asks the person

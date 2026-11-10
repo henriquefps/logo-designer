@@ -711,6 +711,11 @@
         "smallGlyphProjectId": {
           "type": "string",
           "description": "Project used for the 16/32/48 px favicon glyph (glyph-small.svg) instead of this one."
+        },
+        "tile": {
+          "type": "string",
+          "description": "Tile colour, #rrggbb (or #rgb); default #2063b0 (hfps blue). Older hfps repos keep olive #5b7a3a.",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
         }
       },
       "required": [

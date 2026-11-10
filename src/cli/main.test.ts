@@ -189,6 +189,42 @@ describe('designer CLI', () => {
     expect(bg).toContain('name="ic_launcher_background"');
   }, 60_000);
 
+  it('icons --tile: one colour for every tile, stored in the project, validated', async () => {
+    const sync = readFileSync(join(__dirname, '../icon/__tests__/fixtures/glyph-sync.svg'), 'utf8');
+    await writeFile(join(dir, 'sync2.svg'), sync);
+    await cli('from-svg', 'sync2.svg', '-o', 'tile.designer.json', '--icon', 'app-icon', '--no-fit');
+    expect((await json('tile.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    const r = await cli('icons', 'tile.designer.json', '-o', 'icons-olive', '--tile', '#5B7A3A', '--ios', 'ios-olive');
+    expect(r.code).toBe(0);
+    const text = (f: string) => readFile(join(dir, f), 'utf8');
+    expect(await text('icons-olive/docs-img/icon.svg')).toContain('fill="#5b7a3a"');
+    expect(await text('icons-olive/docs-img/icon-light.svg')).toContain('fill="#5b7a3a"');
+    expect(await text('icons-olive/android/res/values/ic_launcher_background.xml')).toContain('>#5b7a3a<');
+    expect(await text('ios-olive/AppIcon.icon/icon.json')).toContain('srgb:0.62353,0.75686,0.48235,1.00000'); // derived Dark glyph #9fc17b
+    // default unchanged
+    expect(await text('icons/docs-img/icon.svg')).toContain('fill="#2063b0"');
+    // invalid colours are a usage error
+    for (const bad of ['olive', '5b7a3a', '#12345']) {
+      const e = await cli('icons', 'tile.designer.json', '-o', 'icons-bad', '--tile', bad);
+      expect(e.code).toBe(2);
+      expect(e.err).toMatch(/--tile must be a hex colour/);
+    }
+    // stored in the project: used by default, --tile overrides it
+    expect((await cli('new', '--preset', 'app-icon', '--tile', '#5b7a3a', '-o', 'olive.designer.json')).code).toBe(0);
+    expect((await json('olive.designer.json')).icon).toEqual({ preset: 'app-icon', shape: 'auto', tile: '#5b7a3a' });
+    const doc = await json('tile.designer.json');
+    await writeFile(join(dir, 'tile-stored.designer.json'), JSON.stringify({ ...doc, icon: { ...doc.icon, tile: '#5b7a3a' } }));
+    await cli('icons', 'tile-stored.designer.json', '-o', 'icons-stored');
+    expect(await text('icons-stored/docs-img/icon.svg')).toContain('fill="#5b7a3a"');
+    await cli('icons', 'tile-stored.designer.json', '-o', 'icons-override', '--tile', '#2063b0');
+    expect(await text('icons-override/docs-img/icon.svg')).toContain('fill="#2063b0"');
+    expect((await cli('validate', 'olive.designer.json')).code).toBe(0);
+    await writeFile(join(dir, 'badtile.designer.json'), JSON.stringify({ ...doc, icon: { ...doc.icon, tile: 'nope' } }));
+    const v = await cli('validate', 'badtile.designer.json');
+    expect(v.code).toBe(1);
+    expect(v.out).toContain('icon.tile');
+  }, 120_000);
+
   it('to-png renders with resvg', async () => {
     await cli('from-svg', 'glyph.svg', '-o', 'png.designer.json');
     const r = await cli('to-png', 'png.designer.json', '--size', '64');

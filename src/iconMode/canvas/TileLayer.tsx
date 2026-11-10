@@ -16,9 +16,10 @@ export function IconTileLayer() {
   const showTile = useIconStore((s) => s.showTile);
   const light = useIconStore((s) => s.light);
   if (!icon || !showTile) return null;
+  const tile = icon.tile ?? BRAND;
   const t = iconTile(icon.preset, artboard);
   const rx = ((isFaviconPreset(icon.preset) ? FAVICON_RX : TILE_RX) / 128) * t.size;
-  const [r, g, b] = rgb(light ? BRAND : '#ffffff');
+  const [r, g, b] = rgb(light ? tile : '#ffffff');
   const android = icon.preset === 'android-adaptive';
   const k = t.size / 128;
   return (
@@ -30,11 +31,11 @@ export function IconTileLayer() {
       </defs>
       {android && !light ? (
         // Adaptive background layer: full bleed over the 108 canvas; the launcher masks it.
-        <rect width={artboard.width} height={artboard.height} fill={BRAND} />
+        <rect width={artboard.width} height={artboard.height} fill={tile} />
       ) : light ? (
         <rect x={t.x + k} y={t.y + k} width={t.size - 2 * k} height={t.size - 2 * k} rx={Math.max(rx - k, 0)} fill="#fff" stroke={LIGHT_BORDER} strokeWidth={2 * k} />
       ) : (
-        <rect x={t.x} y={t.y} width={t.size} height={t.size} rx={rx} fill={BRAND} />
+        <rect x={t.x} y={t.y} width={t.size} height={t.size} rx={rx} fill={tile} />
       )}
     </g>
   );

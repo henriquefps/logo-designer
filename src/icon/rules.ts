@@ -16,8 +16,17 @@ export const ICON_SHAPES: readonly IconShape[] = ['circle', 'square', 'wide', 't
 
 /** Favicon glyph at 16-48 px. */
 export const SMALL_FILL = 0.76;
-/** hfps blue tile. */
+/** hfps blue tile (the default; older hfps repos keep their olive `#5b7a3a`: `--tile`). */
 export const BRAND = '#2063b0';
+
+/** Validates a tile colour: `#rgb` or `#rrggbb` (any case) -> lowercase `#rrggbb`; null when invalid. */
+export function normalizeTile(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v.trim());
+  if (!m) return null;
+  const h = m[1].toLowerCase();
+  return '#' + (h.length === 3 ? [...h].map((c) => c + c).join('') : h);
+}
 export const LIGHT_BORDER = '#d3d4cb';
 /** Signal / WhatsApp glyph size, drawn as the pink dashed reference circle. */
 export const REFERENCE_CIRCLE = 0.63;
@@ -64,6 +73,34 @@ export const ALPHA_THRESHOLD = 24;
  * - Tinted: fully opaque grayscale: white glyph on black (the system tints by luminance).
  */
 export const IOS_DARK_GLYPH = '#5b9ae1';
+/**
+ * The Dark glyph for any tile colour: the tile's hue and saturation (rounded to whole degrees and
+ * percent) at 62% HSL lightness. For BRAND `#2063b0` (HSL 212°, 69%, 41%) this is exactly
+ * IOS_DARK_GLYPH `#5b9ae1`, so the default is unchanged; for olive `#5b7a3a` it gives `#9fc17b`.
+ * MIRRORS darkGlyphFor() in build-icons.mjs.
+ */
+export function iosDarkGlyphFor(tile: string = BRAND): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(tile.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    d = max - min;
+  const l = (max + min) / 2;
+  let h = 0,
+    s = 0;
+  if (d) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    h = (max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+    if (h < 0) h += 360;
+  }
+  h = Math.round(h) % 360;
+  s = Math.round(s * 100) / 100;
+  const L = 0.62,
+    c = (1 - Math.abs(2 * L - 1)) * s,
+    x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
+    m = L - c / 2;
+  const [R, G, B] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return '#' + [R, G, B].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
+}
 export const IOS_TINTED_GLYPH = '#ffffff';
 export const IOS_TINTED_BG = '#000000';
 /** Icon Composer dark background: linear gradient top → bottom, close to iOS's own dark tile. */

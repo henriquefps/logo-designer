@@ -73,6 +73,9 @@ describe('project file', () => {
     expect(validateDocument({ ...createDocument(), icon: {} }).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
     expect(() => validateDocument({ ...createDocument(), icon: { preset: 'nope' } })).toThrow(/icon\.preset/);
     expect(() => validateDocument({ ...createDocument(), icon: 'x' })).toThrow(/icon: expected an object/);
+    expect(validateDocument({ ...createDocument(), icon: { tile: '#5B7A3A' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto', tile: '#5b7a3a' });
+    expect(validateDocument({ ...createDocument(), icon: { tile: '#2063b0' } }).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    expect(() => validateDocument({ ...createDocument(), icon: { tile: 'olive' } })).toThrow(/icon\.tile/);
     expect('icon' in validateDocument(createDocument())).toBe(false);
   });
 });
