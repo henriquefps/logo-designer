@@ -35,7 +35,7 @@ which now redirects here).
 ## Privacy
 
 - Projects are saved in your browser (IndexedDB). Export a project file to back one up.
-- Uploaded fonts never leave your device, unless you turn on Sync (File → Sync…): then projects and fonts
+- Uploaded fonts never leave your device, unless you turn on Sync (top bar Sync button, or File → Sync…): then projects and fonts
   go to the server you set up and to nowhere else. Sync is off by default.
 - No analytics, no ads. The only requests to another server go to the Iconify API, when you browse
   the Phosphor or Iconify icon libraries, and to your own sync server if you turned Sync on.

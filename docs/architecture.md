@@ -89,7 +89,9 @@ src/
                         delete/keep as a conflicted copy; Vitest), api.ts (HTTP client), state.ts (settings in
                         localStorage; per-id base + local tombstones in IndexedDB `designer-sync`), engine.ts
                         (useSyncStore, syncNow, startSync: pull on start/focus/30 s, push 2 s after autosave)
-  dialogs/sync/         Sync dialog (File → Sync…, status bar indicator)
+  dialogs/sync/         Sync dialog (File → Sync…, or the Sync button in the top bar)
+  dialogs/cli/          "CLI & agents" dialog (Help menu; terminal button in the desktop top bar)
+  app/TopBarButtons.tsx the top-bar Sync button (states from sync/view.ts) and CLI button
   pages/SyncSetup.tsx   the /sync guide (download, run, connect, tunnel); Root.tsx picks it by pathname
   dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools, sync, fonts, theme) for browser QA scripts
 ```

@@ -12,6 +12,14 @@ const actions: Action[] = [
     run: () => useEditorStore.getState().openDialog('shortcuts'),
   },
   {
+    id: 'help.cli',
+    label: 'CLI & agents…',
+    menu: 'help',
+    group: 'help',
+    order: 5,
+    run: () => useEditorStore.getState().openDialog('cli'),
+  },
+  {
     id: 'help.about',
     label: 'About Designer',
     menu: 'help',
