@@ -126,8 +126,18 @@ describe('ic_launcher_background.xml merge', () => {
     expect(out).toContain(BACKGROUND_COLOR_LINE);
     expect(out).not.toContain('#FFFFFF');
   });
-  it('writes a fresh file when missing or without the entry', () => {
+  it('inserts the entry before </resources> when the file lacks it, keeping other colours', () => {
+    const prev = '<resources>\n    <color name="x">#000</color>\n</resources>\n';
+    expect(mergeLauncherBackground(prev)).toBe(prev.replace('</resources>', `    ${BACKGROUND_COLOR_LINE}\n</resources>`));
+    expect(mergeLauncherBackground(prev)).toBe(`<resources>\n    <color name="x">#000</color>\n    <color name="ic_launcher_background">#2063b0</color>\n</resources>\n`);
+  });
+  it('replaces the entry byte-exactly', () => {
+    const prev = '<resources>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n';
+    expect(mergeLauncherBackground(prev)).toBe('<resources>\n    <color name="ic_launcher_background">#2063b0</color>\n</resources>\n');
+  });
+  it('writes a fresh file when missing or not a resources file', () => {
     expect(mergeLauncherBackground(null)).toBe(BACKGROUND_XML);
-    expect(mergeLauncherBackground('<resources>\n    <color name="x">#000</color>\n</resources>\n')).toBe(BACKGROUND_XML);
+    expect(mergeLauncherBackground('')).toBe(BACKGROUND_XML);
+    expect(mergeLauncherBackground('garbage')).toBe(BACKGROUND_XML);
   });
 });
