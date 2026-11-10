@@ -4,6 +4,7 @@ import { newId } from '@/model';
 import { BUNDLED_FAMILIES, bundledUrl, canonicalFamily } from './catalog';
 import { chooseFace, type FaceChoice } from './layout';
 import { inspectFont, parseFont, type LoadedFont } from './parse';
+import { recordDeletion } from '@/sync/state';
 import { deleteUpload, listUploads, readUploadData, renameUploadFamily, saveUpload, type UploadedFace } from './uploads';
 import { FALLBACK_FAMILY, type FontFaceInfo, type FontFamilyInfo } from './types';
 
@@ -241,6 +242,7 @@ async function registerLoadedUpload(face: UploadedFace, sfnt: ArrayBuffer) {
 }
 
 export async function removeUpload(id: string) {
+  await recordDeletion('fonts', id); // so the deletion reaches the other devices
   await deleteUpload(id);
   unregister(`upload:${id}`);
   useFontStore.setState((s) => ({ uploads: s.uploads.filter((u) => u.id !== id) }));
@@ -257,7 +259,14 @@ export async function renameFamily(from: string, to: string): Promise<string | n
   await renameUploadFamily(from, name);
   const faces = useFontStore.getState().uploads.filter((u) => u.family === from);
   for (const f of faces) unregister(`upload:${f.id}`);
-  useFontStore.setState((s) => ({ uploads: s.uploads.map((u) => (u.family === from ? { ...u, family: name } : u)) }));
+  useFontStore.setState((s) => ({ uploads: s.uploads.map((u) => (u.family === from ? { ...u, family: name, updatedAt: Date.now() } : u)) }));
   bump();
   return name;
+}
+
+/** Sync: re-reads the uploaded fonts from storage after faces were added, changed or removed by a pull. */
+export async function reloadUploads(changedIds: string[]) {
+  for (const id of changedIds) unregister(`upload:${id}`);
+  useFontStore.setState({ uploads: await listUploads(), uploadsReady: true });
+  bump();
 }

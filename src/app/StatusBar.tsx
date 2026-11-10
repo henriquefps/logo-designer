@@ -1,9 +1,11 @@
-import { CloudCheckIcon, CloudArrowUpIcon, WarningCircleIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CloudCheckIcon, CloudArrowUpIcon, CloudSlashIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { findNode } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { runAction } from '@/actions/registry';
+import { useSyncStore } from '@/sync/engine';
+import { cn } from '@/lib/utils';
 
 const fmt = (n: number) => Math.round(n).toString();
 
@@ -28,6 +30,32 @@ export function SaveIndicator() {
   );
 }
 
+/** Shown only when device sync is on; opens the Sync dialog. */
+export function SyncIndicator() {
+  const enabled = useSyncStore((s) => s.settings.enabled && s.settings.url.trim().length > 0);
+  const status = useSyncStore((s) => s.status);
+  const pending = useSyncStore((s) => s.pending);
+  if (!enabled) return null;
+  const [Icon, label] =
+    status === 'syncing'
+      ? [ArrowsClockwiseIcon, 'Syncing…']
+      : status === 'error'
+        ? [WarningCircleIcon, 'Sync failed']
+        : status === 'offline'
+          ? [CloudSlashIcon, pending > 0 ? `Offline · ${pending} waiting` : 'Offline']
+          : [CloudCheckIcon, pending > 0 ? `${pending} to sync` : 'Synced'];
+  return (
+    <button
+      type="button"
+      onClick={() => useEditorStore.getState().openDialog('sync')}
+      className={cn('flex items-center gap-1 rounded-sm px-1 hover:text-foreground', status === 'error' && 'text-destructive')}
+      title="Sync settings"
+    >
+      <Icon className={cn('size-4', status === 'syncing' && 'animate-spin')} /> {label}
+    </button>
+  );
+}
+
 export function StatusBar() {
   const zoom = useEditorStore((s) => s.zoom);
   const pointer = useEditorStore((s) => s.pointer);
@@ -49,6 +77,7 @@ export function StatusBar() {
       <span>
         {doc.artboard.width} × {doc.artboard.height}
       </span>
+      <SyncIndicator />
       <SaveIndicator />
     </div>
   );

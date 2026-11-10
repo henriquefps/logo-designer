@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { isFirstVisit } from '@/dialogs/newDocument/welcome';
+import { startSync } from '@/sync/engine';
 import { useTheme } from '@/theme/theme';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -19,10 +20,14 @@ export function App() {
   useKeyboard();
   useImportHandlers();
   useEffect(() => {
+    let stopSync: (() => void) | null = null;
+    let unmounted = false;
     void useProjectsStore
       .getState()
       .init()
       .then(() => {
+        // Pull on start, focus and every 30 s, push after autosaves (does nothing until Sync is turned on).
+        if (!unmounted) stopSync = startSync();
         // A #open= / ?import= link asks to import; otherwise, on a first visit, the welcome dialog.
         if (handleLaunchUrl()) return;
         if (isFirstVisit() && !useEditorStore.getState().dialog) useEditorStore.getState().openDialog('newDocument');
@@ -35,6 +40,8 @@ export function App() {
     const onVisibility = () => document.visibilityState === 'hidden' && flush();
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      unmounted = true;
+      stopSync?.();
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('hashchange', onHash);
       document.removeEventListener('visibilitychange', onVisibility);

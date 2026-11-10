@@ -43,6 +43,14 @@ const actions: Action[] = [
     run: () => open('projects'),
   },
   {
+    id: 'file.sync',
+    label: 'Sync…',
+    menu: 'file',
+    group: 'sync',
+    order: 40,
+    run: () => open('sync'),
+  },
+  {
     id: 'file.openProjectFile',
     label: 'Open project file…',
     menu: 'file',

@@ -12,6 +12,7 @@ import {
   setActiveProjectId,
   type ProjectMeta,
 } from './persistence';
+import { recordDeletion } from '@/sync/state';
 import { useDocStore } from './useDocStore';
 import { useEditorStore } from './useEditorStore';
 
@@ -34,6 +35,12 @@ interface ProjectsState {
   rename: (id: Id, name: string) => Promise<void>;
   duplicate: (id: Id) => Promise<Id | null>;
   remove: (id: Id) => Promise<void>;
+  /** Sync: stores a project that came from the sync server (keeps its id and updatedAt). false = the open project has unsaved edits, retry later. */
+  applyRemote: (doc: DesignDocument) => Promise<boolean>;
+  /** Sync: removes a project the server deleted (no tombstone, the server already has it). false = retry later. */
+  removeRemote: (id: Id) => Promise<boolean>;
+  /** Sync: keeps a version that lost a conflict as a separate project; it is not opened. */
+  addConflictedCopy: (doc: DesignDocument, name: string) => Promise<Id>;
   /** Saves the active document now (cancels a pending autosave). */
   flush: () => Promise<void>;
 }
@@ -86,6 +93,24 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       set({ saveState: 'pending' });
       timer = setTimeout(() => void save(), AUTOSAVE_DELAY);
     });
+  };
+
+  const dropLocal = async (id: Id) => {
+    if (timer && id === get().activeId) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    await deleteDocument(id);
+    await deleteFileHandle(id).catch(() => undefined);
+    const projects = get().projects.filter((p) => p.id !== id);
+    await saveProjectList(projects);
+    set({ projects });
+    if (id === get().activeId) {
+      set({ activeId: null });
+      const next = projects[0] ? await loadDocument(projects[0].id) : null;
+      if (next) activate(next);
+      else await get().create('Untitled');
+    }
   };
 
   return {
@@ -172,21 +197,37 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     },
 
     remove: async (id) => {
-      if (timer && id === get().activeId) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      await deleteDocument(id);
-      await deleteFileHandle(id).catch(() => undefined);
-      const projects = get().projects.filter((p) => p.id !== id);
+      await recordDeletion('projects', id); // so the deletion reaches the other devices
+      await dropLocal(id);
+    },
+
+    removeRemote: async (id) => {
+      if (id === get().activeId && (get().saveState === 'pending' || get().saveState === 'saving')) return false;
+      await dropLocal(id);
+      return true;
+    },
+
+    applyRemote: async (incoming) => {
+      const active = incoming.id === get().activeId;
+      if (active && (get().saveState === 'pending' || get().saveState === 'saving')) return false;
+      await saveDocument(incoming);
+      const projects = upsert(get().projects, metaOf(incoming));
       await saveProjectList(projects);
       set({ projects });
-      if (id === get().activeId) {
-        set({ activeId: null });
-        const next = projects[0] ? await loadDocument(projects[0].id) : null;
-        if (next) activate(next);
-        else await get().create('Untitled');
+      if (active) {
+        useDocStore.getState().load(incoming);
+        useEditorStore.getState().setSelection([]);
       }
+      return true;
+    },
+
+    addConflictedCopy: async (doc, name) => {
+      const copy: DesignDocument = { ...structuredClone(doc), id: newId('d'), name, createdAt: doc.createdAt, updatedAt: Date.now() };
+      await saveDocument(copy);
+      const projects = upsert(get().projects, metaOf(copy));
+      await saveProjectList(projects);
+      set({ projects });
+      return copy.id;
     },
 
     flush: async () => {
