@@ -24,6 +24,7 @@ import {
   lightTile,
   sheetSvg,
   sheetTiles,
+  splashDrawable,
   squareSvg,
   SHEET,
   type Deflate,
@@ -60,6 +61,8 @@ export interface IconSetResult {
   files: IconFile[];
   report: IconReport;
   smallShape?: IconShape;
+  /** Lines the script prints with a leading `!` (e.g. no splash drawable). */
+  notes: string[];
 }
 
 /** Measures the glyph(s) and returns the sources every builder takes. */
@@ -97,10 +100,14 @@ Where each folder goes:
                         In a PWA manifest list icon-maskable-512.png with "purpose": "maskable".
   android/res/          merge into android/app/src/main/res: mipmap-*/ic_launcher{,_round,
                         _foreground,_monochrome}.png, mipmap-anydpi-v26/*.xml,
-                        values/ic_launcher_background.xml. Delete an older vector
+                        values/ic_launcher_background.xml (an existing file keeps its other colours),
+                        drawable/ic_splash.xml. Delete an older vector
                         drawable/ic_launcher_foreground.xml so the new mipmaps win.
                         Android 13+ themed icons use <monochrome> (ic_launcher_monochrome: the
                         glyph alone); the launcher tints it with the wallpaper colours.
+                        Splash (Android 12+): point the splash theme at @drawable/ic_splash
+                        (windowSplashScreenAnimatedIcon). It is the glyph as a VectorDrawable, so it
+                        stays sharp where the PNG foreground would be upscaled and blurred.
   ios/AppIcon.appiconset/
                         goes into the app's Assets.xcassets (iOS 18+ Light / Dark / Tinted):
                           AppIcon-1024.png         Light (Any): opaque, no alpha, brand blue tile
@@ -145,6 +152,7 @@ export function addIconComposerFile(sources: IconSources, add: Add): void {
 export async function buildIconSet(input: IconSetInput, r: IconRenderer): Promise<IconSetResult> {
   const { sources, report: rep, smallShape } = await prepareSources(input, r.rasterize);
   const files: IconFile[] = [];
+  const notes: string[] = [];
   const add = (path: string, data: Uint8Array | string) => files.push({ path, data });
 
   add('glyph.svg', input.glyph);
@@ -181,6 +189,9 @@ export async function buildIconSet(input: IconSetInput, r: IconRenderer): Promis
   add('android/res/mipmap-anydpi-v26/ic_launcher.xml', ADAPTIVE_XML);
   add('android/res/mipmap-anydpi-v26/ic_launcher_round.xml', ADAPTIVE_XML);
   add('android/res/values/ic_launcher_background.xml', BACKGROUND_XML);
+  const splash = splashDrawable(sources);
+  if (splash.xml) add('android/res/drawable/ic_splash.xml', splash.xml);
+  else notes.push(`! android splash: no ic_splash.xml (${splash.error}); export the glyph from the Designer (to-svg --glyph) so it is plain paths`);
 
   // iOS
   await addIosAppIconSet(sources, r, add);
@@ -192,5 +203,5 @@ export async function buildIconSet(input: IconSetInput, r: IconRenderer): Promis
 
   add('README.txt', readme(rep, smallShape, !!input.small));
   for (const f of input.extra ?? []) add(f.path, f.data);
-  return { files, report: rep, smallShape };
+  return { files, report: rep, smallShape, notes };
 }
