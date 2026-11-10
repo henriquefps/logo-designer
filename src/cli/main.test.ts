@@ -163,7 +163,7 @@ describe('designer CLI', () => {
   it('icons: the whole icon set, same tree and numbers as build-icons.mjs', async () => {
     const sync = readFileSync(join(__dirname, '../icon/__tests__/fixtures/glyph-sync.svg'), 'utf8');
     await writeFile(join(dir, 'sync.svg'), sync);
-    await cli('from-svg', 'sync.svg', '-o', 'sync.designer.json', '--icon', 'app-icon');
+    await cli('from-svg', 'sync.svg', '-o', 'sync.designer.json', '--icon', 'app-icon', '--no-fit');
     const r = await cli('icons', 'sync.designer.json', '-o', 'icons');
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^shape tall: glyph 48% x 68% of the tile, ink (10\.9|11\.0|11\.1)%$/m);
@@ -274,5 +274,84 @@ describe('open / present', () => {
     } finally {
       server.close();
     }
+  });
+
+  describe('keyline fitting', () => {
+    const SMALL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" stroke="#fff" stroke-width="4" fill="none"><rect x="10" y="10" width="30" height="40"/><circle cx="30" cy="30" r="8" fill="#f00"/></svg>`;
+    const doc = async (f: string) => JSON.parse(await readFile(join(dir, f), 'utf8'));
+    const strokeOf = (d: { children: { stroke?: { width: number } }[] }) => d.children[0].stroke!.width;
+
+    it('from-svg --icon fits by default; --no-fit keeps the raw drawing', async () => {
+      await writeFile(join(dir, 'small.svg'), SMALL);
+      const fitted = await cli('from-svg', 'small.svg', '-o', 'fit.designer.json', '--icon', 'app-icon');
+      expect(fitted.code).toBe(0);
+      expect(fitted.err).toMatch(/fitted to the keyline.*on keyline: no.*on keyline: yes/);
+      const raw = await cli('from-svg', 'small.svg', '-o', 'raw.designer.json', '--icon', 'app-icon', '--no-fit');
+      expect(raw.err).not.toContain('fitted');
+      expect((await cli('info', 'fit.designer.json')).out).toContain('on keyline: yes');
+      expect((await cli('info', 'raw.designer.json')).out).toMatch(/on keyline: no.*run `designer fit`/);
+      // Without --icon nothing is fitted (not an icon project).
+      expect((await cli('from-svg', 'small.svg', '--no-fit')).code).toBe(0);
+      // Strokes scale with the glyph.
+      expect(strokeOf(await doc('fit.designer.json'))).toBeGreaterThan(strokeOf(await doc('raw.designer.json')) * 1.5);
+      expect(JSON.parse((await cli('info', 'raw.designer.json', '--json')).out).keyline.onKeyline).toBe(false);
+    }, 60_000);
+
+    it('fit: in place, to -o, idempotent, validate notes off-keyline', async () => {
+      await cli('from-svg', 'small.svg', '-o', 'a.designer.json', '--icon', 'app-icon', '--no-fit');
+      const v = await cli('validate', 'a.designer.json');
+      expect(v.code).toBe(0);
+      expect(v.out).toMatch(/note: the glyph is off its keyline/);
+      const r = await cli('fit', 'a.designer.json', '-o', 'b.designer.json');
+      expect(r.code).toBe(0);
+      expect(r.err).toMatch(/before: .*on keyline: no\nafter: .*on keyline: yes/);
+      expect((await cli('validate', 'b.designer.json')).out).not.toContain('note:');
+      // Idempotent: fitting a fitted project changes nothing (within float noise) and stays on the keyline.
+      await cli('fit', 'b.designer.json', '-o', 'c.designer.json');
+      const b = await doc('b.designer.json');
+      const c = await doc('c.designer.json');
+      expect(strokeOf(c)).toBeCloseTo(strokeOf(b), 1);
+      expect(c.children[0].transform.x).toBeCloseTo(b.children[0].transform.x, 1);
+      // In place by default.
+      expect((await cli('fit', 'a.designer.json')).code).toBe(0);
+      expect((await cli('info', 'a.designer.json')).out).toContain('on keyline: yes');
+    }, 60_000);
+
+    it('fit: clear errors for non-icons and empty glyphs', async () => {
+      await cli('new', '--preset', '512x512', '-o', 'plain.designer.json');
+      const r = await cli('fit', 'plain.designer.json');
+      expect(r.code).toBe(1);
+      expect(r.err).toMatch(/not an app icon project/);
+      await cli('new', '--preset', 'app-icon', '-o', 'empty.designer.json');
+      const e = await cli('fit', 'empty.designer.json');
+      expect(e.code).toBe(1);
+      expect(e.err).toMatch(/no visible ink/);
+      expect((await cli('fit')).code).toBe(2);
+    });
+
+    it('icons measures the same whether or not the project was fitted first', async () => {
+      await cli('from-svg', 'small.svg', '-o', 'm-raw.designer.json', '--icon', 'app-icon', '--no-fit');
+      await cli('fit', 'm-raw.designer.json', '-o', 'm-fit.designer.json');
+      const a = await cli('icons', 'm-raw.designer.json', '-o', 'icons-raw');
+      const b = await cli('icons', 'm-fit.designer.json', '-o', 'icons-fit');
+      expect(a.code).toBe(0);
+      // Same report: the glyph is fitted by `icons` itself, so only raster quantization (≤ 1 %) may differ.
+      const nums = (t: string) => (t.match(/\d+(\.\d+)?/g) ?? []).map(Number);
+      const [na, nb] = [nums(a.out.split('\n')[0]), nums(b.out.split('\n')[0])];
+      expect(na).toHaveLength(nb.length);
+      na.forEach((x, i) => expect(Math.abs(x - nb[i])).toBeLessThanOrEqual(1));
+      expect(a.out.replace(/[\d.]+/g, '#')).toBe(b.out.replace(/[\d.]+/g, '#'));
+    }, 60_000);
+
+    it('grouped drawings keep the Android splash after the default fit (no transform on <g>)', async () => {
+      await writeFile(join(dir, 'grp.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" stroke="#fff" stroke-width="4"><g><circle cx="40" cy="40" r="20"/><rect x="60" y="60" width="40" height="40"/></g></svg>');
+      expect((await cli('from-svg', 'grp.svg', '--icon', 'app-icon', '-o', 'grp.designer.json')).code).toBe(0);
+      expect(JSON.stringify(await doc('grp.designer.json'))).toMatch(/"type":"group"/);
+      expect((await cli('to-svg', 'grp.designer.json', '--glyph')).out).not.toContain('transform');
+      const r = await cli('icons', 'grp.designer.json', '-o', 'icons-grp');
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain('! android splash');
+      expect(await readFile(join(dir, 'icons-grp/android/res/drawable/ic_splash.xml'), 'utf8')).toContain('<vector');
+    }, 60_000);
   });
 });
