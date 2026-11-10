@@ -1,11 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><rect x="1" y="1" width="126" height="126" rx="27" fill="#fff" stroke="#d3d4cb" stroke-width="2"/><g transform="translate(14 14) scale(0.78125)">
-<g stroke="#2f6fb5" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
-  <path d="M18 102 H110" opacity="0.7"/>
-  <path d="M64 100 L38 60 C38 46 46 36 54 32 H74 C82 36 90 46 90 60 Z"/>
-  <path d="M64 100 V74"/>
-  <path d="M50 16 H78"/>
-</g>
-<rect x="8" y="92" width="20" height="20" rx="4" fill="#2f6fb5"/>
-<rect x="100" y="92" width="20" height="20" rx="4" fill="#2f6fb5"/>
-<circle cx="64" cy="60" r="6" fill="#2f6fb5"/>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512"><rect x="1" y="1" width="126" height="126" rx="27" fill="#fff" stroke="#d3d4cb" stroke-width="2"/><g transform="translate(17.318 15.059) scale(0.75294)"><path d="M44 14L58.16 38.78L58.16 48.118C44.381 48.237 33.344 57.918 27.174 69.649C27.113 69.766 27.053 69.883 26.994 70L12 70Z" fill-rule="evenodd" fill="#2063b0" opacity="0.45"/>
+<path d="M68 24L106 24C109.314 24 112 26.686 112 30L112 68C112 71.314 109.314 74 106 74L94.653 74C91.681 64.034 83.662 56.071 74.351 51.174C70.416 49.105 66.269 48.606 62 48.293L62 30C62 26.686 64.686 24 68 24Z" fill-rule="evenodd" fill="#2063b0" opacity="0.7"/>
+<circle cx="60" cy="84" r="32" fill="#2063b0"/></g></svg>

@@ -24,16 +24,10 @@ export function AppMark() {
       {/* Same glyph as the app icon (scripts/glyph.svg). */}
       <svg viewBox="0 0 128 128" className="size-6 shrink-0" aria-hidden="true">
         <rect width="128" height="128" rx="28" fill="var(--primary)" />
-        <g transform="translate(14 14) scale(0.78125)" stroke="var(--primary-foreground)" fill="none" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 102 H110" opacity={0.7} />
-          <path d="M64 100 L38 60 C38 46 46 36 54 32 H74 C82 36 90 46 90 60 Z" />
-          <path d="M64 100 V74" />
-          <path d="M50 16 H78" />
-          <g fill="var(--primary-foreground)" stroke="none">
-            <rect x="8" y="92" width="20" height="20" rx="4" />
-            <rect x="100" y="92" width="20" height="20" rx="4" />
-            <circle cx="64" cy="60" r="6" />
-          </g>
+        <g transform="translate(17.318 15.059) scale(0.75294)" fill="var(--primary-foreground)" fillRule="evenodd">
+          <path d="M44 14L58.16 38.78L58.16 48.118C44.381 48.237 33.344 57.918 27.174 69.649C27.113 69.766 27.053 69.883 26.994 70L12 70Z" opacity="0.45"/>
+          <path d="M68 24L106 24C109.314 24 112 26.686 112 30L112 68C112 71.314 109.314 74 106 74L94.653 74C91.681 64.034 83.662 56.071 74.351 51.174C70.416 49.105 66.269 48.606 62 48.293L62 30C62 26.686 64.686 24 68 24Z" opacity="0.7"/>
+          <circle cx="60" cy="84" r="32" fill="var(--primary-foreground)"/>
         </g>
       </svg>
     </span>
