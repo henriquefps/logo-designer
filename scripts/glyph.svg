@@ -1,4 +1,4 @@
 <!-- Designer: a triangle (45% opacity), a rounded square (70%) and a circle (solid), separated by knockout gaps. Drawn in a 128 box; `currentColor` is replaced by the build script. -->
-<path d="M44 14L58.16 38.78L58.16 48.118C44.381 48.237 33.344 57.918 27.174 69.649C27.113 69.766 27.053 69.883 26.994 70L12 70Z" fill-rule="evenodd" fill="currentColor" opacity="0.45"/>
-<path d="M68 24L106 24C109.314 24 112 26.686 112 30L112 68C112 71.314 109.314 74 106 74L94.653 74C91.681 64.034 83.662 56.071 74.351 51.174C70.416 49.105 66.269 48.606 62 48.293L62 30C62 26.686 64.686 24 68 24Z" fill-rule="evenodd" fill="currentColor" opacity="0.7"/>
-<circle cx="60" cy="84" r="32" fill="currentColor"/>
+<path d="M50.447 25.6L61.109 44.258L61.109 51.289C50.734 51.379 42.424 58.668 37.778 67.501C37.732 67.589 37.687 67.677 37.643 67.765L26.353 67.765Z" fill-rule="evenodd" fill="currentColor" opacity="0.45"/>
+<path d="M68.518 33.129L97.129 33.129C99.624 33.129 101.647 35.152 101.647 37.647L101.647 66.259C101.647 68.754 99.624 70.776 97.129 70.776L88.586 70.776C86.348 63.273 80.31 57.277 73.299 53.59C70.337 52.032 67.214 51.656 64 51.421L64 37.647C64 35.152 66.023 33.129 68.518 33.129Z" fill-rule="evenodd" fill="currentColor" opacity="0.7"/>
+<circle cx="62.494" cy="78.306" r="24.094" fill="currentColor"/>
