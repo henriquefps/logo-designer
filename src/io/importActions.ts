@@ -20,7 +20,7 @@ import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { loadImage } from './rasterExport';
-import { parseSvg } from './svgImport';
+import { ensureSvgGeometry, parseSvg } from './svgImport';
 import { svgToDocument } from './svgDocument';
 
 export const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp';
@@ -57,9 +57,10 @@ function addAndSelect(nodes: SceneNode[], label: string) {
 }
 
 /** Imports SVG markup into the active document. Returns false when it is not SVG. */
-export function importSvgText(text: string, name = 'Imported SVG', at?: Vec): boolean {
+export async function importSvgText(text: string, name = 'Imported SVG', at?: Vec): Promise<boolean> {
   let result;
   try {
+    await ensureSvgGeometry(text);
     result = parseSvg(text);
   } catch {
     return false;
@@ -112,7 +113,7 @@ export async function importFiles(files: File[], at?: Vec) {
   for (const file of files) {
     try {
       if (isSvgFile(file)) {
-        if (!importSvgText(await file.text(), baseName(file.name), at)) toast.error(`“${file.name}” is not a valid SVG file.`);
+        if (!(await importSvgText(await file.text(), baseName(file.name), at))) toast.error(`“${file.name}” is not a valid SVG file.`);
       } else if (isImageFile(file)) await importImageFile(file, at);
       else skipped++;
     } catch (e) {
@@ -124,6 +125,7 @@ export async function importFiles(files: File[], at?: Vec) {
 
 /** Opens SVG markup as a new project; the artboard comes from the viewBox. */
 export async function openSvgAsDocument(text: string, name: string) {
+  await ensureSvgGeometry(text);
   const { doc, warnings } = svgToDocument(text, name);
   await useProjectsStore.getState().importDocument(doc);
   for (const w of warnings) toast.warning(w);

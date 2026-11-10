@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { ArrowsCounterClockwiseIcon } from '@phosphor-icons/react';
-import type { Paint } from '@/model';
+import { splitColor, type Paint } from '@/model';
+import { BRAND } from '@/icon/rules';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Kbd } from '@/components/ui/kbd';
 import { PaintEditor } from '@/panels/shared/PaintEditor';
+import { useGlyphPaint } from '@/panels/shared/glyphPaint';
 import { NumberField } from '@/panels/shared/NumberField';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -34,8 +36,15 @@ function useCurrentPaint() {
 /** "None" swatch: white with a red diagonal, like Illustrator. */
 const NONE_BG = 'linear-gradient(to top right, transparent calc(50% - 1px), var(--destructive) calc(50% - 1px), var(--destructive) calc(50% + 1px), transparent calc(50% + 1px))';
 
-function Swatch({ paint, kind, front, onClick }: { paint: Paint; kind: 'fill' | 'stroke'; front: boolean; onClick: () => void }) {
-  const bg = paint.kind === 'none' ? `${NONE_BG}, linear-gradient(var(--card), var(--card))` : `${paintCss(paint)}, ${checker}`;
+/** App icon documents: the glyph colour (white at the paint's alpha) on the brand tile. */
+function glyphCss(p: Paint): string {
+  const a = p.kind === 'solid' ? splitColor(p.color).opacity : 1;
+  return `linear-gradient(rgb(255 255 255 / ${a}), rgb(255 255 255 / ${a})), linear-gradient(${BRAND}, ${BRAND})`;
+}
+
+function Swatch({ paint, kind, front, onClick, glyph }: { paint: Paint; kind: 'fill' | 'stroke'; front: boolean; onClick: () => void; glyph: boolean }) {
+  const bg =
+    paint.kind === 'none' ? `${NONE_BG}, linear-gradient(var(--card), var(--card))` : glyph ? glyphCss(paint) : `${paintCss(paint)}, ${checker}`;
   return (
     <button
       type="button"
@@ -62,6 +71,7 @@ export function PaintSwatches({ orientation = 'vertical' }: { orientation?: 'ver
   const cur = useCurrentPaint();
   const active = usePaintDefaults((s) => s.active);
   const [open, setOpen] = useState<null | 'fill' | 'stroke'>(null);
+  const glyph = useGlyphPaint();
 
   const openFor = (k: 'fill' | 'stroke') => {
     usePaintDefaults.getState().set({ active: k });
@@ -73,8 +83,8 @@ export function PaintSwatches({ orientation = 'vertical' }: { orientation?: 'ver
       <PopoverAnchor asChild>
         <div className={cn('flex shrink-0 items-center gap-1', orientation === 'vertical' ? 'flex-col py-2' : 'flex-row px-1')}>
           <div className="relative size-10" role="group" aria-label="Fill and stroke">
-            <Swatch paint={cur.fill} kind="fill" front={active === 'fill'} onClick={() => openFor('fill')} />
-            <Swatch paint={cur.stroke} kind="stroke" front={active === 'stroke'} onClick={() => openFor('stroke')} />
+            <Swatch paint={cur.fill} kind="fill" glyph={glyph} front={active === 'fill'} onClick={() => openFor('fill')} />
+            <Swatch paint={cur.stroke} kind="stroke" glyph={glyph} front={active === 'stroke'} onClick={() => openFor('stroke')} />
           </div>
           <div className={cn('flex gap-0.5', orientation === 'vertical' ? 'flex-row' : 'flex-col')}>
             <Tooltip>

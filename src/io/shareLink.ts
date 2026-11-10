@@ -5,7 +5,7 @@
 import type { DesignDocument } from '@/model';
 import { validateDocument } from './projectFile';
 import { svgToDocument } from './svgDocument';
-import { looksLikeSvg } from './svgImport';
+import { ensureSvgGeometry, looksLikeSvg } from './svgImport';
 
 export const APP_ORIGIN = 'https://designer.hfps.dev';
 /** Links longer than this may be cut by chat apps / mail clients; the CLI warns. */
@@ -152,6 +152,7 @@ export function payloadToDocument(text: string, name = 'Shared'): SharedDocument
 export async function resolveLaunchRequest(req: LaunchRequest, fetcher: typeof fetch = fetch): Promise<SharedDocument & { from: string }> {
   if (req.kind === 'data') {
     const text = await decodePayload(req.data);
+    await ensureSvgGeometry(text);
     return { ...payloadToDocument(text, req.name || 'Shared'), from: 'a shared link' };
   }
   let url: URL;
@@ -173,5 +174,6 @@ export async function resolveLaunchRequest(req: LaunchRequest, fetcher: typeof f
   if (!res.ok) throw new Error(`Could not download ${url.host}${url.pathname} (HTTP ${res.status}).`);
   const bytes = res.body ? await readAll(res.body, PAYLOAD_MAX_BYTES) : new Uint8Array(await res.arrayBuffer());
   const text = new TextDecoder().decode(bytes);
+  await ensureSvgGeometry(text);
   return { ...payloadToDocument(text, nameFromPath(url.pathname)), from: url.host + url.pathname };
 }

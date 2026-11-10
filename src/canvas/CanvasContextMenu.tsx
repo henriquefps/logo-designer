@@ -30,6 +30,7 @@ const OBJECT_MENU: Entry[] = [
   { label: 'Transform', items: ['object.flipH', 'object.flipV'] },
   { label: 'Path', items: ['path.editPoints', 'path.convert', 'path.outlineStroke', 'path.join', 'path.reverse', 'path.simplify'] },
   { label: 'Boolean', items: ['path.boolean.unite', 'path.boolean.subtract', 'path.boolean.intersect', 'path.boolean.exclude'] },
+  'path.knockout',
   'text.createOutlines',
   '-',
   'object.lock',

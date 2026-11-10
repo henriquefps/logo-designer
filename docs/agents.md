@@ -36,13 +36,14 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | Command | What it does |
 | --- | --- |
 | `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
-| `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P]` | editable project from an SVG: `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. Warnings go to stderr |
+| `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P]` | editable project from an SVG: `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. `clip-path` and solid `mask`s become real geometry (see below). Warnings go to stderr |
 | `designer to-svg <project> [-o file]` | clean SVG of the artboard, text outlined with the bundled fonts |
 | `designer to-svg <project> --glyph [-o file]` | glyph fragment for `build-icons.mjs`, byte-identical to the app's File → Export icon → Glyph SVG: the visible tile (icon projects) or the artboard's long side mapped to a 128 box, every paint → `currentColor` keeping its alpha, references and hidden objects skipped, no `<svg>` wrapper |
 | `designer icons <project> -o <dir> [--small <project>] [--shape S]` | the whole icon set, same files and numbers as `build-icons.mjs` (ported to `src/icon/`, rendered with resvg): `docs-img/`, `site/`, `android/res/`, `ios/` (`AppIcon.appiconset` Light/Dark/Tinted + iOS 26 `AppIcon.icon`), `review-sheet.png`, `README.txt`, `glyph.svg` and the project. Prints the script's report (`shape tall: glyph 48% x 68% of the tile, ink 11.0%` …). Look at `review-sheet.png` |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure |
-| `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with world bounds and ids |
+| `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with names, world bounds and ids (`[id]` at the end of each line): use them to address objects in `knockout` |
+| `designer knockout <project> --cutter <id\|name>[,…] [--targets <id\|name>,…] [--gap N\|NT] [--outline-only] [-o file]` | **cut the objects behind a shape where it sits, with a small gap**, like the app's Object → Knock out (same code). The cutter stays as it is; each target becomes target − (cutter's silhouette grown by the gap; an unfilled closed shape counts as solid, `--outline-only` cuts only under its strokes), strokes outlined first, as plain editable paths keeping name, opacity and z-order. Targets default to everything drawn below the cutter. Gap in document units, or a tile fraction on icon projects (`0.03T`, the default there; 4 px elsewhere). Names must be unique, else use ids. Prints what was cut to stderr |
 | `designer open <project\|svg> [more…] [--no-wait]` | **the way to hand a file over.** One file: opens Designer in the default browser (macOS `open`, Linux `xdg-open`, Windows) with the file and prints one short line; the browser asks Henrique to confirm the import. Several files, or no GUI (SSH without a display): same as `present` |
 | `designer present <files…> [--port 8765] [--no-open]` | **the way to hand over several files.** Local gallery at `http://localhost:<port>/`: a card per file (SVG preview, name, artboard size) with an **Open in Designer** button. Opens the browser unless `--no-open`, prints one short URL, runs until Ctrl+C (run it in the background) |
 | `designer link <project\|svg> [--name N]` | (avoid; for scripts) prints a `https://designer.hfps.dev/#open=…` link that carries the file |
@@ -56,6 +57,25 @@ production. Without `-o`, projects and SVGs go to stdout; `-` reads the SVG from
 The CLI runs the app's own code (`src/model`, `src/io`, the fonts module) with a DOM shim
 (happy-dom), so a file that passes `designer validate` opens in the app, and `to-svg` matches the
 app's File → Export.
+
+## Knockouts, not clip paths or tile-coloured shapes
+
+App icon glyphs are **one colour** (`currentColor`: white on the tile, themed on Android). A shape
+painted in the tile colour to hide what is behind it does not work: Designer paints it white like
+everything else, and themed icons would show it. To make one object sit "in front of" another
+(an overlapping back file, a ring behind a dot), **cut the back object**:
+
+```sh
+bun run designer info glyph.designer.json                      # names and [ids]
+bun run designer knockout glyph.designer.json --cutter "Front file" -o glyph.designer.json
+```
+
+Do this instead of a `<clipPath>` when Henrique will edit the result: the cut is real geometry he
+can node-edit. (`from-svg` also turns `clip-path="url(#…)"` and masks made of solid white/black
+shapes into real geometry, intersecting the content with the clip, respecting `clip-rule`,
+`clipPathUnits` and transforms, strokes outlined first, so a clipped glyph imports looking the same.
+Luminance masks with gradients or greys are imported unmasked with a warning.) Exports never contain
+clip paths, so `--glyph` and `build-icons.mjs` stay byte-compatible.
 
 ## The workflow
 

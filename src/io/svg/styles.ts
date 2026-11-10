@@ -26,9 +26,12 @@ export const STYLE_PROPS = [
   'stop-color',
   'stop-opacity',
   'mix-blend-mode',
+  'clip-path',
+  'clip-rule',
+  'mask',
 ] as const;
 
-const NOT_INHERITED = new Set(['opacity', 'display', 'stop-color', 'stop-opacity', 'mix-blend-mode']);
+const NOT_INHERITED = new Set(['opacity', 'display', 'stop-color', 'stop-opacity', 'mix-blend-mode', 'clip-path', 'mask']);
 
 export const INITIAL_STYLE: Style = {
   fill: '#000000',
