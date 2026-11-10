@@ -10,6 +10,7 @@ import { svgToDocument } from '@/io/svgDocument';
 import { exportSvg } from '@/io/svgExport';
 import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
+import { CORS_HEADERS, galleryHtml, pickOpener, type GalleryItem } from './present';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 
 export interface CliIO {
@@ -17,6 +18,10 @@ export interface CliIO {
   err: (s: string) => void;
   /** Working directory for relative paths (tests). */
   cwd?: string;
+  /** True when stdout is a terminal (the `link` warning). */
+  isTTY?: boolean;
+  /** Opens a URL in the default browser; false when there is no GUI opener (tests inject this). */
+  openUrl?: (url: string) => Promise<boolean>;
   /** Reads stdin when a path is `-`. */
   stdin?: () => Promise<string>;
 }
@@ -42,6 +47,10 @@ Usage: designer <command> [options]
   link --url <url>                            ?import= link for a file on the web (raw.githubusercontent.com…)
   link <file> --github                        ?import= link to the file on GitHub (current branch, pushed)
   serve <project|svg> [--port 8765]           serve one file with CORS and print its ?import= link
+  open <project|svg> [more…] [--no-wait]      open in Designer in the default browser, no link printed
+                                              (several files, or no GUI: like present)
+  present <files…> [--port 8765] [--no-open]  local gallery page (preview + "Open in Designer" per file);
+                                              keeps running until Ctrl+C
 
 Without -o, project/SVG output goes to stdout. Docs: docs/agents.md, docs/project-format.md.
 `;
@@ -58,6 +67,8 @@ const COMMON: ParseArgsConfig['options'] = {
   url: { type: 'string' },
   github: { type: 'boolean' },
   port: { type: 'string' },
+  'no-open': { type: 'boolean' },
+  'no-wait': { type: 'boolean' },
   small: { type: 'string' },
   shape: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
@@ -207,13 +218,7 @@ export async function startServer(path: string, port: number, io: Pick<CliIO, 'c
   const name = basename(file);
   const type = name.endsWith('.svg') ? 'image/svg+xml' : 'application/json';
   const server = createServer((req, res) => {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Private-Network': 'true',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': '*',
-      'Cache-Control': 'no-store',
-    };
+    const headers = CORS_HEADERS;
     if (req.method === 'OPTIONS') {
       res.writeHead(204, headers).end();
       return;
@@ -236,6 +241,77 @@ async function serve(path: string, port: number, origin: string, io: CliIO): Pro
   const { url } = await startServer(path, port, io);
   io.out(buildImportLink(url, { origin }));
   io.err(`Serving ${path} at ${url} (CORS on). Open the link above; Ctrl+C to stop.`);
+  return new Promise<never>(() => {});
+}
+
+// ---------- open / present ----------
+
+/** Launches the OS default browser; false when this environment has no GUI opener. */
+async function defaultOpenUrl(url: string): Promise<boolean> {
+  const opener = pickOpener(process.platform, process.env, url);
+  if (!opener) return false;
+  return new Promise<boolean>((ok) => {
+    const child = execFile(opener.command, opener.args, (e) => ok(!e));
+    child.once('error', () => ok(false));
+  });
+}
+
+interface Presented {
+  name: string;
+  file: string;
+  doc: DesignDocument;
+  svg: string;
+}
+
+/** A tiny local server: gallery at `/`, the files and SVG previews with CORS. Resolves once listening. */
+export async function startGallery(paths: string[], port: number, origin: string, io: Pick<CliIO, 'cwd'>) {
+  const { createServer } = await import('node:http');
+  const cwd = io.cwd ?? process.cwd();
+  const files: Presented[] = [];
+  for (const p of paths) {
+    const { doc } = await loadDoc(p, { out: () => {}, err: () => {}, cwd });
+    files.push({ name: doc.name, file: resolve(cwd, p), doc, svg: (await exportSvg(doc)).svg });
+  }
+  const urlName = (i: number) => `${i}/${encodeURIComponent(basename(files[i].file))}`;
+  const server = createServer((req, res) => {
+    const headers = CORS_HEADERS;
+    if (req.method === 'OPTIONS') return void res.writeHead(204, headers).end();
+    const path = req.url?.split('?')[0] ?? '/';
+    const preview = path.match(/^\/preview\/(\d+)\.svg$/);
+    const file = path.match(/^\/files\/(\d+)\/[^/]+$/);
+    if (path === '/') {
+      const actual = (server.address() as { port: number }).port;
+      const items: GalleryItem[] = files.map((f, i) => ({
+        name: f.name,
+        width: f.doc.artboard.width,
+        height: f.doc.artboard.height,
+        previewUrl: `/preview/${i}.svg`,
+        importLink: buildImportLink(`http://localhost:${actual}/files/${urlName(i)}`, { origin }),
+      }));
+      return void res.writeHead(200, { ...headers, 'Content-Type': 'text/html; charset=utf-8' }).end(galleryHtml(items));
+    }
+    if (preview && files[+preview[1]]) return void res.writeHead(200, { ...headers, 'Content-Type': 'image/svg+xml' }).end(files[+preview[1]].svg);
+    if (file && files[+file[1]]) {
+      const f = files[+file[1]].file;
+      return void readFile(f).then(
+        (buf) => res.writeHead(200, { ...headers, 'Content-Type': f.endsWith('.svg') ? 'image/svg+xml' : 'application/json' }).end(buf),
+        () => res.writeHead(404, headers).end('gone'),
+      );
+    }
+    res.writeHead(404, headers).end('not found');
+  });
+  await new Promise<void>((ok, fail) => server.once('error', fail).listen(port, 'localhost', ok));
+  const url = `http://localhost:${(server.address() as { port: number }).port}/`;
+  return { server, url, names: files.map((f) => f.name) };
+}
+
+async function present(paths: string[], port: number, origin: string, noOpen: boolean, io: CliIO): Promise<never> {
+  const { url } = await startGallery(paths, port, origin, io);
+  io.out(url);
+  const opened = !noOpen && (await (io.openUrl ?? defaultOpenUrl)(url));
+  io.err(
+    `Gallery of ${paths.length} file(s) at ${url}${opened ? ' (opened in the browser)' : noOpen ? '' : ' — no GUI browser here; open that URL on this machine (SSH: forward the port)'}. Ctrl+C to stop; keep it running until the import is done.`,
+  );
   return new Promise<never>(() => {});
 }
 
@@ -411,6 +487,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         if (link.length > LINK_MAX_LENGTH) {
           throw new Error(`The link would be ${Math.round(link.length / 1024)} KB, above Chrome's 2 MB URL limit. Commit the file and use \`designer link ${path} --github\`, or \`designer serve ${path}\`.`);
         }
+        if (io.isTTY) io.err('Long link — prefer `designer open` or `designer present`; don\'t paste #open= links into chat.');
         if (link.length > LINK_WARN_LENGTH) io.err(`Warning: the link is ${Math.round(link.length / 1024)} KB; some chat apps cut long links. Prefer --github or serve if it fails.`);
         io.out(link);
         return 0;
@@ -419,6 +496,24 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const path = requireArg(pos, 'project or SVG file');
         const port = Number(str(values, 'port') ?? 8765);
         return await serve(path, port, origin, io);
+      }
+      case 'present': {
+        if (!pos.length) throw new UsageError('Missing project or SVG file(s)');
+        return await present(pos, Number(str(values, 'port') ?? 8765), origin, !!values['no-open'], io);
+      }
+      case 'open': {
+        if (!pos.length) throw new UsageError('Missing project or SVG file');
+        if (pos.length > 1) return await present(pos, Number(str(values, 'port') ?? 8765), origin, !!values['no-open'], io);
+        const { doc, svg } = await loadDoc(pos[0], io);
+        const text = svg ? (await readInput(pos[0], io)).trim() : JSON.stringify(doc);
+        const link = await buildOpenLink(text, { origin, ...(svg ? { name: nameFromPath(pos[0]) } : {}) });
+        if (link.length > LINK_MAX_LENGTH) throw new Error(`The file is too big for an open link (${Math.round(link.length / 1024)} KB); use \`designer present ${pos[0]}\`.`);
+        if (!(await (io.openUrl ?? defaultOpenUrl)(link))) {
+          io.err('No GUI browser available here; serving a local page instead.');
+          return await present(pos, Number(str(values, 'port') ?? 8765), origin, true, io);
+        }
+        io.out(`Opened '${doc.name}' in Designer — confirm the import in the browser.`);
+        return 0;
       }
       default:
         throw new UsageError(`Unknown command “${cmd}”`);

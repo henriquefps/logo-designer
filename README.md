@@ -59,10 +59,13 @@ and the `designer` CLI creates, converts, checks and shares them without the bro
 
 ```sh
 bun run designer from-svg glyph.svg -o glyph.designer.json   # in this repo
-bunx --bun github:henriquefps/logo-designer link glyph.designer.json   # anywhere: prints an open link
+bunx --bun github:henriquefps/logo-designer open glyph.designer.json   # anywhere: opens it in Designer
+bun run designer present a.designer.json b.designer.json   # local gallery with an "Open in Designer" button per file
 ```
 
-`https://designer.hfps.dev/#open=…` links carry a project or SVG and import it as a new project
+**Never paste `#open=` links into chat; they wrap and break.** Use `designer open` / `designer present`.
+
+`designer link` prints `https://designer.hfps.dev/#open=…` links that carry a project or SVG and import it as a new project
 after a confirmation; `?import=<url>` fetches one from a URL. In Chrome and Edge, ⌘S / Ctrl+S saves
 back to the `.designer.json` you opened. The whole workflow: [`docs/agents.md`](docs/agents.md).
 
