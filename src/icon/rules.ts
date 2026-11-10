@@ -55,3 +55,18 @@ export const MEASURE_SPAN = 256;
 export const MEASURE_ORIGIN = -64;
 /** Alpha threshold (0-255) for a pixel to count as ink. */
 export const ALPHA_THRESHOLD = 24;
+
+/**
+ * iOS 18+ appearances (AppIcon.appiconset) and the iOS 26 Icon Composer file. See
+ * docs/app-icons-theming.md for Apple's rules and sources.
+ * - Dark: transparent background (the system draws its dark gradient behind it), the glyph in the
+ *   brand blue lifted to 62% lightness (HSL 212°, 69%) so it reads on near-black.
+ * - Tinted: fully opaque grayscale: white glyph on black (the system tints by luminance).
+ */
+export const IOS_DARK_GLYPH = '#5b9ae1';
+export const IOS_TINTED_GLYPH = '#ffffff';
+export const IOS_TINTED_BG = '#000000';
+/** Icon Composer dark background: linear gradient top → bottom, close to iOS's own dark tile. */
+export const IOS_DARK_BG = ['#3a3a3c', '#161618'] as const;
+/** Icon Composer canvas for iPhone, iPad and Mac (px = pt at scale 1). */
+export const ICON_COMPOSER_CANVAS = 1024;

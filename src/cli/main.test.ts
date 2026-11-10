@@ -121,7 +121,7 @@ describe('designer CLI', () => {
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^shape tall: glyph 48% x 68% of the tile, ink (10\.9|11\.0|11\.1)%$/m);
     expect(r.out).toContain('android: glyph half-diagonal 29.9dp <= 33dp safe zone');
-    for (const f of ['glyph.svg', 'docs-img/icon.svg', 'site/favicon.ico', 'android/res/mipmap-xxxhdpi/ic_launcher_foreground.png', 'ios/AppIcon.appiconset/Contents.json', 'review-sheet.png', 'README.txt', 'sync.designer.json'])
+    for (const f of ['glyph.svg', 'docs-img/icon.svg', 'site/favicon.ico', 'android/res/mipmap-xxxhdpi/ic_launcher_foreground.png', 'ios/AppIcon.appiconset/Contents.json', 'ios/AppIcon.appiconset/AppIcon-1024-tinted.png', 'ios/AppIcon.icon/icon.json', 'review-sheet.png', 'README.txt', 'sync.designer.json'])
       expect((await readFile(join(dir, 'icons', f))).length).toBeGreaterThan(0);
     // The glyph is byte-identical to `to-svg --glyph`.
     expect(await readFile(join(dir, 'icons/glyph.svg'), 'utf8')).toBe((await cli('to-svg', 'sync.designer.json', '--glyph')).out + '\n');
