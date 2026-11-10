@@ -1,5 +1,6 @@
-import { PlusIcon, ProhibitIcon, SquareIcon, TrashIcon, GradientIcon, CircleHalfIcon } from '@phosphor-icons/react';
-import { convertPaint, gradientVector, type GradientStop, type Paint } from '@/model';
+import { PlusIcon, ProhibitIcon, SquareIcon, TrashIcon, GradientIcon, CircleHalfIcon, InfoIcon } from '@phosphor-icons/react';
+import { convertPaint, gradientVector, joinColor, splitColor, type GradientStop, type Paint } from '@/model';
+import { GLYPH_COLOUR_NOTE, useGlyphPaint } from './glyphPaint';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -20,11 +21,89 @@ function gradientCss(p: Extract<Paint, { stops: GradientStop[] }>) {
   return `linear-gradient(${(p.angle ?? 0) + 90}deg, ${stops.join(', ')})`;
 }
 
+/** The App icon colour note (Fill/Stroke sections, tool bar swatches). */
+export function GlyphColourNote() {
+  return (
+    <p className="flex gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" data-slot="glyph-colour-note">
+      <InfoIcon aria-hidden="true" className="mt-px size-4 shrink-0" />
+      <span>{GLYPH_COLOUR_NOTE}</span>
+    </p>
+  );
+}
+
+/** Opacity of a paint's colour (solid alpha; gradients and none count as 1). */
+const paintAlpha = (p: Paint) => (p.kind === 'solid' ? splitColor(p.color).opacity : 1);
+
+/**
+ * App icon documents: the glyph is one colour, so only "none" vs "paint" and the paint's opacity
+ * matter (the colour itself is replaced by currentColor on export and white on the tile).
+ */
+function GlyphPaintEditor({ value, onChange, label, note }: { value: Paint; onChange: (p: Paint) => void; label: string; note: boolean }) {
+  const on = value.kind !== 'none';
+  const alpha = paintAlpha(value);
+  const solidColor = value.kind === 'solid' ? value.color : '#ffffff';
+  return (
+    <div className="flex flex-col gap-3">
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        value={on ? 'paint' : 'none'}
+        onValueChange={(k) => k && onChange(k === 'none' ? { kind: 'none' } : { kind: 'solid', color: '#ffffff' })}
+        aria-label={`${label} type`}
+        className="w-full"
+      >
+        <ToggleGroupItem value="none" aria-label="None" className="flex-1 gap-1.5 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+          <ProhibitIcon />
+          None
+        </ToggleGroupItem>
+        <ToggleGroupItem value="paint" aria-label="Glyph colour" className="flex-1 gap-1.5 data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+          <SquareIcon weight="fill" />
+          Glyph
+        </ToggleGroupItem>
+      </ToggleGroup>
+      {on && (
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+          <span className="text-sm text-muted-foreground">Opacity</span>
+          <NumberField
+            ariaLabel={`${label} opacity`}
+            value={Math.round(alpha * 100)}
+            min={0}
+            max={100}
+            precision={0}
+            suffix="%"
+            onCommit={(v) => onChange({ kind: 'solid', color: joinColor(solidColor, v / 100) })}
+          />
+        </div>
+      )}
+      {note && <GlyphColourNote />}
+    </div>
+  );
+}
+
 /**
  * Edits a Paint: none / solid (color + alpha) / linear or radial gradient (stops, angle).
- * `inline` shows the full color picker for solid colors (used inside popovers).
+ * `inline` shows the full color picker for solid colors (used inside popovers). In app icon
+ * documents it edits only none/paint and opacity (`note` adds the one-colour explanation).
  */
-export function PaintEditor({ value, onChange, label, inline = false }: { value: Paint; onChange: (p: Paint) => void; label: string; inline?: boolean }) {
+export function PaintEditor({
+  value,
+  onChange,
+  label,
+  inline = false,
+  note = true,
+  glyphMode,
+}: {
+  value: Paint;
+  onChange: (p: Paint) => void;
+  label: string;
+  inline?: boolean;
+  note?: boolean;
+  /** Force (or turn off, e.g. the artboard background) the one-colour editor; default: icon documents. */
+  glyphMode?: boolean;
+}) {
+  const iconDoc = useGlyphPaint();
+  if (glyphMode ?? iconDoc) return <GlyphPaintEditor value={value} onChange={onChange} label={label} note={note} />;
   return (
     <div className="flex flex-col gap-3">
       <ToggleGroup

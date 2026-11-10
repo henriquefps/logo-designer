@@ -233,6 +233,28 @@ schema) and update the `OPTIONAL` list in `scripts/gen-schema.ts` if the importe
 `bun run test` (Vitest, node environment). Model and store logic are tested in `src/**/__tests__` and
 `*.test.ts` next to the code; `fake-indexeddb` backs the projects store test.
 
+## Knockout and clip paths (`src/vector/knockout.ts`)
+
+Pure paper.js geometry shared by the app, the importer and the CLI. `cutNode(scope, node,
+parentWorld, shape, 'subtract' | 'intersect')` cuts any node (groups keep their structure; painted
+leaves that change become filled paths: the fill area and the outlined stroke, `fillRule: evenodd`;
+untouched nodes come back as the same object). `knockout(scope, doc, { cutters, targets?, gap })`
+grows the cutters' silhouette (painted area, plus the inside of unfilled closed shapes unless
+`outlineOnly`) by `gap` (`expandArea`) and subtracts it from each target;
+`applyKnockout` writes the result into a document (CLI). Default gap: `defaultKnockoutGap` (0.03 T
+on icon documents, 4 px elsewhere).
+
+- App: Object → Knock out (`path.knockout`, ⌥⌘K, also the context menu and the Boolean section)
+  runs `vector/knockoutSession.ts`: the topmost selected object cuts the others inside one open
+  transaction; `vector/KnockoutPanel.tsx` (floating on the canvas) changes the gap with a live
+  preview, Apply commits one undo step, Cancel/Escape restores. Texts are outlined first.
+- Import: `svgImport` resolves `clip-path` (and masks made of solid white/black shapes) by
+  intersecting the converted content with the clip geometry (`clip-rule`, `clipPathUnits`,
+  transforms). paper.js is loaded lazily, so parseSvg stays synchronous: callers `await
+  ensureSvgGeometry(text)` first (import, open, links, CLI); without it clips are skipped with a
+  warning. Tests: `src/io/svgClip.test.ts` rasterizes `__fixtures__/hoard-c1k.svg` and its import
+  with resvg and compares pixels.
+
 ## Reference images (tracing)
 
 `NodeBase.reference?: boolean` marks a node as a tracing reference (Illustrator "template"). Reference
@@ -263,6 +285,9 @@ other documents.
   plus a filter that previews the glyph in white) and the keylines (`canvas/KeylinesOverlay.tsx`,
   screen space, labels on hover) are view-only, never document nodes. `themedPreview.ts` builds the
   approximate "System themes" previews (Android themed, iOS Light/Dark/Tinted; `ui/ThemedPreview.tsx`).
+- Glyphs are one colour: in icon documents `PaintEditor` (Fill/Stroke sections, tool bar swatches)
+  edits only none/glyph and opacity and shows the one-colour note (`panels/shared/glyphPaint.ts`);
+  the swatches preview white on the brand tile. Knock out replaces "hide it with a tile-coloured shape".
 - UI: Properties section `icon` (nothing selected), dialog `exportIcon` (File → Export icon…),
   exporter `app-icon` in the Export dialog (`Exporter.when` hides it for other documents), actions
   in `actions/modules/icon.ts`.

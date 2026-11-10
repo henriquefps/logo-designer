@@ -4,9 +4,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify, type ParseArgsConfig } from 'node:util';
-import { createDocument, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
+import { createDocument, findNode, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
+import { applyKnockout, gapUnit, knockout, targetsBelow } from '@/vector/knockout';
+import { loadPaper } from '@/vector/paperOps';
 import { serializeProject, validateDocument } from '@/io/projectFile';
 import { svgToDocument } from '@/io/svgDocument';
+import { ensureSvgGeometry } from '@/io/svgImport';
 import { exportSvg } from '@/io/svgExport';
 import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
@@ -42,7 +45,12 @@ Usage: designer <command> [options]
                                               whole app icon set, same files and numbers as build-icons.mjs
                                               (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt)
   validate <project…>                         check files; errors name the JSON path
-  info <project> [--json]                     artboard, tree summary and bounds
+  info <project> [--json]                     artboard, tree summary and bounds, node ids and names
+  knockout <project> --cutter <id|name>[,…] [--targets <id|name>,…] [--gap N|NT] [--outline-only] [-o file]
+                                              cut the objects behind the cutter where it sits (its whole
+                                              silhouette; --outline-only: only under its strokes), with a
+                                              gap (default 0.03T on icon projects, 4 px elsewhere): plain
+                                              editable paths instead of clipPaths or tile-coloured shapes
   link <project|svg> [--origin URL]           #open= link that imports the file in Designer
   link --url <url>                            ?import= link for a file on the web (raw.githubusercontent.com…)
   link <file> --github                        ?import= link to the file on GitHub (current branch, pushed)
@@ -71,6 +79,10 @@ const COMMON: ParseArgsConfig['options'] = {
   'no-wait': { type: 'boolean' },
   small: { type: 'string' },
   shape: { type: 'string' },
+  cutter: { type: 'string' },
+  targets: { type: 'string' },
+  gap: { type: 'string' },
+  'outline-only': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -117,7 +129,10 @@ export function wrapGlyphFragment(text: string): { text: string; wrapped: boolea
 /** Reads a project file (or SVG, converted) into a validated document (with its `icon` field). */
 async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; icon: IconSettings | null; svg: boolean }> {
   const text = await readInput(path, io);
-  if (isSvgText(text)) return { doc: svgToDocument(text, nameFromPath(path)).doc, icon: null, svg: true };
+  if (isSvgText(text)) {
+    await ensureSvgGeometry(text);
+    return { doc: svgToDocument(text, nameFromPath(path)).doc, icon: null, svg: true };
+  }
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -206,6 +221,75 @@ async function info(doc: DesignDocument) {
       })
     : null;
   return { nodes, lines, content };
+}
+
+// ---------- knockout ----------
+
+/** Resolves `id` or `name` tokens (comma-separated) to node ids. Names must be unique. */
+export function resolveNodeRefs(doc: DesignDocument, spec: string, what: string): string[] {
+  const all: SceneNode[] = [];
+  const walk = (ns: SceneNode[]) => ns.forEach((c) => (all.push(c), c.type === 'group' && walk(c.children)));
+  walk(doc.children);
+  return spec
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((token) => {
+      const byId = all.find((n) => n.id === token);
+      if (byId) return byId.id;
+      const byName = all.filter((n) => n.name === token);
+      if (byName.length === 1) return byName[0].id;
+      if (byName.length > 1) throw new UsageError(`${what} “${token}” matches ${byName.length} objects; use an id: ${byName.map((n) => n.id).join(', ')} (see \`designer info\`)`);
+      throw new UsageError(`${what} “${token}”: no object with that id or name (see \`designer info\`)`);
+    });
+}
+
+/** --gap: document units, or a tile fraction with a T suffix (`0.03T`, icon projects). */
+function parseGap(v: string | undefined, doc: DesignDocument): number | undefined {
+  if (v === undefined) return undefined;
+  const m = v.trim().match(/^([\d.]+)\s*(t)?$/i);
+  const n = m ? Number(m[1]) : NaN;
+  if (!m || !(n >= 0)) throw new UsageError('--gap must be a number ≥ 0 (document units), or e.g. 0.03T (tile fraction)');
+  if (!m[2]) return n;
+  if (!doc.icon) throw new UsageError('--gap …T needs an app icon project (it is a fraction of the tile)');
+  return gapUnit(doc).toDoc(n);
+}
+
+async function runKnockout(doc: DesignDocument, values: Values, io: CliIO): Promise<DesignDocument> {
+  const cutterSpec = str(values, 'cutter');
+  if (!cutterSpec) throw new UsageError('knockout needs --cutter <id|name>');
+  const cutters = resolveNodeRefs(doc, cutterSpec, 'cutter');
+  const targetSpec = str(values, 'targets');
+  const targets = targetSpec ? resolveNodeRefs(doc, targetSpec, 'target') : undefined;
+  const gap = parseGap(str(values, 'gap'), doc);
+  // Text takes part through its glyph outlines.
+  const { textToPaths } = await import('@/fonts/outline');
+  const hasText = (n: SceneNode): boolean => (n.type === 'group' ? n.children.some(hasText) : n.type === 'text');
+  const outline = async (n: SceneNode): Promise<SceneNode> => {
+    if (n.type === 'text') return n.visible ? { ...(await textToPaths(n)), id: n.id } : n;
+    if (n.type !== 'group' || !hasText(n)) return n;
+    return { ...n, children: await Promise.all(n.children.map(outline)) };
+  };
+  const ids = [...cutters, ...(targets ?? targetsBelow(doc, cutters))];
+  const resolved = new Map<string, SceneNode>();
+  for (const id of ids) {
+    const n = findNode(doc, id);
+    if (n && hasText(n)) resolved.set(id, await outline(n));
+  }
+  const scope = await loadPaper();
+  const r = knockout(scope, doc, { cutters, targets, gap, resolved, outlineOnly: !!values['outline-only'] });
+  const name = (id: string) => `“${findNode(doc, id)?.name ?? id}”`;
+  const unit = gapUnit(doc);
+  const gapText = doc.icon ? `${fmt(r.gap)} units = ${Math.round(unit.fromDoc(r.gap) * 1000) / 1000}T` : `${fmt(r.gap)} px`;
+  io.err(
+    [
+      `Knockout by ${cutters.map(name).join(', ')} (gap ${gapText}):`,
+      r.replace.length ? `  cut: ${r.replace.map((n) => name(n.id)).join(', ')}` : '  cut: nothing (the cutter does not touch the targets)',
+      ...(r.remove.length ? [`  removed (entirely under the cutter): ${r.remove.map(name).join(', ')}`] : []),
+      ...(r.untouched.length ? [`  untouched: ${r.untouched.map(name).join(', ')}`] : []),
+    ].join('\n'),
+  );
+  return applyKnockout(doc, r);
 }
 
 // ---------- serve ----------
@@ -377,6 +461,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         if (raw.wrapped) io.err(`Note: ${path} has no <svg> root; read as a glyph fragment in a ${GLYPH_BOX} × ${GLYPH_BOX} box.`);
         const text = raw.text;
         const name = str(values, 'name') ?? (path === '-' ? (output ? nameFromPath(output) : 'Imported') : nameFromPath(path));
+        await ensureSvgGeometry(text);
         const { doc, warnings } = svgToDocument(text, name);
         for (const w of warnings) io.err(`Warning: ${w}`);
         await emit(serializeWithIcon(doc, icon), output, io, `project (${doc.artboard.width}×${doc.artboard.height}, ${doc.children.length} top-level objects)`);
@@ -460,6 +545,13 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
             ...r.lines,
           ].join('\n'),
         );
+        return 0;
+      }
+      case 'knockout': {
+        const path = requireArg(pos, 'project file');
+        const { doc, icon } = await loadDoc(path, io);
+        const out = await runKnockout(doc, values, io);
+        await emit(serializeWithIcon(out, icon), output, io, 'project');
         return 0;
       }
       case 'link': {

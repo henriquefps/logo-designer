@@ -1,4 +1,4 @@
-import { ExcludeIcon, IntersectIcon, SubtractIcon, UniteIcon } from '@phosphor-icons/react';
+import { ExcludeIcon, IntersectIcon, ScissorsIcon, SubtractIcon, UniteIcon } from '@phosphor-icons/react';
 import {
   booleanSelection,
   canBoolean,
@@ -15,6 +15,7 @@ import {
   simplifySelection,
 } from '@/vector/commands';
 import type { BooleanOp } from '@/vector/paperOps';
+import { canKnockout, startKnockout } from '@/vector/knockoutSession';
 import type { Action } from '../types';
 
 export const BOOLEAN_OPS: { op: BooleanOp; label: string; icon: typeof UniteIcon }[] = [
@@ -107,6 +108,18 @@ const actions: Action[] = [
       run: () => void booleanSelection(op),
     }),
   ),
+  {
+    id: 'path.knockout',
+    label: 'Knock out',
+    icon: ScissorsIcon,
+    menu: 'object',
+    group: 'boolean',
+    section: 'Boolean',
+    order: 58,
+    shortcut: 'mod+alt+k',
+    enabled: canKnockout,
+    run: () => void startKnockout(),
+  },
 ];
 
 export default actions;

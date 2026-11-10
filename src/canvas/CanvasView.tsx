@@ -14,6 +14,7 @@ import { IconKeylinesOverlay } from '@/iconMode/canvas/KeylinesOverlay';
 import { Rulers } from './overlays/Rulers';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { useContextMenu } from './contextMenuStore';
+import { KnockoutPanel } from '@/vector/KnockoutPanel';
 
 type PanDrag = { pointerId: number; start: Vec; pan: Vec };
 type Pinch = { dist: number; mid: Vec; zoom: number; pan: Vec };
@@ -240,6 +241,7 @@ export function CanvasView() {
           {ToolOverlay && <ToolOverlay />}
         </svg>
         <Rulers />
+        <KnockoutPanel />
       </div>
       {/* Outside the canvas element: React events from the portaled menu must not reach its pointer handlers. */}
       <CanvasContextMenu />

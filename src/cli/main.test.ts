@@ -49,6 +49,53 @@ describe('designer CLI', () => {
     expect(bad.err).toMatch(/Unknown preset/);
   });
 
+  it('knockout: cuts the objects behind the cutter, by id or name, with a gap', async () => {
+    const two = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <rect id="back" x="20" y="20" width="60" height="60" opacity="0.45"/>
+  <rect id="front" x="48" y="48" width="60" height="60"/>
+</svg>`;
+    await writeFile(join(dir, 'two.svg'), two);
+    expect((await cli('from-svg', 'two.svg', '-o', 'two.designer.json', '--icon', 'app-icon')).code).toBe(0);
+    const info = await cli('info', 'two.designer.json');
+    const ids = [...info.out.matchAll(/\[([^\]]+)\]$/gm)].map((m) => m[1]);
+    expect(ids).toHaveLength(2);
+    expect(info.out).toContain('“front”');
+
+    const r = await cli('knockout', 'two.designer.json', '--cutter', 'front', '-o', 'cut.designer.json');
+    expect(r.code).toBe(0);
+    expect(r.err).toMatch(/Knockout by “front” \(gap 3\.84 units = 0\.03T\)/);
+    expect(r.err).toMatch(/cut: “back”/);
+    const doc = await json('cut.designer.json');
+    expect(doc.icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    expect(doc.children[0]).toMatchObject({ id: ids[0], type: 'path', name: 'back', opacity: 0.45, fill: { kind: 'solid' }, stroke: { paint: { kind: 'none' } } });
+    expect(doc.children[1]).toMatchObject({ id: ids[1], type: 'rect' }); // the cutter is unchanged
+    expect((await cli('validate', 'cut.designer.json')).code).toBe(0);
+
+    // By id, explicit targets and a gap in document units or tile fractions.
+    const byId = await cli('knockout', 'two.designer.json', '--cutter', ids[1], '--targets', ids[0], '--gap', '0.05T');
+    expect(byId.code).toBe(0);
+    expect(byId.err).toMatch(/gap 6\.4 units = 0\.05T/);
+    expect((await cli('knockout', 'two.designer.json', '--cutter', 'front', '--gap', '2')).err).toMatch(/gap 2 units/);
+
+    // Errors: unknown names, missing --cutter, bad gap.
+    expect((await cli('knockout', 'two.designer.json', '--cutter', 'nope')).err).toMatch(/no object with that id or name/);
+    expect((await cli('knockout', 'two.designer.json')).code).toBe(2);
+    expect((await cli('knockout', 'two.designer.json', '--cutter', 'front', '--gap', '-1')).code).toBe(2);
+  });
+
+  it('from-svg: clip paths become real geometry (no clipPath in the project)', async () => {
+    const clipped = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><clipPath id="c"><rect width="50" height="100"/></clipPath></defs><rect width="100" height="100" fill="#000" clip-path="url(#c)"/></svg>`;
+    await writeFile(join(dir, 'clipped.svg'), clipped);
+    const r = await cli('from-svg', 'clipped.svg');
+    expect(r.code).toBe(0);
+    expect(r.err).not.toMatch(/Warning/);
+    const doc = JSON.parse(r.out);
+    expect(doc.children[0].type).toBe('path');
+    const svg = (await cli('to-svg', 'clipped.svg')).out;
+    expect(svg).not.toMatch(/clip/i);
+    expect(svg).toMatch(/M0 0L50 0L50 100L0 100Z|width="50"/);
+  });
+
   it('from-svg: editable project with groups, paths and gradients', async () => {
     const r = await cli('from-svg', 'glyph.svg', '-o', 'glyph.designer.json', '--icon', 'favicon-32');
     expect(r.code).toBe(0);

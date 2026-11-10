@@ -1,0 +1,15 @@
+<!-- Hoard C1 "Files" with knockout: the back file is cut where the front file sits (single colour, works for themed icons). -->
+<defs>
+  <clipPath id="hoard-knockout">
+    <path clip-rule="evenodd" d="M-64 -64 H192 V192 H-64 Z M26 20 H66 L96 50 V112 Q96 126 82 126 H24 Q10 126 10 112 V36 Q10 20 26 20 Z"/>
+  </clipPath>
+</defs>
+<g stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g clip-path="url(#hoard-knockout)">
+    <path d="M46 14 H80 L100 34 V88 Q100 96 92 96 H46 Q38 96 38 88 V22 Q38 14 46 14 Z" transform="rotate(12 69 55)" opacity="0.45"/>
+  </g>
+  <path d="M28 30 H64 L86 52 V108 Q86 116 78 116 H28 Q20 116 20 108 V38 Q20 30 28 30 Z"/>
+  <path d="M62 30 V54 H86"/>
+  <path d="M36 76 H70"/>
+  <path d="M36 94 H60"/>
+</g>

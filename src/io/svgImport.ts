@@ -15,6 +15,12 @@ import {
   scale as scaleM,
   translate,
   apply,
+  boundsIn,
+  fromTransform,
+  invert,
+  isPainted,
+  splitColor,
+  unionRects,
   type GradientStop,
   type LineCap,
   type LineJoin,
@@ -29,12 +35,38 @@ import { parseColor, toModelColor } from './svg/color';
 import { parsePathData, transformSubpaths } from './svg/pathData';
 import { computeStyle, INITIAL_STYLE, parseStyleSheet, type Rule, type Style } from './svg/styles';
 import { decompose, matrixScale, parseTransform } from './svg/transformAttr';
+import { cutNode, leafAreas, type CutMode } from '@/vector/knockout';
+import { loadPaper, paperIfLoaded, toPaper } from '@/vector/paperOps';
 
 export interface SvgImportOptions {
   /** Extra matrix applied to the whole drawing (after the viewBox offset). */
   matrix?: Matrix;
   /** Value of `currentColor` at the root (icons). */
   currentColor?: string;
+  /**
+   * paper.js scope used to turn `clip-path` / `mask` into real geometry. Defaults to the loaded
+   * one (`loadPaper()`); without it clips are skipped with a warning. See `ensureSvgGeometry`.
+   */
+  paper?: paper.PaperScope | null;
+}
+
+/** True when the markup uses clip paths or masks (they need paper.js: `await loadPaper()` first). */
+export const svgNeedsGeometry = (text: string) => /clip-path|<mask[\s>]|\bmask\s*[=:]/i.test(text);
+
+/** Loads paper.js when the markup needs it, so a following (synchronous) parseSvg resolves clips. */
+export async function ensureSvgGeometry(text: string): Promise<void> {
+  if (svgNeedsGeometry(text)) await loadPaper();
+}
+
+const urlId = (v: string | undefined) => (v ? (/^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)/.exec(v.trim())?.[1] ?? null) : null);
+
+/** Relative luminance of a #rrggbb colour (0..1). */
+function luminance(hex: string): number {
+  const c = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
 export interface SvgImportResult {
@@ -73,6 +105,11 @@ class Importer {
   warnings = new Set<string>();
   viewport = { width: 100, height: 100 };
   useStack: Element[] = [];
+  /** Clip paths / masks being resolved (cycles). */
+  clipStack: Element[] = [];
+  /** > 0 while converting clipPath contents: geometry only (clip-rule, no stroke). */
+  inClip = 0;
+  scope: paper.PaperScope | null = null;
 
   constructor(root: Element) {
     const all = [root, ...Array.from(root.querySelectorAll('*'))];
@@ -173,10 +210,12 @@ class Importer {
   }
 
   fillOf(style: Style): Paint {
+    if (this.inClip) return { kind: 'solid', color: '#000000' };
     return this.paint(style.fill, num(style['fill-opacity'], 1), style);
   }
 
   strokeOf(style: Style, m: Matrix): Stroke {
+    if (this.inClip) return defaultStroke();
     const paint = this.paint(style.stroke, num(style['stroke-opacity'], 1), style);
     const k = matrixScale(m) || 1;
     const width = this.length(style['stroke-width'] ?? '1', 'r', 1) * k;
@@ -202,8 +241,193 @@ class Importer {
 
   // ---------- elements ----------
 
-  /** Converts one element into nodes. `m` maps the element's user space into the output space. */
+  /**
+   * Converts one element into nodes, then applies its `clip-path` / `mask` as real geometry.
+   * `m` maps the element's parent user space into the frame the nodes are returned in.
+   */
   convert(el: Element, m: Matrix, parentStyle: Style, depth: number): SceneNode[] {
+    const nodes = this.convertElement(el, m, parentStyle, depth);
+    if (!nodes.length) return nodes;
+    const style = computeStyle(el, parentStyle, this.rules);
+    const clipId = urlId(style['clip-path']);
+    const maskId = urlId(style.mask);
+    if (!clipId && !maskId) return nodes;
+    // Clip and mask live in the element's user space (its own transform included).
+    const L = multiply(m, parseTransform(el.getAttribute('transform')));
+    let out = nodes;
+    if (clipId) out = this.applyClip(clipId, out, L);
+    if (maskId && out.length) out = this.applyMask(maskId, out, L);
+    return out;
+  }
+
+  // ---------- clip-path / mask → geometry ----------
+
+  /** paper.js scope, or null (with a warning) when it is not loaded. */
+  geometry(): paper.PaperScope | null {
+    if (!this.scope) this.warnings.add('Clip paths and masks were ignored: the geometry engine was not loaded.');
+    return this.scope;
+  }
+
+  /** World (frame) shapes of converted nodes as one paper item: every leaf's fill area, united. */
+  shapeOf(scope: paper.PaperScope, nodes: SceneNode[]): paper.PathItem | null {
+    let acc: paper.PathItem | null = null;
+    const visit = (n: SceneNode, parent: Matrix) => {
+      if (!n.visible) return;
+      const mm = multiply(parent, fromTransform(n.transform));
+      if (n.type === 'group') return n.children.forEach((c) => visit(c, mm));
+      if (n.type === 'text') this.warnings.add('Text inside a clip path or mask was ignored.');
+      if (!isPainted(n)) return;
+      const { fill } = leafAreas(scope, n, mm);
+      if (fill) acc = acc ? acc.unite(fill, { insert: false }) : fill;
+    };
+    nodes.forEach((n) => visit(n, IDENTITY));
+    return acc;
+  }
+
+  /** Geometry box of nodes in the user space mapped to the frame by `L` (objectBoundingBox units). */
+  bboxIn(nodes: SceneNode[], L: Matrix): Rect | null {
+    const inv = invert(L);
+    return unionRects(nodes.filter((n) => n.visible).map((n) => boundsIn(n, multiply(inv, fromTransform(n.transform)))));
+  }
+
+  /** Intersects (clip) every node with `shape`; texts and images are kept as they are (warning). */
+  cut(scope: paper.PaperScope, nodes: SceneNode[], shape: paper.PathItem | null, mode: CutMode): SceneNode[] {
+    const hasRaw = (n: SceneNode): boolean => (n.type === 'group' ? n.children.some(hasRaw) : n.type === 'text' || n.type === 'image');
+    if (nodes.some(hasRaw)) this.warnings.add('Clipped or masked text and images were imported without the clip.');
+    if (!shape || shape.isEmpty()) return mode === 'intersect' ? nodes.filter(hasRaw) : nodes;
+    return nodes.map((n) => cutNode(scope, n, IDENTITY, shape, mode)).filter((n): n is SceneNode => !!n);
+  }
+
+  /** Content matrix for clipPathUnits / maskContentUnits. Null when the box is empty. */
+  unitsMatrix(units: string | null, nodes: SceneNode[], L: Matrix): Matrix | null {
+    if (units !== 'objectBoundingBox') return L;
+    const bb = this.bboxIn(nodes, L);
+    if (!bb || !(bb.width > 0) || !(bb.height > 0)) return null;
+    return multiply(L, { a: bb.width, b: 0, c: 0, d: bb.height, e: bb.x, f: bb.y });
+  }
+
+  applyClip(id: string, nodes: SceneNode[], L: Matrix): SceneNode[] {
+    const clip = this.ids.get(id);
+    if (!clip || clip.localName.toLowerCase() !== 'clippath') return nodes; // a missing reference: no clip (as browsers)
+    if (this.clipStack.includes(clip)) return nodes;
+    const scope = this.geometry();
+    if (!scope) return nodes;
+    const base = this.unitsMatrix(clip.getAttribute('clipPathUnits'), nodes, L);
+    if (!base) return [];
+    const M = multiply(base, parseTransform(clip.getAttribute('transform')));
+    this.clipStack.push(clip);
+    this.inClip++;
+    let shapes: SceneNode[];
+    try {
+      const style = computeStyle(clip, INITIAL_STYLE, this.rules);
+      shapes = Array.from(clip.children).flatMap((c) => this.convert(c, M, style, 1));
+    } finally {
+      this.inClip--;
+      this.clipStack.pop();
+    }
+    let shape = this.shapeOf(scope, shapes);
+    // clip-path on the clipPath element itself: intersect.
+    const nested = urlId(computeStyle(clip, INITIAL_STYLE, this.rules)['clip-path']);
+    if (shape && nested) {
+      const inner = this.ids.get(nested);
+      if (inner && !this.clipStack.includes(inner)) {
+        this.clipStack.push(clip);
+        const clipped = this.applyClip(nested, shapes, L);
+        this.clipStack.pop();
+        shape = this.shapeOf(scope, clipped);
+      }
+    }
+    return this.cut(scope, nodes, shape, 'intersect');
+  }
+
+  /**
+   * Masks made of solid white and black shapes become geometry (white adds, black removes, in
+   * paint order) clipped to the mask region; anything else (gradients, greys, partial opacity) is
+   * not supported: the content is kept unmasked with a warning.
+   */
+  applyMask(id: string, nodes: SceneNode[], L: Matrix): SceneNode[] {
+    const mask = this.ids.get(id);
+    if (!mask || mask.localName.toLowerCase() !== 'mask') return nodes;
+    if (this.clipStack.includes(mask)) return nodes;
+    const scope = this.geometry();
+    if (!scope) return nodes;
+    const unsupported = () => {
+      this.warnings.add('Masks with gradients, greys or partial transparency were not applied (the content was kept unmasked).');
+      return nodes;
+    };
+    const M = this.unitsMatrix(mask.getAttribute('maskContentUnits'), nodes, L);
+    if (!M) return [];
+    this.clipStack.push(mask);
+    let content: SceneNode[];
+    try {
+      const style = computeStyle(mask, INITIAL_STYLE, this.rules);
+      content = Array.from(mask.children).flatMap((c) => this.convert(c, M, style, 1));
+    } finally {
+      this.clipStack.pop();
+    }
+    // White adds, black removes (paint order). Anything in between is a real luminance mask.
+    type Op = { area: paper.PathItem; add: boolean };
+    const ops: Op[] = [];
+    let ok = true;
+    const level = (p: Paint, opacity: number): boolean | null => {
+      if (p.kind === 'none') return null;
+      if (p.kind !== 'solid') return (ok = false), null;
+      const { color, opacity: a } = splitColor(p.color);
+      const lum = luminance(color);
+      if (lum < 0.005 || a * opacity < 0.005) return false;
+      if (lum > 0.995 && a * opacity > 0.995) return true;
+      ok = false;
+      return null;
+    };
+    const visit = (n: SceneNode, parent: Matrix, opacity: number) => {
+      if (!n.visible || !ok) return;
+      const mm = multiply(parent, fromTransform(n.transform));
+      const op = opacity * n.opacity;
+      if (n.type === 'group') return n.children.forEach((c) => visit(c, mm, op));
+      if (n.type === 'image' || n.type === 'text') return void (ok = false);
+      if (!isPainted(n)) return;
+      const { fill, stroke } = leafAreas(scope, n, mm);
+      const f = level(n.fill, op);
+      if (fill && f !== null) ops.push({ area: fill, add: f });
+      const s = level(n.stroke.paint, op);
+      if (stroke && s !== null) ops.push({ area: stroke, add: s });
+    };
+    content.forEach((n) => visit(n, IDENTITY, 1));
+    if (!ok) return unsupported();
+    let shape: paper.PathItem | null = null;
+    for (const { area, add } of ops) {
+      if (add) shape = shape ? shape.unite(area, { insert: false }) : area;
+      else if (shape) shape = shape.subtract(area, { insert: false });
+    }
+    // Mask region (maskUnits, default objectBoundingBox -10% -10% 120% 120%).
+    if (shape) {
+      const userSpace = mask.getAttribute('maskUnits') === 'userSpaceOnUse';
+      const frac = (v: string | null, d: number) => (v == null ? d : v.trim().endsWith('%') ? parseFloat(v) / 100 : parseFloat(v));
+      let region: SubPath[] | null = null;
+      if (userSpace) {
+        const x = this.length(mask.getAttribute('x'), 'x', -0.1 * this.viewport.width);
+        const y = this.length(mask.getAttribute('y'), 'y', -0.1 * this.viewport.height);
+        const w = this.length(mask.getAttribute('width'), 'x', 1.2 * this.viewport.width);
+        const h = this.length(mask.getAttribute('height'), 'y', 1.2 * this.viewport.height);
+        region = transformSubpaths(rectSubpaths({ width: w, height: h, radius: 0 }), multiply(L, translate(x + w / 2, y + h / 2)));
+      } else {
+        const bb = this.bboxIn(nodes, L);
+        if (bb) {
+          const x = bb.x + frac(mask.getAttribute('x'), -0.1) * bb.width;
+          const y = bb.y + frac(mask.getAttribute('y'), -0.1) * bb.height;
+          const w = frac(mask.getAttribute('width'), 1.2) * bb.width;
+          const h = frac(mask.getAttribute('height'), 1.2) * bb.height;
+          region = transformSubpaths(rectSubpaths({ width: w, height: h, radius: 0 }), multiply(L, translate(x + w / 2, y + h / 2)));
+        }
+      }
+      if (region) shape = shape.intersect(toPaper(scope, region), { insert: false });
+    }
+    return this.cut(scope, nodes, shape, 'intersect');
+  }
+
+  // ---------- elements ----------
+
+  convertElement(el: Element, m: Matrix, parentStyle: Style, depth: number): SceneNode[] {
     if (depth > MAX_DEPTH) return [];
     const tag = el.localName.toLowerCase();
     if (SKIP.has(tag)) return [];
@@ -335,7 +559,7 @@ class Importer {
         subpaths: transformSubpaths(sp, L),
         fill: this.fillOf(style),
         stroke: this.strokeOf(style, L),
-        fillRule: style['fill-rule'] === 'evenodd' ? 'evenodd' : 'nonzero',
+        fillRule: (this.inClip ? style['clip-rule'] : style['fill-rule']) === 'evenodd' ? 'evenodd' : 'nonzero',
       }),
     ];
   }
@@ -476,6 +700,7 @@ export function parseSvg(text: string, opts: SvgImportOptions = {}): SvgImportRe
     throw new Error('This is not a valid SVG file.');
   }
   const imp = new Importer(root);
+  imp.scope = opts.paper === undefined ? paperIfLoaded() : opts.paper;
   const vb = parseViewBox(root.getAttribute('viewBox'));
   let width = vb?.width ?? (num(root.getAttribute('width'), 0) || 0);
   let height = vb?.height ?? (num(root.getAttribute('height'), 0) || 0);

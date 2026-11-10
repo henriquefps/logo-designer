@@ -68,7 +68,7 @@ export function ArtboardSection({ ctx }: { ctx: SelectionContext }) {
         </div>
       </Section>
       <Section title="Background">
-        <PaintEditor label="Background" value={background} onChange={(p) => setArtboard({ background: p }, { label: 'Artboard background' })} />
+        <PaintEditor label="Background" glyphMode={false} value={background} onChange={(p) => setArtboard({ background: p }, { label: 'Artboard background' })} />
       </Section>
       <GridSection />
       <Section title="Document">

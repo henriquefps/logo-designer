@@ -23,6 +23,7 @@ export function StrokeSection({ ctx }: { ctx: SelectionContext }) {
     <Section title="Stroke">
       <PaintEditor
         label="Stroke"
+        note={false}
         value={stroke.paint}
         onChange={(paint) => set(stroke.width > 0 || paint.kind === 'none' ? { paint } : { paint, width: 1 })}
       />
