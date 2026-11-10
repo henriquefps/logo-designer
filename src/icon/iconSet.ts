@@ -114,7 +114,7 @@ Where each folder goes:
                         name to "AppIcon"; it then replaces the asset catalog icon, and Xcode
                         generates the older-iOS images from it. Open it in Icon Composer to check
                         Default / Dark / Clear / Tinted. Keep the .appiconset for Xcode < 26.
-  review-sheet.png      row 1: masks at 128 px with the pink 0.63 T reference circle; row 2:
+  review-sheet.png      row 1: masks at 128 px, the pink 0.63 T reference circle on the first one; row 2:
                         launcher sizes; row 3: favicons on dark and on white. Always look at it.
 `;
 }
