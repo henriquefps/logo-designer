@@ -126,7 +126,8 @@ function node(v: unknown, ids: Set<string>, depth: number, path: string): SceneN
     id,
     name: typeof o.name === 'string' ? o.name : type,
     visible: o.visible !== false,
-    locked: o.locked === true,
+    // A reference is always locked (older versions could save reference + unlocked): see model/reference.ts.
+    locked: o.locked === true || o.reference === true,
     ...(o.reference === true ? { reference: true } : {}),
     opacity: o.opacity === undefined ? 1 : Math.max(0, Math.min(1, finite(o.opacity, k('opacity')))),
     ...(typeof o.blendMode === 'string' ? { blendMode: o.blendMode } : {}),

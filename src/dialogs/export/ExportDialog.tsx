@@ -21,6 +21,7 @@ import { copyText, downloadExport, renderExport, type ExportFormat, type ExportS
 import { getExporters } from '@/io/exporters/registry';
 import { formatBytes, rasterSize } from '@/io/rasterExport';
 import { exportArea } from '@/io/svgExport';
+import { skippedReferenceNodes, skippedReferenceNotice } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 
@@ -93,6 +94,10 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 
   const area = useMemo(() => exportArea(doc, { scope: effectiveScope, selection, padding }), [doc, effectiveScope, selection, padding]);
+  const referenceNotice = useMemo(
+    () => skippedReferenceNotice(skippedReferenceNodes(doc, effectiveScope === 'selection' ? selection : undefined)),
+    [doc, effectiveScope, selection],
+  );
   const pixelSize = area && raster ? rasterSize(area, { scale: settings?.scale, width: settings?.customWidth }) : null;
 
   // Live preview (debounced): the actual output file.
@@ -177,6 +182,11 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               <span className="text-sm text-muted-foreground">{error ?? 'Rendering preview…'}</span>
             )}
           </div>
+          {referenceNotice && (
+            <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[0.8125rem]">
+              {referenceNotice}
+            </p>
+          )}
           <p className="-mt-2 text-[0.8125rem] text-muted-foreground tabular-nums" aria-live="polite">
             {error ? error : sizeLabel}
           </p>

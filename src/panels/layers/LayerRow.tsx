@@ -18,6 +18,7 @@ interface LayerRowProps {
   onRename: (name: string) => void;
   onToggleVisible: () => void;
   onToggleLock: () => void;
+  onStopReference: () => void;
   onHover: (on: boolean) => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent, pos: DropPosition) => void;
@@ -73,11 +74,7 @@ export function LayerRow(p: LayerRowProps) {
       >
         {p.expanded ? <CaretDownIcon /> : <CaretRightIcon />}
       </button>
-      {node.reference ? (
-        <ImageSquareIcon aria-label="Reference" weight="fill" className="size-4 shrink-0 text-primary" />
-      ) : (
-        <Icon className="size-4 shrink-0 text-muted-foreground" />
-      )}
+      <Icon className="size-4 shrink-0 text-muted-foreground" />
       {editing ? (
         <input
           autoFocus
@@ -100,12 +97,17 @@ export function LayerRow(p: LayerRowProps) {
           {node.name}
         </span>
       )}
-      <RowToggle
-        label={node.locked ? 'Unlock' : 'Lock'}
-        active={node.locked}
-        onClick={p.onToggleLock}
-        icon={node.locked ? <LockSimpleIcon /> : <LockSimpleOpenIcon />}
-      />
+      {node.reference ? (
+        // A reference is one state (locked, not selectable, not exported): its control replaces the lock.
+        <RowToggle label="Stop using as reference" active onClick={p.onStopReference} icon={<ImageSquareIcon weight="fill" className="text-primary" />} />
+      ) : (
+        <RowToggle
+          label={node.locked ? 'Unlock' : 'Lock'}
+          active={node.locked}
+          onClick={p.onToggleLock}
+          icon={node.locked ? <LockSimpleIcon /> : <LockSimpleOpenIcon />}
+        />
+      )}
       <RowToggle
         label={node.visible ? 'Hide' : 'Show'}
         active={!node.visible}

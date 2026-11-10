@@ -1,4 +1,5 @@
-import { applyWorldMatrix, findNode, parentWorldMatrix, rectCenter, scaleAbout, selectionBounds, walk } from '@/model';
+import { toast } from 'sonner';
+import { allReferences, applyReference, applyWorldMatrix, findNode, parentWorldMatrix, rectCenter, scaleAbout, selectionBounds, walk } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { doc, editableSelection, hasSelection, sel } from '../selection';
@@ -21,23 +22,29 @@ function flip(axis: 'x' | 'y') {
   );
 }
 
-/** Marks nodes as tracing references (locked, not selectable on canvas) or restores them. */
+/** Marks nodes as tracing references (locked, not selectable on canvas, not exported) or restores them. */
 export function setReference(on: boolean, ids: string[] = sel()) {
-  ds().updateNodes(
-    ids,
-    (n) => {
-      if (on) {
-        n.reference = true;
-        n.locked = true;
-      } else {
-        delete n.reference;
-        n.locked = false;
-      }
-    },
-    { label: on ? 'Use as reference' : 'Stop using as reference' },
-  );
-  if (on) ed().clearSelection();
+  ds().updateNodes(ids, (n) => void ((on || n.reference) && applyReference(n, on)), { label: on ? 'Use as reference' : 'Stop using as reference' });
+  if (on) {
+    ed().clearSelection();
+    toast(ids.length === 1 ? 'Marked as reference' : `${ids.length} objects marked as reference`, {
+      description: 'Reference layers cannot be selected on the canvas and are not exported. Select one in Layers to stop using it as reference.',
+      action: { label: 'Undo', onClick: () => useDocStore.getState().undo() },
+    });
+  } else {
+    ed().setSelection(ids);
+  }
 }
+
+/** Turns every reference in the document back into a normal, editable object. */
+export function stopAllReferences() {
+  const ids = allReferences(doc()).map((n) => n.id);
+  if (ids.length) setReference(false, ids);
+  return ids;
+}
+
+/** Mixed selections count as reference, so the toggle turns references off rather than marking everything. */
+const anySelectedReference = () => sel().some((id) => !!findNode(doc(), id)?.reference);
 
 const actions: Action[] = [
   {
@@ -130,8 +137,8 @@ const actions: Action[] = [
     group: 'state',
     order: 34,
     enabled: hasSelection,
-    checked: () => sel().length > 0 && sel().every((id) => !!findNode(doc(), id)?.reference),
-    run: () => setReference(!sel().every((id) => !!findNode(doc(), id)?.reference)),
+    checked: () => anySelectedReference(),
+    run: () => setReference(!anySelectedReference()),
   },
   {
     id: 'object.unlockAll',
@@ -141,11 +148,29 @@ const actions: Action[] = [
     order: 31,
     shortcut: 'mod+alt+2',
     run: () => {
+      // Unlocks locked layers and turns non-image references (shapes/text that were never meant as
+      // tracing layers) back into normal objects. Reference *images* stay reference: use
+      // "Stop all references" for those.
       const ids: string[] = [];
-      walk(doc().children, (n) => void (n.locked && ids.push(n.id)));
-      ds().updateNodes(ids, (n) => void (n.locked = false), { label: 'Unlock all' });
+      let refs = 0;
+      walk(doc().children, (n) => {
+        if (n.reference && n.type === 'image') return;
+        if (n.reference) refs++;
+        if (n.locked || n.reference) ids.push(n.id);
+      });
+      ds().updateNodes(ids, (n) => applyReference(n, false), { label: 'Unlock all' });
       ed().setSelection(ids);
+      if (refs) toast(`${refs} reference object${refs === 1 ? ' is' : 's are'} now editable`, { description: 'They are included in exports again.' });
     },
+  },
+  {
+    id: 'object.stopReferences',
+    label: 'Stop all references',
+    menu: 'object',
+    group: 'state',
+    order: 35,
+    enabled: () => allReferences(doc()).length > 0,
+    run: () => void stopAllReferences(),
   },
   {
     id: 'object.hide',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StackIcon } from '@phosphor-icons/react';
 import { locate, type Id, type SceneNode } from '@/model';
+import { setReference } from '@/actions/modules/object';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { LayerRow, type DropPosition } from './LayerRow';
@@ -83,6 +84,7 @@ export function LayersPanel() {
             ds().updateNode(n.id, { locked: !n.locked }, { label: n.locked ? 'Unlock' : 'Lock' });
             if (!n.locked) ed().setSelection(ed().selection.filter((x) => x !== n.id));
           }}
+          onStopReference={() => setReference(false, [n.id])}
           onHover={(on) => ed().setHover(on ? n.id : null)}
           onDragStart={(e) => {
             const ids = selection.includes(n.id) ? selection : [n.id];

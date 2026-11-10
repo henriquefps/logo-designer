@@ -32,7 +32,9 @@ const label = (m: string) => m.charAt(0).toUpperCase() + m.slice(1).replace('-',
 export function AppearanceSection({ ctx }: { ctx: SelectionContext }) {
   const opacity = common(ctx.nodes, (n) => n.opacity);
   const blend = common(ctx.nodes, (n) => n.blendMode ?? 'normal');
-  const reference = common(ctx.nodes, (n) => !!n.reference);
+  // Mixed selection (e.g. a reference photo plus text): the switch shows ON and turns references OFF.
+  // It never silently marks everything as reference.
+  const anyReference = ctx.nodes.some((n) => !!n.reference);
   const setOpacity = (v: number) => editNodes(ctx.ids, (n) => void (n.opacity = v), 'Opacity');
   return (
     <Section title="Appearance">
@@ -76,7 +78,7 @@ export function AppearanceSection({ ctx }: { ctx: SelectionContext }) {
       <FieldRow label="Reference">
         <Switch
           aria-label="Use as reference"
-          checked={reference === true}
+          checked={anyReference}
           onCheckedChange={(on) => setReference(on, ctx.ids)}
         />
         <span className="text-xs text-muted-foreground">Trace over it; not exported</span>
