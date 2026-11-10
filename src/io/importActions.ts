@@ -3,7 +3,6 @@
 import { toast } from 'sonner';
 import {
   applyWorldMatrix,
-  createDocument,
   createGroup,
   createImage,
   IDENTITY,
@@ -22,6 +21,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { loadImage } from './rasterExport';
 import { parseSvg } from './svgImport';
+import { svgToDocument } from './svgDocument';
 
 export const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp';
 export const SVG_ACCEPT = '.svg,image/svg+xml';
@@ -124,18 +124,9 @@ export async function importFiles(files: File[], at?: Vec) {
 
 /** Opens SVG markup as a new project; the artboard comes from the viewBox. */
 export async function openSvgAsDocument(text: string, name: string) {
-  const result = parseSvg(text);
-  let { width, height } = result;
-  const children = result.nodes;
-  if (!(width > 0) || !(height > 0)) {
-    // No viewBox/size: fit the artboard to the content.
-    const b = unionRects(children.map((n) => boundsIn(n, fromTransform(n.transform))));
-    width = Math.max(1, Math.ceil(b ? b.x + b.width : 1024));
-    height = Math.max(1, Math.ceil(b ? b.y + b.height : 1024));
-  }
-  const doc = createDocument({ name, artboard: { width, height, background: { kind: 'none' } }, children });
+  const { doc, warnings } = svgToDocument(text, name);
   await useProjectsStore.getState().importDocument(doc);
-  for (const w of result.warnings) toast.warning(w);
+  for (const w of warnings) toast.warning(w);
   toast.success(`Opened “${name}”`);
 }
 

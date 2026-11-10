@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createDocument, newId, type DesignDocument, type Id } from '@/model';
 import {
   deleteDocument,
+  deleteFileHandle,
   getActiveProjectId,
   loadDocument,
   loadProjectList,
@@ -176,6 +177,7 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
         timer = null;
       }
       await deleteDocument(id);
+      await deleteFileHandle(id).catch(() => undefined);
       const projects = get().projects.filter((p) => p.id !== id);
       await saveProjectList(projects);
       set({ projects });

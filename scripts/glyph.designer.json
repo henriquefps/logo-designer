@@ -1,0 +1,346 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/designer-project.schema.json",
+  "format": "designer",
+  "schemaVersion": 1,
+  "id": "dmwb2j7u19dpp6x2",
+  "name": "Designer glyph",
+  "createdAt": 1794338028649,
+  "updatedAt": 1794338028649,
+  "artboard": {
+    "width": 128,
+    "height": 128,
+    "background": {
+      "kind": "none"
+    }
+  },
+  "children": [
+    {
+      "id": "nmwb2j7u055zrrtf",
+      "name": "Group",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "group",
+      "children": [
+        {
+          "id": "nmwb2j7u01nymlej",
+          "name": "Path",
+          "visible": true,
+          "locked": false,
+          "opacity": 0.7,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "type": "path",
+          "subpaths": [
+            {
+              "closed": false,
+              "points": [
+                {
+                  "x": 18,
+                  "y": 102,
+                  "type": "corner"
+                },
+                {
+                  "x": 110,
+                  "y": 102,
+                  "type": "corner"
+                }
+              ]
+            }
+          ],
+          "fill": {
+            "kind": "none"
+          },
+          "stroke": {
+            "paint": {
+              "kind": "solid",
+              "color": "#000000"
+            },
+            "width": 7,
+            "cap": "round",
+            "join": "round",
+            "dash": []
+          },
+          "fillRule": "nonzero"
+        },
+        {
+          "id": "nmwb2j7u0216ps22",
+          "name": "Path",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "type": "path",
+          "subpaths": [
+            {
+              "closed": true,
+              "points": [
+                {
+                  "x": 64,
+                  "y": 100,
+                  "type": "corner"
+                },
+                {
+                  "x": 38,
+                  "y": 60,
+                  "type": "corner",
+                  "out": {
+                    "x": 38,
+                    "y": 46
+                  }
+                },
+                {
+                  "x": 54,
+                  "y": 32,
+                  "type": "corner",
+                  "in": {
+                    "x": 46,
+                    "y": 36
+                  }
+                },
+                {
+                  "x": 74,
+                  "y": 32,
+                  "type": "corner",
+                  "out": {
+                    "x": 82,
+                    "y": 36
+                  }
+                },
+                {
+                  "x": 90,
+                  "y": 60,
+                  "type": "corner",
+                  "in": {
+                    "x": 90,
+                    "y": 46
+                  }
+                }
+              ]
+            }
+          ],
+          "fill": {
+            "kind": "none"
+          },
+          "stroke": {
+            "paint": {
+              "kind": "solid",
+              "color": "#000000"
+            },
+            "width": 7,
+            "cap": "round",
+            "join": "round",
+            "dash": []
+          },
+          "fillRule": "nonzero"
+        },
+        {
+          "id": "nmwb2j7u03qyx2wm",
+          "name": "Path",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "type": "path",
+          "subpaths": [
+            {
+              "closed": false,
+              "points": [
+                {
+                  "x": 64,
+                  "y": 100,
+                  "type": "corner"
+                },
+                {
+                  "x": 64,
+                  "y": 74,
+                  "type": "corner"
+                }
+              ]
+            }
+          ],
+          "fill": {
+            "kind": "none"
+          },
+          "stroke": {
+            "paint": {
+              "kind": "solid",
+              "color": "#000000"
+            },
+            "width": 7,
+            "cap": "round",
+            "join": "round",
+            "dash": []
+          },
+          "fillRule": "nonzero"
+        },
+        {
+          "id": "nmwb2j7u04m5m48r",
+          "name": "Path",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "type": "path",
+          "subpaths": [
+            {
+              "closed": false,
+              "points": [
+                {
+                  "x": 50,
+                  "y": 16,
+                  "type": "corner"
+                },
+                {
+                  "x": 78,
+                  "y": 16,
+                  "type": "corner"
+                }
+              ]
+            }
+          ],
+          "fill": {
+            "kind": "none"
+          },
+          "stroke": {
+            "paint": {
+              "kind": "solid",
+              "color": "#000000"
+            },
+            "width": 7,
+            "cap": "round",
+            "join": "round",
+            "dash": []
+          },
+          "fillRule": "nonzero"
+        }
+      ]
+    },
+    {
+      "id": "nmwb2j7u16a85u1b",
+      "name": "Rectangle",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 18,
+        "y": 102,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "rect",
+      "width": 20,
+      "height": 20,
+      "radius": 4,
+      "fill": {
+        "kind": "solid",
+        "color": "#000000"
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 1,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      }
+    },
+    {
+      "id": "nmwb2j7u177l26tl",
+      "name": "Rectangle",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 110,
+        "y": 102,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "rect",
+      "width": 20,
+      "height": 20,
+      "radius": 4,
+      "fill": {
+        "kind": "solid",
+        "color": "#000000"
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 1,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      }
+    },
+    {
+      "id": "nmwb2j7u18035wwj",
+      "name": "Ellipse",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "transform": {
+        "x": 64,
+        "y": 60,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      },
+      "type": "ellipse",
+      "rx": 6,
+      "ry": 6,
+      "fill": {
+        "kind": "solid",
+        "color": "#000000"
+      },
+      "stroke": {
+        "paint": {
+          "kind": "none"
+        },
+        "width": 1,
+        "cap": "butt",
+        "join": "miter",
+        "dash": []
+      }
+    }
+  ],
+  "icon": {
+    "preset": "app-icon",
+    "shape": "auto"
+  }
+}

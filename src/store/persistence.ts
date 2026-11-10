@@ -57,3 +57,10 @@ export const metaOf = (doc: DesignDocument): ProjectMeta => ({
   createdAt: doc.createdAt,
   updatedAt: doc.updatedAt,
 });
+
+// File handles (File System Access API) of projects saved in place: `file:<projectId>`.
+// Structured-cloneable in Chromium; other browsers never store one.
+const fileKey = (id: Id) => `file:${id}`;
+export const loadFileHandle = async <T>(id: Id): Promise<T | null> => (await get<T>(fileKey(id), db())) ?? null;
+export const saveFileHandle = (id: Id, handle: unknown): Promise<void> => set(fileKey(id), handle, db());
+export const deleteFileHandle = (id: Id): Promise<void> => del(fileKey(id), db());

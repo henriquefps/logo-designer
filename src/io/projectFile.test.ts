@@ -27,9 +27,35 @@ describe('project file', () => {
     const doc = createDocument({ children: [createRect()] });
     const bad = JSON.parse(serializeProject(doc));
     bad.children[0].width = 'wide';
-    expect(() => validateDocument(bad)).toThrow(/damaged \(rect node\)/);
+    expect(() => validateDocument(bad)).toThrow('damaged at children[0].width: expected a number, got "wide"');
     bad.children[0] = { type: 'blob', transform: { x: 0, y: 0 } };
-    expect(() => validateDocument(bad)).toThrow(/unknown node type/);
+    expect(() => validateDocument(bad)).toThrow(/children\[0\]\.type: unknown node type "blob"/);
+  });
+  it('names the JSON path of nested errors', () => {
+    const doc = JSON.parse(serializeProject(createDocument({ children: [createGroup({ children: [createRect(), createRect({ fill: linear('#000000', '#ffffff') })] })] })));
+    doc.children[0].children[1].fill.stops[1].color = 'red';
+    expect(() => validateDocument(doc)).toThrow('children[0].children[1].fill.stops[1].color: expected a color "#rrggbb" or "#rrggbbaa", got "red"');
+    const p = JSON.parse(serializeProject(createDocument({ children: [createPath({ subpaths: [{ closed: false, points: [{ x: 0, y: 0, type: 'corner' }] }] })] })));
+    p.children[0].subpaths[0].points[0].out = { x: 1 };
+    expect(() => validateDocument(p)).toThrow('children[0].subpaths[0].points[0].out.y: expected a number, got nothing');
+    p.children[0].subpaths[0].points[0] = { x: 0, y: 0, type: 'cusp' };
+    expect(() => validateDocument(p)).toThrow(/points\[0\]\.type: expected one of "corner", "smooth", "symmetric", got "cusp"/);
+    const a = JSON.parse(serializeProject(createDocument()));
+    a.artboard.width = 0;
+    expect(() => validateDocument(a)).toThrow('artboard.width: must be greater than 0');
+  });
+  it('accepts minimal hand-written files (defaults for optional fields)', () => {
+    const doc = validateDocument({
+      schemaVersion: 1,
+      artboard: { width: 128, height: 128 },
+      children: [{ type: 'ellipse', rx: 10, ry: 10, transform: { x: 64, y: 64 }, fill: { kind: 'solid', color: '#FF0000' } }, { type: 'rect', width: 4, height: 4 }],
+    });
+    expect(doc.artboard.background).toEqual({ kind: 'none' });
+    expect(doc.children[0]).toMatchObject({ type: 'ellipse', opacity: 1, visible: true, fill: { kind: 'solid', color: '#ff0000' }, stroke: { paint: { kind: 'none' } } });
+    expect(doc.children[1].transform).toEqual({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 });
+  });
+  it('writes $schema into saved files', () => {
+    expect(JSON.parse(serializeProject(createDocument())).$schema).toBe('https://designer.hfps.dev/schema/designer-project.schema.json');
   });
   it('renews duplicate ids and fills defaults', () => {
     const r = createRect();
