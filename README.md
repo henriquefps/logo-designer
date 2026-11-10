@@ -55,6 +55,8 @@ which now redirects here).
 | Hand / zoom | `H` (or Space) / `Z` | Fit / 100% | `⌘0` / `⌘1` |
 | Edit points | `↵` or double-click | Grid / snap to grid | `⌘'` / `⇧⌘'` |
 
+Resizing: the link toggle in Properties → Transform (and the options bar) turns Keep proportions on for corner and side handles; hold `Shift` while dragging a handle to invert it, `Alt` to resize from the centre.
+
 ## For agents and scripts
 
 Projects are plain JSON ([format](docs/project-format.md), [JSON Schema](https://designer.hfps.dev/schema/designer-project.schema.json)),

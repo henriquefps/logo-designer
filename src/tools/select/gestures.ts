@@ -15,6 +15,7 @@ import {
   type Vec,
 } from '@/model';
 import { computeSnapTargets, snapPoint, snapRect, SNAP_PX, type SnapTarget, snapEnabled } from '@/canvas/snapping';
+import { isProportional, resizeFactors } from '@/canvas/resizeMath';
 import { HANDLE_DIRS, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { ToolContext, ToolPointerEvent } from '../types';
 
@@ -110,21 +111,14 @@ export function startResize(ctx: ToolContext, handle: number, frame: SelectionFr
       }
       // Pointer in frame space (origin = frame center, axes = frame axes).
       const p = rot({ x: point.x - center.x, y: point.y - center.y }, -rotation);
-      const anchor = e.alt ? { x: 0, y: 0 } : { x: (-dir.x * w0) / 2, y: (-dir.y * h0) / 2 };
-      const origSpanX = e.alt ? w0 / 2 : w0;
-      const origSpanY = e.alt ? h0 / 2 : h0;
-      let kx = dir.x === 0 || origSpanX === 0 ? 1 : ((p.x - anchor.x) * dir.x) / origSpanX;
-      let ky = dir.y === 0 || origSpanY === 0 ? 1 : ((p.y - anchor.y) * dir.y) / origSpanY;
-      if (e.shift) {
-        // Proportional: the dominant axis drives both.
-        const k = dir.x === 0 ? ky : dir.y === 0 ? kx : Math.abs(kx) > Math.abs(ky) ? kx : ky;
-        kx = k;
-        ky = k;
-      }
-      // Avoid collapsing to zero (keeps the matrix invertible).
-      const minK = 1e-3;
-      if (Math.abs(kx) < minK) kx = kx < 0 ? -minK : minK;
-      if (Math.abs(ky) < minK) ky = ky < 0 ? -minK : minK;
+      const { kx, ky, anchor } = resizeFactors({
+        dir,
+        pointer: p,
+        width: w0,
+        height: h0,
+        fromCenter: e.alt,
+        proportional: isProportional(ctx.editor().keepProportions, e.shift),
+      });
       const anchorWorld = rot(anchor, rotation);
       const m = scaleAbout(kx, ky, { x: center.x + anchorWorld.x, y: center.y + anchorWorld.y }, rotation);
       applyMatrix(ctx, snap, m);
