@@ -66,6 +66,8 @@ bun run designer present a.designer.json b.designer.json   # local gallery with 
 **Never paste `#open=` links into chat; they wrap and break.** Use `designer open` / `designer present`.
 Outside this repo, pin the commit (`github:henriquefps/logo-designer#<sha>`): Bun caches unpinned `github:` specs and keeps running an old CLI. See [docs/agents.md](docs/agents.md).
 
+Agents can learn the whole workflow from the bundled skill: `npx skills add henriquefps/logo-designer` (installs [`skills/designer`](skills/designer/SKILL.md)).
+
 `designer link` prints `https://designer.hfps.dev/#open=…` links that carry a project or SVG and import it as a new project
 after a confirmation; `?import=<url>` fetches one from a URL. In Chrome and Edge, ⌘S / Ctrl+S saves
 back to the `.designer.json` you opened. The whole workflow: [`docs/agents.md`](docs/agents.md).
