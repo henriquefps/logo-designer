@@ -2,6 +2,7 @@
 // space (the visible tile mapped to 0..128) painted with currentColor (alpha kept).
 import { iconTile, docToGlyphSpace } from '@/icon';
 import type { DesignDocument } from '@/model';
+import { bakeTransforms } from '@/io/bakeTransforms';
 import { exportSvg } from '@/io/svgExport';
 
 /** 6 decimals: the tile → 128 map must not drift (e.g. 128 / 72 on Android). */
@@ -29,7 +30,7 @@ function glyphTile(doc: DesignDocument) {
 
 /** glyph.svg for build-icons.mjs: hidden and reference objects skipped, text outlined. */
 export async function glyphFragment(doc: DesignDocument): Promise<string> {
-  const { svg } = await exportSvg(doc, { scope: 'artboard', background: false, currentColor: true });
+  const { svg } = await exportSvg(await bakeTransforms(doc), { scope: 'artboard', background: false, currentColor: true });
   const body = svgBody(svg);
   if (!body) return '';
   const { k, e, f } = docToGlyphSpace(glyphTile(doc));

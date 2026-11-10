@@ -342,5 +342,16 @@ describe('open / present', () => {
       na.forEach((x, i) => expect(Math.abs(x - nb[i])).toBeLessThanOrEqual(1));
       expect(a.out.replace(/[\d.]+/g, '#')).toBe(b.out.replace(/[\d.]+/g, '#'));
     }, 60_000);
+
+    it('grouped drawings keep the Android splash after the default fit (no transform on <g>)', async () => {
+      await writeFile(join(dir, 'grp.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" stroke="#fff" stroke-width="4"><g><circle cx="40" cy="40" r="20"/><rect x="60" y="60" width="40" height="40"/></g></svg>');
+      expect((await cli('from-svg', 'grp.svg', '--icon', 'app-icon', '-o', 'grp.designer.json')).code).toBe(0);
+      expect(JSON.stringify(await doc('grp.designer.json'))).toMatch(/"type":"group"/);
+      expect((await cli('to-svg', 'grp.designer.json', '--glyph')).out).not.toContain('transform');
+      const r = await cli('icons', 'grp.designer.json', '-o', 'icons-grp');
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain('! android splash');
+      expect(await readFile(join(dir, 'icons-grp/android/res/drawable/ic_splash.xml'), 'utf8')).toContain('<vector');
+    }, 60_000);
   });
 });
