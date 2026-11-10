@@ -64,20 +64,22 @@ File → Save project file, the `designer` CLI, and read by File → Open projec
 
 ### Icon settings
 
-Optional `icon` field, used by the icon mode (preview masks, exports for launchers and favicons):
+Optional `icon` field: marks an app icon document. The app then shows keylines, the brand tile,
+the Icon panel (live build-icons.mjs measurements, Fit to keyline, launcher preview) and
+File → Export icon (see `docs/architecture.md`, App icon mode):
 
 ```ts
 icon?: {
   preset: 'app-icon' | 'android-adaptive' | 'ios' | 'favicon-32' | 'favicon-16';
-  shape: 'auto' | 'circle' | 'square' | 'wide' | 'tall';
-  smallGlyphProjectId?: string; // another project used as the glyph at 16/32 px
+  shape: 'auto' | 'circle' | 'square' | 'wide' | 'tall'; // keyline; auto = square/wide/tall from the ink box
+  smallGlyphProjectId?: string; // another project used as the favicon glyph (glyph-small.svg)
 }
 ```
 
-`designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with
-`shape: "auto"`. Artboard sizes the CLI uses: `app-icon` and `ios` 128, `android-adaptive` 108,
-`favicon-32` 32, `favicon-16` 16. (The field is in the schema now; the app reads it once icon mode
-lands. Until then the app keeps working and ignores it.)
+Artboards: `app-icon` 128 (the visible tile T is the whole artboard), `android-adaptive` 108 (T = the
+middle 72, 66 safe circle), `ios` 1024, `favicon-32` 32, `favicon-16` 16. A missing `preset`/`shape`
+defaults to `app-icon`/`auto`; an unknown value is an error naming `icon.preset` / `icon.shape`.
+`designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with `shape: "auto"`.
 
 ## Nodes
 

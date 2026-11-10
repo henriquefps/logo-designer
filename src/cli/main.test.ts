@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -99,7 +100,7 @@ describe('designer CLI', () => {
     const big = await json('svg.designer.json');
     big.artboard = { width: 256, height: 128, background: { kind: 'none' } };
     await writeFile(join(dir, 'big.designer.json'), JSON.stringify(big));
-    expect((await cli('to-svg', 'big.designer.json', '--glyph')).out).toContain('<g fill="currentColor" transform="translate(0 32) scale(0.5)">');
+    expect((await cli('to-svg', 'big.designer.json', '--glyph')).out).toMatch(/^<g transform="matrix\(0\.5 0 0 0\.5 0 32\)">/);
   });
 
   it('round-trips build-icons glyph fragments (no <svg> root, default black fill)', async () => {
@@ -108,9 +109,24 @@ describe('designer CLI', () => {
     expect(r.err).toContain('glyph fragment');
     expect((await json('frag.designer.json')).artboard).toMatchObject({ width: 128, height: 128 });
     const glyph = (await cli('to-svg', 'frag.designer.json', '--glyph')).out;
-    expect(glyph).toMatch(/^<!--.*-->\n<g fill="currentColor">\n {2}<rect x="8" y="92" width="20" height="20" rx="4"\/>/);
+    expect(glyph).toMatch(/^<rect x="8" y="92" width="20" height="20" rx="4" fill="currentColor"\/>/);
     expect(glyph).toContain('stroke="currentColor"');
   });
+
+  it('icons: the whole icon set, same tree and numbers as build-icons.mjs', async () => {
+    const sync = readFileSync(join(__dirname, '../icon/__tests__/fixtures/glyph-sync.svg'), 'utf8');
+    await writeFile(join(dir, 'sync.svg'), sync);
+    await cli('from-svg', 'sync.svg', '-o', 'sync.designer.json', '--icon', 'app-icon');
+    const r = await cli('icons', 'sync.designer.json', '-o', 'icons');
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/^shape tall: glyph 48% x 68% of the tile, ink (10\.9|11\.0|11\.1)%$/m);
+    expect(r.out).toContain('android: glyph half-diagonal 29.9dp <= 33dp safe zone');
+    for (const f of ['glyph.svg', 'docs-img/icon.svg', 'site/favicon.ico', 'android/res/mipmap-xxxhdpi/ic_launcher_foreground.png', 'ios/AppIcon.appiconset/Contents.json', 'review-sheet.png', 'README.txt', 'sync.designer.json'])
+      expect((await readFile(join(dir, 'icons', f))).length).toBeGreaterThan(0);
+    // The glyph is byte-identical to `to-svg --glyph`.
+    expect(await readFile(join(dir, 'icons/glyph.svg'), 'utf8')).toBe((await cli('to-svg', 'sync.designer.json', '--glyph')).out + '\n');
+    expect((await cli('icons', 'sync.designer.json')).code).toBe(2);
+  }, 60_000);
 
   it('to-png renders with resvg', async () => {
     await cli('from-svg', 'glyph.svg', '-o', 'png.designer.json');

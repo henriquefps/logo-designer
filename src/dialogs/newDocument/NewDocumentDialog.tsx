@@ -20,6 +20,8 @@ import { loadDocument, type ProjectMeta } from '@/store/persistence';
 import { relativeDate, fullDate } from '@/lib/relativeDate';
 import { cn } from '@/lib/utils';
 import { isFirstVisit, markWelcomed } from './welcome';
+import { ICON_PRESETS } from '@/icon/presets';
+import type { IconPreset } from '@/model';
 
 const MAX_SIDE = 16384;
 
@@ -99,6 +101,17 @@ export function NewDocumentDialog({ open, onOpenChange }: { open: boolean; onOpe
     }
   };
 
+  const createIcon = async (preset: IconPreset) => {
+    setBusy(true);
+    try {
+      const { createIconDocument } = await import('@/iconMode/document');
+      await createIconDocument(preset);
+      close(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openRecent = async (p: ProjectMeta) => {
     await useProjectsStore.getState().open(p.id);
     close(false);
@@ -145,6 +158,30 @@ export function NewDocumentDialog({ open, onOpenChange }: { open: boolean; onOpe
                   Create
                 </Button>
               </div>
+            </div>
+          </section>
+          <section className="flex flex-col gap-2" aria-label="App icon">
+            <h3 className="eyebrow">App icon</h3>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ICON_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void createIcon(p.id)}
+                  className="flex min-h-14 items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-muted-foreground outline-none hover:bg-muted/50 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center" aria-hidden="true">
+                    <span className="size-8 rounded-[9px] border-2 border-current" />
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-medium text-foreground">{p.label}</span>
+                    <span className="truncate text-xs tabular-nums">
+                      {p.size} × {p.size} · {p.hint}
+                    </span>
+                  </span>
+                </button>
+              ))}
             </div>
           </section>
           {recent.length > 0 && !welcome && (

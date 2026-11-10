@@ -1,24 +1,20 @@
-// Artboard presets for `designer new --preset` / `from-svg --icon`. The icon presets match the
-// project's optional `icon` field (docs/project-format.md).
-export const ICON_PRESETS = ['app-icon', 'android-adaptive', 'ios', 'favicon-32', 'favicon-16'] as const;
-export type IconPreset = (typeof ICON_PRESETS)[number];
+// Artboard presets for `designer new --preset` / `from-svg --icon`. The icon presets and sizes come
+// from the app's icon mode (src/icon/presets.ts), so the CLI and the New document dialog agree.
+import { ICON_PRESETS as ICON_PRESET_DEFS } from '@/icon/presets';
+import type { IconDocInfo, IconPreset as ModelIconPreset } from '@/model';
+
+export const ICON_PRESETS = ICON_PRESET_DEFS.map((p) => p.id);
+export type IconPreset = ModelIconPreset;
 export const ICON_SHAPES = ['auto', 'circle', 'square', 'wide', 'tall'] as const;
 export type IconShape = (typeof ICON_SHAPES)[number];
 
-/** `icon` field of a project (added by the icon mode; extra fields are kept by the CLI). */
-export interface IconSettings {
-  preset: IconPreset;
-  shape: IconShape;
-  smallGlyphProjectId?: string;
-}
+/** `icon` field of a project. */
+export type IconSettings = IconDocInfo;
 
-export const PRESET_SIZES: Record<IconPreset, { width: number; height: number }> = {
-  'app-icon': { width: 128, height: 128 },
-  'android-adaptive': { width: 108, height: 108 },
-  ios: { width: 128, height: 128 },
-  'favicon-32': { width: 32, height: 32 },
-  'favicon-16': { width: 16, height: 16 },
-};
+export const PRESET_SIZES = Object.fromEntries(ICON_PRESET_DEFS.map((p) => [p.id, { width: p.size, height: p.size }])) as Record<
+  IconPreset,
+  { width: number; height: number }
+>;
 
 export const isIconPreset = (s: string): s is IconPreset => (ICON_PRESETS as readonly string[]).includes(s);
 

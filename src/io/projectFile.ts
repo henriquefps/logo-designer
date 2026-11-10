@@ -1,4 +1,4 @@
-import { newId, type Artboard, type DesignDocument, type Paint, type SceneNode, type Stroke, type SubPath } from '@/model';
+import { newId, type Artboard, type DesignDocument, type IconDocInfo, type Paint, type SceneNode, type Stroke, type SubPath } from '@/model';
 import { downloadBlob, safeFileName } from './download';
 
 export const PROJECT_EXTENSION = '.designer.json';
@@ -184,6 +184,21 @@ function artboard(v: unknown): Artboard {
   return { width, height, background: a.background === undefined ? { kind: 'none' } : paint(a.background, 'artboard.background') };
 }
 
+/** Optional app icon marker (`icon`): see src/icon and docs/project-format.md. */
+function iconInfo(v: unknown, path: string): { icon?: IconDocInfo } {
+  if (v === undefined || v === null) return {};
+  const o = obj(v, path);
+  const icon: IconDocInfo = {
+    preset: oneOf(o.preset, ['app-icon', 'android-adaptive', 'ios', 'favicon-32', 'favicon-16'] as const, 'app-icon', at(path, 'preset')),
+    shape: oneOf(o.shape, ['auto', 'circle', 'square', 'wide', 'tall'] as const, 'auto', at(path, 'shape')),
+  };
+  if (o.smallGlyphProjectId !== undefined) {
+    const id = str(o.smallGlyphProjectId, at(path, 'smallGlyphProjectId'));
+    if (id) icon.smallGlyphProjectId = id;
+  }
+  return { icon };
+}
+
 /**
  * Validates and normalizes a document object (project files, migrated data, CLI input). Throws a
  * readable message naming the JSON path that is wrong. Duplicate node ids are renewed; optional
@@ -209,6 +224,7 @@ export function validateDocument(data: unknown): DesignDocument {
       updatedAt: now,
       artboard: artboard(d.artboard),
       children: d.children.map((c, i) => node(c, ids, 0, `children[${i}]`)),
+      ...iconInfo(d.icon, 'icon'),
     };
   } catch (e) {
     if (e instanceof Invalid) throw new Error(`This project file is damaged at ${e.message}.`, { cause: e });

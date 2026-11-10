@@ -240,3 +240,26 @@ nodes render normally but are skipped by `hitTest`/`nodesInRect`, snapping and e
 PNG, JPG, Copy SVG); they are selectable only from the Layers panel. `useEditorStore.showReferences`
 hides them all from the view without touching the document. Entry points: File → Place reference
 image, Alt-drop of an image, "Use as reference" in Properties/Object/context menu.
+
+## App icon mode (`src/icon/`, `src/iconMode/`)
+
+`DesignDocument.icon?: { preset, shape, smallGlyphProjectId? }` marks an app icon document (New
+document → App icon, or File → Make this an app icon document). Everything else is untouched for
+other documents.
+
+- `src/icon/` is a **pure TS port of `build-icons.mjs`** from the `hfps-repo-assets` skill
+  (keylines, SMALL_FILL, BRAND, ink-box measurement, `fit()`, the report and warnings, every output
+  of the icon set, the .ico encoder, the review sheet, an RGB PNG encoder for iOS). Rendering is
+  injected (`Rasterize`, `IconRenderer`). It must change together with the script;
+  `src/icon/__tests__/parity.test.ts` measures the skill's glyphs with `@resvg/resvg-js` and checks
+  the script's printed numbers.
+- `src/iconMode/`: `glyph.ts` exports the glyph as the script's input (fragment, 128 space = the
+  visible tile, every paint → `currentColor` with its alpha, references/hidden skipped, text
+  outlined); `analysis.ts` measures it live (offscreen canvas, debounced) into `useIconStore`;
+  `fit.ts` is Fit to keyline (strokes scale with the glyph, like the script's `scale()`);
+  `commands.ts` builds the ZIP (jszip, lazy). The tile (`canvas/TileLayer.tsx`, under the artwork,
+  plus a filter that previews the glyph in white) and the keylines (`canvas/KeylinesOverlay.tsx`,
+  screen space, labels on hover) are view-only, never document nodes.
+- UI: Properties section `icon` (nothing selected), dialog `exportIcon` (File → Export icon…),
+  exporter `app-icon` in the Export dialog (`Exporter.when` hides it for other documents), actions
+  in `actions/modules/icon.ts`.

@@ -17,6 +17,8 @@ export interface Exporter {
   label: string;
   extension: string;
   order?: number;
+  /** Listed only when this returns true for the open document (default: always). */
+  when?: (doc: DesignDocument) => boolean;
   /** Optional settings UI rendered in the Export dialog; it owns its own state. */
   Options?: ComponentType;
   run: (req: ExportRequest) => Promise<void>;

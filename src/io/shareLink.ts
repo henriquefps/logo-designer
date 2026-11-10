@@ -67,8 +67,9 @@ export async function encodePayload(text: string): Promise<string> {
 
 /** base64url → inflate-raw → text. Throws a readable error for damaged or truncated links. */
 export async function decodePayload(data: string): Promise<string> {
-  const bytes = fromBase64Url(data);
   try {
+    // A cut link can also break the base64 itself (length ≡ 1 mod 4): same message.
+    const bytes = fromBase64Url(data);
     return new TextDecoder().decode(await through(bytes, new DecompressionStream('deflate-raw'), PAYLOAD_MAX_BYTES));
   } catch (e) {
     if (e instanceof Error && /larger than/.test(e.message)) throw e;
