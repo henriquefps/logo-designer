@@ -36,9 +36,18 @@ export const ANDROID = { canvas: 108, tile: 72, inset: 18, safeRadius: 33 } as c
 /** Ink coverage range (fraction of the tile). */
 export const INK_MIN = 0.08;
 export const INK_MAX = 0.32;
-/** Stroke width range, fraction of T (7-9 units in the 128 space). */
-export const STROKE_MIN = 0.055;
-export const STROKE_MAX = 0.07;
+/**
+ * Stroke width, fraction of T, measured AFTER fitting (what the user sees). Target 0.05-0.07 T
+ * (6.4-9 units in the 128 space); warn only below 0.045 T (5.76 units). Thick strokes never warn.
+ */
+export const STROKE_TARGET_MIN = 0.05;
+export const STROKE_TARGET_MAX = 0.07;
+export const STROKE_WARN_BELOW = 0.045;
+
+/** True when any fitted stroke width (128 space units) is thinner than STROKE_WARN_BELOW. */
+export function strokeWarning(fittedWidths: number[]): boolean {
+  return fittedWidths.some((w) => w < STROKE_WARN_BELOW * 128);
+}
 
 /** Measurement raster: render -64..192 (span 256) at 2048 px so ink outside 0..128 counts too. */
 export const MEASURE_PX = 2048;
