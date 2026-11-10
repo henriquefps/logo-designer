@@ -61,11 +61,15 @@ Below, `designer` means either form.
   file and use `designer link <file> --github` (short `?import=` link).
 - Don't drive the web UI with a browser automation tool to create artwork; the CLI runs the app's own
   code, so what passes `validate` opens identically in the app.
-- Deliver real, editable geometry. Avoid `clipPath`/`mask` for anything the person must edit; cut
-  shapes with boolean geometry instead.
+- Deliver real, editable geometry. Avoid `clipPath`/`mask` for anything the person must edit (the
+  importer does turn them into geometry, but you then can't control the result). To hide what is
+  behind a shape, **knock it out**: `designer info <project>` lists names and ids, then
+  `designer knockout <project> --cutter "<name|id>" [--gap 0.03T] [--outline-only] -o <project>`
+  cuts every object below the cutter where it sits, with a small gap, as plain editable paths
+  (same code as the app's Object → Knock out).
 - **App icons** (`--icon app-icon`) are **one colour**: every paint becomes `currentColor` (white on
-  the tile, themed on Android 13+). Express depth with opacity (1, 0.7, 0.45 front to back), never with
-  a tile-coloured shape. Sizes and keylines follow the `hfps-repo-assets` skill ("The icon: rules");
+  the tile, themed on Android 13+). Express depth with opacity (1, 0.7, 0.45 front to back) and separate
+  overlapping shapes with `knockout`, never with a tile-coloured shape. Sizes and keylines follow the `hfps-repo-assets` skill ("The icon: rules");
   the Designer's numbers are a port of its `build-icons.mjs`. Export for that script with
   `designer to-svg <project> --glyph -o scripts/glyph.svg`, or skip it with `designer icons`.
 - Several concepts = several files, one project each, named so the person can tell them apart.
