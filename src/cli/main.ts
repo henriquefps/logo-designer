@@ -1,7 +1,7 @@
 // `designer` CLI: create, convert, check and share Designer projects without the browser UI.
 // Runs under Bun (bin/designer.ts). Reuses src/model and src/io; see docs/agents.md.
-import { readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, relative, resolve } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify, type ParseArgsConfig } from 'node:util';
 import { createDocument, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
@@ -10,7 +10,7 @@ import { svgToDocument } from '@/io/svgDocument';
 import { exportSvg } from '@/io/svgExport';
 import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
-import { ICON_PRESETS, isIconPreset, parsePreset, type IconSettings } from './presets';
+import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -33,6 +33,9 @@ Usage: designer <command> [options]
   to-svg <project> [-o file] [--glyph]        clean SVG (text outlined); --glyph = 128 box + currentColor
                                               fragment for scripts/build-icons.mjs
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
+  icons <project> -o <dir> [--small <project>] [--shape S]
+                                              whole app icon set, same files and numbers as build-icons.mjs
+                                              (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt)
   validate <project…>                         check files; errors name the JSON path
   info <project> [--json]                     artboard, tree summary and bounds
   link <project|svg> [--origin URL]           #open= link that imports the file in Designer
@@ -55,6 +58,8 @@ const COMMON: ParseArgsConfig['options'] = {
   url: { type: 'string' },
   github: { type: 'boolean' },
   port: { type: 'string' },
+  small: { type: 'string' },
+  shape: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -84,11 +89,9 @@ async function emit(text: string | Uint8Array, output: string | undefined, io: C
   io.err(`Wrote ${what} to ${output}`);
 }
 
-/** Project JSON with an optional `icon` field (kept as-is until the model types include it). */
+/** Project JSON, with the app icon `icon` field when given. */
 function serializeWithIcon(doc: DesignDocument, icon?: IconSettings | null): string {
-  if (!icon) return serializeProject(doc);
-  const data = JSON.parse(serializeProject(doc)) as Record<string, unknown>;
-  return JSON.stringify({ ...data, icon }, null, 2) + '\n';
+  return serializeProject(icon ? { ...doc, icon } : doc);
 }
 
 const isSvgText = (t: string) => t.trimStart().startsWith('<');
@@ -100,7 +103,7 @@ export function wrapGlyphFragment(text: string): { text: string; wrapped: boolea
   return { text: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GLYPH_BOX} ${GLYPH_BOX}">\n${body}\n</svg>`, wrapped: true };
 }
 
-/** Reads a project file (or SVG, converted) into a validated document; keeps a raw `icon` field. */
+/** Reads a project file (or SVG, converted) into a validated document (with its `icon` field). */
 async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; icon: IconSettings | null; svg: boolean }> {
   const text = await readInput(path, io);
   if (isSvgText(text)) return { doc: svgToDocument(text, nameFromPath(path)).doc, icon: null, svg: true };
@@ -110,8 +113,8 @@ async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; 
   } catch (e) {
     throw new Error(`${path}: not valid JSON (${e instanceof Error ? e.message : e})`, { cause: e });
   }
-  const raw = (data && typeof data === 'object' ? (data as { icon?: IconSettings }).icon : undefined) ?? null;
-  return { doc: validateDocument(data), icon: raw, svg: false };
+  const doc = validateDocument(data);
+  return { doc, icon: doc.icon ?? null, svg: false };
 }
 
 const requireArg = (pos: string[], what: string) => {
@@ -319,6 +322,33 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
         const out = output ?? path.replace(/(\.designer)?\.(json|svg)$/i, '') + `-${Math.round(size)}.png`;
         await emit(new Uint8Array(png), out, io, 'PNG');
+        return 0;
+      }
+      case 'icons': {
+        const path = requireArg(pos, 'project file');
+        if (!output) throw new UsageError('icons needs -o <dir>');
+        const shape = str(values, 'shape');
+        if (shape && !(ICON_SHAPES as readonly string[]).includes(shape)) throw new UsageError(`--shape must be one of ${ICON_SHAPES.join(', ')}`);
+        const { doc } = await loadDoc(path, io);
+        const glyph = await exportGlyph(doc);
+        if (!glyph) throw new Error(`${path}: the glyph is empty`);
+        const smallPath = str(values, 'small');
+        const small = smallPath ? await exportGlyph((await loadDoc(smallPath, io)).doc) : undefined;
+        const { buildIconSet } = await import('@/icon/iconSet');
+        const { resvgRenderer } = await import('@/icon/resvgRenderer');
+        const base = (doc.name || 'icon').replace(/[\\/:*?"<>|]+/g, '-');
+        const result = await buildIconSet(
+          { glyph, small, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
+          resvgRenderer,
+        );
+        const dir = resolve(io.cwd ?? process.cwd(), output);
+        for (const f of result.files) {
+          const target = join(dir, f.path);
+          await mkdir(dirname(target), { recursive: true });
+          await writeFile(target, f.data);
+        }
+        io.out(result.report.lines.join('\n'));
+        io.err(`Wrote ${result.files.length} files to ${output}`);
         return 0;
       }
       case 'validate': {

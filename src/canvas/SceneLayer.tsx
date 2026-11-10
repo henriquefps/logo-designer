@@ -4,6 +4,8 @@ import { ArtboardRenderer } from './renderers/ArtboardRenderer';
 import { NodeRenderer } from './renderers/NodeRenderer';
 import { useView } from './overlays/useView';
 import { GridLayer } from './GridLayer';
+import { IconTileLayer } from '@/iconMode/canvas/TileLayer';
+import { useIconGlyphFilter } from '@/iconMode/hooks';
 
 const Nodes = memo(function Nodes({ nodes }: { nodes: ReturnType<typeof useDocStore.getState>['doc']['children'] }) {
   return (
@@ -20,15 +22,19 @@ export function SceneLayer() {
   const artboard = useDocStore((s) => s.doc.artboard);
   const children = useDocStore((s) => s.doc.children);
   const { zoom, pan } = useView();
+  const glyphFilter = useIconGlyphFilter();
   const t = `translate(${pan.x} ${pan.y}) scale(${zoom})`;
   return (
     <>
       <g transform={t}>
         <ArtboardRenderer artboard={artboard} />
+        <IconTileLayer />
       </g>
       <GridLayer />
       <g transform={t}>
-        <Nodes nodes={children} />
+        <g filter={glyphFilter}>
+          <Nodes nodes={children} />
+        </g>
         <rect
           width={artboard.width}
           height={artboard.height}

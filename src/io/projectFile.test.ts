@@ -66,4 +66,13 @@ describe('project file', () => {
     expect(back.children[1].id).not.toBe(r.id);
     expect(back.children[0].opacity).toBe(1);
   });
+
+  it('keeps the app icon marker and names a malformed one', () => {
+    const doc = createDocument({ icon: { preset: 'android-adaptive', shape: 'tall', smallGlyphProjectId: 'd_small' } });
+    expect(parseProject(serializeProject(doc)).icon).toEqual({ preset: 'android-adaptive', shape: 'tall', smallGlyphProjectId: 'd_small' });
+    expect(validateDocument({ ...createDocument(), icon: {} }).icon).toEqual({ preset: 'app-icon', shape: 'auto' });
+    expect(() => validateDocument({ ...createDocument(), icon: { preset: 'nope' } })).toThrow(/icon\.preset/);
+    expect(() => validateDocument({ ...createDocument(), icon: 'x' })).toThrow(/icon: expected an object/);
+    expect('icon' in validateDocument(createDocument())).toBe(false);
+  });
 });

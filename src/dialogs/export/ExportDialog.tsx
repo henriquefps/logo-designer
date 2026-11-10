@@ -46,7 +46,7 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; 
 export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const doc = useDocStore((s) => s.doc);
   const selection = useEditorStore((s) => s.selection);
-  const extra = getExporters();
+  const extra = getExporters().filter((e) => !e.when || e.when(doc));
   const [format, setFormat] = useState<string>('svg');
   const [scope, setScope] = useState<'artboard' | 'selection'>('artboard');
   const [scaleChoice, setScaleChoice] = useState<(typeof SCALES)[number]>('2');

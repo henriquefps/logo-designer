@@ -106,6 +106,19 @@ export interface Artboard {
   background: Paint; // none = transparent
 }
 
+export type IconPreset = 'app-icon' | 'android-adaptive' | 'ios' | 'favicon-32' | 'favicon-16';
+export type IconShapeSetting = 'auto' | 'circle' | 'square' | 'wide' | 'tall';
+
+/** Marks an app icon document (keylines, icon panel, icon-set export). See src/icon/. */
+export interface IconDocInfo {
+  /** app-icon (128 tile), android-adaptive (108 canvas, 72 visible), ios (1024), favicon-32, favicon-16. */
+  preset: IconPreset;
+  /** Keyline: auto detects square / wide / tall from the ink box; circle only when set. */
+  shape: IconShapeSetting;
+  /** Project used for the 16/32/48 px favicon glyph (glyph-small.svg) instead of this one. */
+  smallGlyphProjectId?: string;
+}
+
 export interface DesignDocument {
   schemaVersion: 1;
   id: Id;
@@ -114,6 +127,8 @@ export interface DesignDocument {
   updatedAt: number;
   artboard: Artboard;
   children: SceneNode[];
+  /** Present only on app icon documents. */
+  icon?: IconDocInfo;
 }
 
 export interface Rect {

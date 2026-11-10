@@ -29,7 +29,8 @@ bunx --bun github:henriquefps/logo-designer designer <command> …   # same thin
 | `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
 | `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P]` | editable project from an SVG: `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. Warnings go to stderr |
 | `designer to-svg <project> [-o file]` | clean SVG of the artboard, text outlined with the bundled fonts |
-| `designer to-svg <project> --glyph [-o file]` | glyph fragment for `scripts/build-icons.mjs`: artboard mapped to a 128 box, every color → `currentColor`, no `<svg>` wrapper |
+| `designer to-svg <project> --glyph [-o file]` | glyph fragment for `build-icons.mjs`, byte-identical to the app's File → Export icon → Glyph SVG: the visible tile (icon projects) or the artboard's long side mapped to a 128 box, every paint → `currentColor` keeping its alpha, references and hidden objects skipped, no `<svg>` wrapper |
+| `designer icons <project> -o <dir> [--small <project>] [--shape S]` | the whole icon set, same files and numbers as `build-icons.mjs` (ported to `src/icon/`, rendered with resvg): `docs-img/`, `site/`, `android/res/`, `ios/`, `review-sheet.png`, `README.txt`, `glyph.svg` and the project. Prints the script's report (`shape tall: glyph 48% x 68% of the tile, ink 11.0%` …). Look at `review-sheet.png` |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure |
 | `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with world bounds and ids |
@@ -78,7 +79,8 @@ app's File → Export.
      so opening `scripts/glyph.designer.json` and pressing ⌘S saves in place.
    - File → **Save project file as…** (⇧⌘S) picks another file.
    - For the icon build: `bun run designer to-svg scripts/glyph.designer.json --glyph -o scripts/glyph.svg`
-     (or the app's export once icon mode ships one).
+     (same bytes as the app's File → Export icon → Glyph SVG), then run `build-icons.mjs`; or
+     `bun run designer icons scripts/glyph.designer.json -o /tmp/icons` for the whole set without sharp.
 6. **Commit** `scripts/glyph.designer.json` (+ `scripts/glyph.svg`). An agent can pick up the edited
    JSON from the repo for the next round (`designer info`, edit JSON, `link` again).
 

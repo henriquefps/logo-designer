@@ -10,6 +10,7 @@ import { SceneLayer } from './SceneLayer';
 import { SelectionOverlay } from './overlays/SelectionOverlay';
 import { HoverOverlay } from './overlays/HoverOverlay';
 import { GuidesOverlay } from './overlays/GuidesOverlay';
+import { IconKeylinesOverlay } from '@/iconMode/canvas/KeylinesOverlay';
 import { Rulers } from './overlays/Rulers';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { useContextMenu } from './contextMenuStore';
@@ -232,6 +233,7 @@ export function CanvasView() {
           <SceneLayer />
         </svg>
         <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
+          <IconKeylinesOverlay />
           <HoverOverlay />
           <SelectionOverlay />
           <GuidesOverlay />

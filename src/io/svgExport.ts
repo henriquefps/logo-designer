@@ -36,6 +36,8 @@ export interface SvgExportOptions {
   background?: boolean;
   /** Convert text to paths through the fonts module (default true; falls back to <text>). */
   outlineText?: boolean;
+  /** Every paint becomes `currentColor`, keeping its alpha (app icon glyphs). */
+  currentColor?: boolean;
 }
 
 export interface SvgExportResult {
@@ -82,9 +84,17 @@ const translationOnly = (t: Transform) => t.rotation === 0 && t.scaleX === 1 && 
 class Writer {
   defs: string[] = [];
   private gradients = new Map<string, string>();
+  private currentColor: boolean;
+  constructor(currentColor = false) {
+    this.currentColor = currentColor;
+  }
 
   paint(p: Paint): { value: string; opacity?: number } {
     if (p.kind === 'none') return { value: 'none' };
+    if (this.currentColor) {
+      const alpha = p.kind === 'solid' ? splitColor(p.color).opacity : 1;
+      return { value: 'currentColor', opacity: alpha < 1 ? alpha : undefined };
+    }
     if (p.kind === 'solid') {
       const { color, opacity } = splitColor(p.color);
       return { value: color, opacity: opacity < 1 ? opacity : undefined };
@@ -265,7 +275,7 @@ export async function exportSvg(doc: DesignDocument, opts: SvgExportOptions = {}
   const selectionScope = opts.scope === 'selection';
   const area = exportArea(doc, opts);
   if (!area) throw new Error('Nothing is selected.');
-  const w = new Writer();
+  const w = new Writer(opts.currentColor);
   const outline = opts.outlineText !== false;
   const body: string[] = [];
 
