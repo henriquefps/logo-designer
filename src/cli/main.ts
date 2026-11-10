@@ -41,9 +41,13 @@ Usage: designer <command> [options]
   to-svg <project> [-o file] [--glyph]        clean SVG (text outlined); --glyph = 128 box + currentColor
                                               fragment for scripts/build-icons.mjs
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
-  icons <project> -o <dir> [--small <project>] [--shape S]
+  icons <project> -o <dir> [--small <project>] [--shape S] [--android <res>] [--ios <dir>] [--site <dir>]
                                               whole app icon set, same files and numbers as build-icons.mjs
-                                              (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt)
+                                              (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt);
+                                              includes drawable/ic_splash.xml (Android 12+ splash VectorDrawable).
+                                              --android/--ios/--site write that part straight into an app
+                                              (res dir, ios dir, web root) instead of under -o; an existing
+                                              values/ic_launcher_background.xml keeps its other colours
   validate <project…>                         check files; errors name the JSON path
   info <project> [--json]                     artboard, tree summary and bounds, node ids and names
   knockout <project> --cutter <id|name>[,…] [--targets <id|name>,…] [--gap N|NT] [--outline-only] [-o file]
@@ -78,6 +82,9 @@ const COMMON: ParseArgsConfig['options'] = {
   'no-open': { type: 'boolean' },
   'no-wait': { type: 'boolean' },
   small: { type: 'string' },
+  android: { type: 'string' },
+  ios: { type: 'string' },
+  site: { type: 'string' },
   shape: { type: 'string' },
   cutter: { type: 'string' },
   targets: { type: 'string' },
@@ -487,7 +494,8 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
       }
       case 'icons': {
         const path = requireArg(pos, 'project file');
-        if (!output) throw new UsageError('icons needs -o <dir>');
+        const targets = { 'android/res/': str(values, 'android'), 'ios/': str(values, 'ios'), 'site/': str(values, 'site') };
+        if (!output && !Object.values(targets).some(Boolean)) throw new UsageError('icons needs -o <dir> (or --android / --ios / --site)');
         const shape = str(values, 'shape');
         if (shape && !(ICON_SHAPES as readonly string[]).includes(shape)) throw new UsageError(`--shape must be one of ${ICON_SHAPES.join(', ')}`);
         const { doc } = await loadDoc(path, io);
@@ -496,20 +504,28 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const smallPath = str(values, 'small');
         const small = smallPath ? await exportGlyph((await loadDoc(smallPath, io)).doc) : undefined;
         const { buildIconSet } = await import('@/icon/iconSet');
+        const { mergeLauncherBackground } = await import('@/icon/outputs');
         const { resvgRenderer } = await import('@/icon/resvgRenderer');
         const base = (doc.name || 'icon').replace(/[\\/:*?"<>|]+/g, '-');
         const result = await buildIconSet(
           { glyph, small, shape: (shape as IconSettings['shape'] | undefined) ?? doc.icon?.shape ?? 'auto', extra: [{ path: `${base}.designer.json`, data: serializeProject(doc) }] },
           resvgRenderer,
         );
-        const dir = resolve(io.cwd ?? process.cwd(), output);
+        const cwd = io.cwd ?? process.cwd();
+        let written = 0;
         for (const f of result.files) {
-          const target = join(dir, f.path);
+          const hit = Object.entries(targets).find(([prefix, dir]) => dir && f.path.startsWith(prefix));
+          const root = hit ? resolve(cwd, hit[1]!) : output ? resolve(cwd, output) : null;
+          if (!root) continue;
+          const target = join(root, hit ? f.path.slice(hit[0].length) : f.path);
           await mkdir(dirname(target), { recursive: true });
-          await writeFile(target, f.data);
+          let data = f.data;
+          if (f.path === 'android/res/values/ic_launcher_background.xml') data = mergeLauncherBackground(await readFile(target, 'utf8').catch(() => null));
+          await writeFile(target, data);
+          written++;
         }
-        io.out(result.report.lines.join('\n'));
-        io.err(`Wrote ${result.files.length} files to ${output}`);
+        io.out([...result.report.lines, ...result.notes].join('\n'));
+        io.err(`Wrote ${written} files to ${[output, ...Object.values(targets)].filter(Boolean).join(', ')}`);
         return 0;
       }
       case 'validate': {

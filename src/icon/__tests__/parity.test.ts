@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { inkBox, report } from '../measure';
-import { REFERENCE_CIRCLE_SVG, sheetTiles } from '../outputs';
+import { BACKGROUND_COLOR_LINE, BACKGROUND_XML, mergeLauncherBackground, REFERENCE_CIRCLE_SVG, sheetTiles, splashVector } from '../outputs';
 import { buildIconSet } from '../iconSet';
 import { resvgRasterize, resvgRenderer } from '../resvgRenderer';
 
@@ -53,6 +53,7 @@ describe('icon set', () => {
       'android/res/mipmap-anydpi-v26/ic_launcher.xml',
       'android/res/mipmap-anydpi-v26/ic_launcher_round.xml',
       'android/res/values/ic_launcher_background.xml',
+      'android/res/drawable/ic_splash.xml',
       'ios/AppIcon.appiconset/AppIcon-1024.png',
       'ios/AppIcon.appiconset/Contents.json',
       'ios/AppIcon.appiconset/AppIcon-1024-dark.png',
@@ -85,5 +86,48 @@ describe('review sheet', () => {
     const row1 = sheetTiles(src).filter((t) => t.top === 16);
     expect(row1).toHaveLength(3);
     expect(row1.map((t) => t.svg.includes(REFERENCE_CIRCLE_SVG))).toEqual([true, false, false]);
+  });
+});
+
+describe('Android splash VectorDrawable (parity with build-icons.mjs)', () => {
+  for (const g of ['sync', 'olmapkit']) {
+    it(`ic_splash.xml of glyph-${g}.svg matches the script byte for byte`, async () => {
+      const { files } = await buildIconSet({ glyph: fixture(`glyph-${g}.svg`) }, resvgRenderer);
+      const f = files.find((x) => x.path === 'android/res/drawable/ic_splash.xml');
+      expect(f?.data).toBe(fixture(`ic_splash-${g}.xml`));
+    }, 60_000);
+  }
+
+  const fitF = { s: 0.5, tx: 10, ty: 20, attr: 'translate(10.000 20.000) scale(0.50000)' };
+  it('refuses transforms and unsupported tags instead of drawing wrong', () => {
+    expect(splashVector('<g transform="rotate(5)"><path d="M0 0H1V1Z"/></g>', fitF)).toEqual({ error: 'transform on <g>' });
+    expect(splashVector('<ellipse cx="1" cy="1" rx="1" ry="2"/>', fitF)).toEqual({ error: 'unsupported <ellipse>' });
+    expect(splashVector('', fitF)).toEqual({ error: 'no shapes' });
+  });
+
+  it('inherits <g> attributes, maps opacity, fill rule, caps and joins', () => {
+    const r = splashVector(
+      '<g opacity="0.5" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="2" x2="3" y2="4"/></g><circle cx="5" cy="5" r="2" fill-rule="evenodd"/>',
+      fitF,
+    );
+    expect(r.xml).toContain('android:pathData="M1 2L3 4"');
+    expect(r.xml).toContain('android:strokeAlpha="0.500"');
+    expect(r.xml).toContain('android:strokeLineCap="round"');
+    expect(r.xml).toContain('android:fillType="evenOdd"');
+    expect(r.xml).toContain('android:translateX="10.000"');
+  });
+});
+
+describe('ic_launcher_background.xml merge', () => {
+  it('sets only ic_launcher_background and keeps other colours', () => {
+    const prev = '<resources>\n    <color name="splash_background">#123456</color>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n';
+    const out = mergeLauncherBackground(prev);
+    expect(out).toContain('<color name="splash_background">#123456</color>');
+    expect(out).toContain(BACKGROUND_COLOR_LINE);
+    expect(out).not.toContain('#FFFFFF');
+  });
+  it('writes a fresh file when missing or without the entry', () => {
+    expect(mergeLauncherBackground(null)).toBe(BACKGROUND_XML);
+    expect(mergeLauncherBackground('<resources>\n    <color name="x">#000</color>\n</resources>\n')).toBe(BACKGROUND_XML);
   });
 });

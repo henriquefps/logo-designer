@@ -45,7 +45,9 @@ Below, `designer` means either form.
    - `designer to-png <project> --size 512 -o /tmp/x.png` and **look at the PNG**;
    - app icons: `designer icons <project> -o /tmp/icons` prints the keyline report (glyph size as a
      fraction of the tile, ink %, Android safe zone) and writes `review-sheet.png`: open it. Fix the
-     drawing, rebuild, repeat until there are no warnings.
+     drawing, rebuild, repeat until there are no warnings. It also writes `drawable/ic_splash.xml` (the
+     glyph as a VectorDrawable: point the Android 12+ splash theme at `@drawable/ic_splash`); `--android
+     <res>`, `--ios <dir>`, `--site <dir>` write straight into an app (existing `splash_background` kept).
 4. **Hand it over:** `designer open <project>` (one file) or `designer present a.json b.json c.json`
    (several concepts: a local gallery with previews and an *Open in Designer* button each; run it in
    the background and leave it running until the person has imported). The browser asks the person

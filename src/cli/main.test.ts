@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { readFileSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -172,7 +172,21 @@ describe('designer CLI', () => {
       expect((await readFile(join(dir, 'icons', f))).length).toBeGreaterThan(0);
     // The glyph is byte-identical to `to-svg --glyph`.
     expect(await readFile(join(dir, 'icons/glyph.svg'), 'utf8')).toBe((await cli('to-svg', 'sync.designer.json', '--glyph')).out + '\n');
+    // The Designer's own glyph export is plain paths, so the splash converter succeeds (no `!` note).
+    expect(await readFile(join(dir, 'icons/android/res/drawable/ic_splash.xml'), 'utf8')).toContain('<vector');
+    expect(r.out).not.toContain('! android splash');
     expect((await cli('icons', 'sync.designer.json')).code).toBe(2);
+
+    // --android writes straight into an app's res dir and keeps the other colours.
+    await mkdir(join(dir, 'app/res/values'), { recursive: true });
+    await writeFile(join(dir, 'app/res/values/ic_launcher_background.xml'), '<resources>\n    <color name="splash_background">#010203</color>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n');
+    const a = await cli('icons', 'sync.designer.json', '--android', 'app/res');
+    expect(a.code).toBe(0);
+    expect((await readFile(join(dir, 'app/res/drawable/ic_splash.xml'), 'utf8')).length).toBeGreaterThan(0);
+    expect((await readFile(join(dir, 'app/res/mipmap-xxxhdpi/ic_launcher_foreground.png'))).length).toBeGreaterThan(0);
+    const bg = await readFile(join(dir, 'app/res/values/ic_launcher_background.xml'), 'utf8');
+    expect(bg).toContain('splash_background">#010203');
+    expect(bg).toContain('name="ic_launcher_background"');
   }, 60_000);
 
   it('to-png renders with resvg', async () => {
