@@ -1,6 +1,6 @@
 # Port notes: system-themed iOS icons → `build-icons.mjs`
 
-What `~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs` needs so it produces the same files
+What `~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs` needs so it produces the same files
 as `src/icon/` again (iOS 18 Dark/Tinted variants and the iOS 26 Icon Composer file). The TS
 source is `src/icon/rules.ts` (constants), `src/icon/outputs.ts` (`IOS_APPICON`,
 `IOS_CONTENTS_JSON`, `iosDarkSvg`, `iosTintedSvg`, `icSrgb`, `iconComposerGlyphSvg`,

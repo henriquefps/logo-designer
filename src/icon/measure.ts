@@ -1,5 +1,5 @@
 // Ink-box measurement, shape detection, fit and the console report of build-icons.mjs.
-// MIRRORS ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs: change both together.
+// MIRRORS ~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs: change both together.
 // Pure: rasterization is injected (browser: offscreen canvas; tests: @resvg/resvg-js).
 import {
   ALPHA_THRESHOLD,

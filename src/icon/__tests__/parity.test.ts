@@ -9,7 +9,7 @@ import { resvgRasterize, resvgRenderer } from '../resvgRenderer';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 
-// Numbers printed by build-icons.mjs (hfps-repo-assets skill) for the same glyphs.
+// Numbers printed by build-icons.mjs (hfps-kit skill, repo-assets) for the same glyphs.
 const EXPECTED = {
   'glyph-sync.svg': { shape: 'tall', w: '48', h: '68', ink: 11.0, half: '29.9' },
   'glyph-olmapkit.svg': { shape: 'tall', w: '52', h: '68', ink: 8.5, half: '30.8' },

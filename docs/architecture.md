@@ -277,7 +277,7 @@ image, Alt-drop of an image, "Use as reference" in Properties/Object/context men
 document → App icon, or File → Make this an app icon document). Everything else is untouched for
 other documents.
 
-- `src/icon/` is a **pure TS port of `build-icons.mjs`** from the `hfps-repo-assets` skill
+- `src/icon/` is a **pure TS port of `build-icons.mjs`** from the `hfps-kit` skill (`repo-assets/GUIDE.md`)
   (keylines, SMALL_FILL, BRAND, ink-box measurement, `fit()`, the report and warnings, every output
   of the icon set, the .ico encoder, the review sheet, an RGB PNG encoder for iOS). Rendering is
   injected (`Rasterize`, `IconRenderer`). It must change together with the script;

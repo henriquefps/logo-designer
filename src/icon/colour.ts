@@ -1,5 +1,5 @@
 // Colour maths for app icons: WCAG contrast of the glyph against its tile, and the colours a
-// full-colour glyph fragment actually uses. MIRRORS ~/.agents/skills/hfps-repo-assets/assets/
+// full-colour glyph fragment actually uses. MIRRORS ~/.agents/skills/hfps-kit/repo-assets/assets/
 // build-icons.mjs (contrast warning): change both together. Pure.
 import { BRAND, GLYPH_DEFAULT, IOS_DARK_BG } from './rules';
 

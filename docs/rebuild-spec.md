@@ -22,7 +22,7 @@ Copy and adapt ideas freely; nothing old must survive as-is.
 Vite + React 19 + TypeScript (strict) + Tailwind v4 + shadcn/ui **`radix-vega`** style, Inter,
 Phosphor icons (UI chrome), zustand (+ immer) for state, paper.js (geometry), opentype.js (fonts),
 idb-keyval or a tiny IndexedDB wrapper, Vitest. Package manager: **bun**. UI follows the
-`hfps-app-ui` skill (olive tokens + palettes). **Default theme: palette `blue`, mode `light`**
+`hfps-kit` skill (`react/GUIDE.md`) (olive tokens + palettes). **Default theme: palette `blue`, mode `light`**
 (user can pick Light / Dark / System and palette from a menu; storage keys `designer.theme`,
 `designer.palette`).
 

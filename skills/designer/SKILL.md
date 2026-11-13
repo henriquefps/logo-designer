@@ -84,7 +84,7 @@ Below, `designer` means either form.
   `--colour full` (`from-svg --icon app-icon --colour full`, `new … --colour full`; stored as `icon.colour:
   "full-colour"`): the drawing's solids, gradients and opacity are kept in every output; Android monochrome becomes
   the silhouette, iOS Tinted the grayscale, iOS Dark the same colours on transparency. Heed a `! contrast:` warning
-  (glyph colours too close to the tile). The tile is always one solid colour. Sizes and keylines follow the `hfps-repo-assets` skill ("The icon: rules");
+  (glyph colours too close to the tile). The tile is always one solid colour. Sizes and keylines follow the `hfps-kit` skill (`repo-assets/GUIDE.md`) ("The icon: rules");
   the Designer's numbers are a port of its `build-icons.mjs`. Export for that script with
   `designer to-svg <project> --glyph -o scripts/glyph.svg`, or skip it with `designer icons`.
 - Several concepts = several files, one project each, named so the person can tell them apart.

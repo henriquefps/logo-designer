@@ -1,5 +1,5 @@
 // Icon document presets and keyline geometry. The tile T and every keyline follow
-// build-icons.mjs (MIRRORS ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs).
+// build-icons.mjs (MIRRORS ~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs).
 import type { Artboard, IconPreset } from '@/model/types';
 import { ANDROID, FAVICON_RX, KEYLINE, REFERENCE_CIRCLE, SMALL_FILL, TILE_RX } from './rules';
 

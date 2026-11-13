@@ -1,5 +1,5 @@
 // Bounding box of an SVG path `d` (curves and arcs sampled), for placing Android gradients on a
-// VectorDrawable path. MIRRORS pathBox() in ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs.
+// VectorDrawable path. MIRRORS pathBox() in ~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs.
 export interface Box {
   x: number;
   y: number;

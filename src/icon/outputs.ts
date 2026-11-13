@@ -1,5 +1,5 @@
 // Every output of build-icons.mjs: tile SVGs, Android layers and XML, iOS Contents.json, the .ico
-// container and the review sheet. MIRRORS ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs:
+// container and the review sheet. MIRRORS ~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs:
 // change both together. Pure string / byte builders, no DOM.
 import { darkReadable, hexOf } from './colour';
 import { faviconFill, fit, type Fit, type InkBox } from './measure';

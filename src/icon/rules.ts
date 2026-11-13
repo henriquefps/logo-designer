@@ -1,4 +1,4 @@
-// hfps app icon rules. MIRRORS ~/.agents/skills/hfps-repo-assets/assets/build-icons.mjs (and the
+// hfps app icon rules. MIRRORS ~/.agents/skills/hfps-kit/repo-assets/assets/build-icons.mjs (and the
 // "The icon: rules" table in that skill's SKILL.md). Every number here must change together with
 // that script: the Designer has to produce exactly what the script produces from the same glyph.
 
