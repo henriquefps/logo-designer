@@ -19,6 +19,7 @@ import { computeSnapTargets, snapPoint, snapRect, SNAP_PX, type SnapTarget, snap
 import { isProportional, resizeFactors } from '@/canvas/resizeMath';
 import { HANDLE_DIRS, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { ToolContext, ToolPointerEvent } from '../types';
+import { startLayoutDrag } from '@/wireframe/layoutDrag';
 
 interface Snapshot {
   nodes: { node: SceneNode; parent: Matrix }[];
@@ -65,6 +66,8 @@ export function startMove(ctx: ToolContext, start: Vec, ids: Id[], label = 'Move
   const snap = snapshot(doc, ids);
   const startBox = selectionBounds(doc, ids);
   const targets = snapTargetsExcluding(doc, ids);
+  // Wireframes: reorder / insert into stacks (null elsewhere).
+  const layout = startLayoutDrag(ctx.docStore, ids);
   return {
     move: (e) => {
       let dx = e.point.x - start.x;
@@ -81,13 +84,16 @@ export function startMove(ctx: ToolContext, start: Vec, ids: Id[], label = 'Move
         ed.setGuides(r.guides);
       }
       applyMatrix(ctx, snap, translation(dx, dy));
+      layout?.move(e.point, e.mod);
     },
     end: () => {
       ctx.editor().setGuides([]);
+      layout?.drop();
       ctx.docStore().commitTransaction();
     },
     cancel: () => {
       ctx.editor().setGuides([]);
+      layout?.cancel();
       ctx.docStore().cancelTransaction();
     },
   };
