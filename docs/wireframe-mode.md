@@ -241,6 +241,17 @@ vstack with padding 0, holding the header and an hstack (`align: stretch`) of `s
 content vstack (`fill` × `fill`, padding 24); see `library/__tests__/desktopScreen.ts` and
 `docs/screenshots/wireframe-library-desktop.png`. Kit additions: `iconSlot`, `searchBox`, `buttonBox`.
 
+### As built (library: phone and tablet, workstream 5b)
+
+- `top-app-bar` (title, leading none/back/menu/close, 0–3 action icons, large title), `bottom-navigation`,
+  `tabs`, `segmented-control` (list of labels + 1-based selected index; bottom navigation has an icon prop per tab,
+  up to 5), `section-header`, `fab` (a label makes it extended), `bottom-sheet`, `dialog` (main action + optional
+  other), `snackbar`, `image-grid` (columns 2–4, rows, gap; a fixed height shares the rows). Bars, rows, tabs, headers
+  and the sheet are `bleed`.
+- Definitions can declare a default position, `placement` (see architecture.md → Adding a component): bottom
+  navigation is pinned to the bottom; FAB (bottom right), snackbar (bottom), bottom sheet (bottom edge) and dialog
+  (centred) are free, placed by `defaultPlacement()` when inserted on a screen.
+
 ### As built (layout, workstream 2)
 
 - Screens are vertical stacks by default: phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align

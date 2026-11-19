@@ -60,6 +60,16 @@ export interface BuildResult {
   width?: number;
 }
 
+/**
+ * Where the library puts a new instance on a screen, when it should not just join the stack's flow:
+ * `pinned-bottom` (bottom navigation, action bars) or `free` at an anchor (FAB bottom right, snackbar
+ * bottom, bottom sheet at the bottom edge, dialog centred). Only applies when the target is a screen
+ * (not a nested stack); the user can change the position afterwards (Properties → In stack).
+ */
+export type DefaultPlacement =
+  | { position: 'pinned-bottom' }
+  | { position: 'free'; anchor: 'bottom-right' | 'bottom' | 'bottom-edge' | 'center' };
+
 export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   kind: string;
   label: string;
@@ -78,6 +88,8 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
    * Set it on components that span the screen and pad their own content: list rows, top bars, tabs, section headers.
    */
   sizing: { width: LayoutSize; height: LayoutSize; bleed?: boolean };
+  /** Default position of a new instance on a screen (absent = in the flow). See `DefaultPlacement`. */
+  placement?: DefaultPlacement;
   /** Size of a new instance outside a stack (and of instances without `component.size`). */
   defaultSize: { width: number; height: number };
   /** Pure and deterministic: same props + size → same children. */

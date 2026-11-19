@@ -499,6 +499,14 @@ row without children.
      the margins (headings, text, buttons, fields, cards). Instances inherit it; users override it per instance
      (Properties → In stack → Edge to edge, `layoutItem.bleed`). Outside stacks, a `defaultSize.width` of 390 (a
      phone) means edge to edge when inserted on a free screen; smaller `fill` components get 24 px margins.
+   - `placement` (optional): where a *new* instance goes on a screen when it should not join the flow:
+     `{ position: 'pinned-bottom' }` (bottom navigation) or `{ position: 'free', anchor }` with anchor
+     `bottom-right` (FAB), `bottom` (snackbar: 16 px sides, 24 px from the bottom), `bottom-edge` (bottom sheet:
+     full width on the bottom edge) or `center` (dialog). `defaultPlacement()` in `src/wireframe/instances.ts`
+     (pure, tested) computes position, width and `layoutItem`; `insertComponent` applies it when the target is a
+     screen (not a nested stack). It is stored on the instance like any layout choice, so the user changes it in
+     Properties → In stack. A screen without a stack layout gets pinned pieces at its bottom, as free content.
+     Free instances keep the width they were inserted with (the layout does not resize them).
    - `build(props, { width })` returns `{ children, height }` (and `width` when `sizing.width` is `hug`): nodes in
      the instance's local space, origin top-left, `0 ≤ x ≤ width`, `0 ≤ y ≤ height`. Pure and cheap: no stores, no
      randomness, same input → same output. Draw only with the kit and the tokens (no colours of your own).

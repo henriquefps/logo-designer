@@ -1,9 +1,9 @@
 // Component instances: creating one, where a new one goes inside a screen, Detach. Pure (the app's
 // commands in ./componentCommands.ts and the tests use it).
 import type { Draft } from 'immer';
-import { createGroup, isComponentNode, platformDef, type ComponentNode, type GroupNode, type SceneNode, type Vec } from '@/model';
+import { createGroup, isComponentNode, platformDef, type ComponentNode, type GroupNode, type LayoutItemInfo, type SceneNode, type Vec } from '@/model';
 import type { AnyComponentDef } from './library/types';
-import { defaultProps } from './library/types';
+import { defaultProps, resolveProps } from './library/types';
 import { contentBottom } from './screens';
 
 /** Space around content placed freely in a frame (until the frame has a stack layout). */
@@ -57,4 +57,52 @@ export function detachInstance(node: Draft<SceneNode>): boolean {
 /** True when `id` is a generated child of an instance (somewhere under a `component` group). */
 export function isGeneratedChild(path: readonly SceneNode[]): boolean {
   return path.some((a) => isComponentNode(a));
+}
+
+/** Margins of default-placed pieces (snackbar sides, FAB right edge, bottom distance of free ones). */
+export const PLACE_SIDE = 16;
+export const PLACE_BOTTOM = 24;
+
+/**
+ * Where and how big a new instance goes on a screen when its definition has a `placement` (null:
+ * no default, use the usual flow insert). `layoutItem` is what to store next to it (free / pinned);
+ * `at` is the top-left in the frame (free ones are absolute; pinned ones are placed by the layout).
+ * A frame without a stack layout keeps free content, so pinned pieces are just put at the bottom.
+ * `inset` = height of the bars already pinned to the bottom: free pieces anchored near the bottom (FAB,
+ * snackbar) sit above them.
+ */
+export function defaultPlacement(
+  def: AnyComponentDef,
+  props: Record<string, unknown>,
+  frame: { width: number; height: number; layout: boolean; inset?: number },
+): { at: Vec; width: number; layoutItem?: LayoutItemInfo } | null {
+  const pl = def.placement;
+  if (!pl) return null;
+  const build = (width: number) => {
+    try {
+      return def.build(resolveProps(def, props), { width });
+    } catch {
+      return { children: [], height: def.defaultSize.height, width: undefined };
+    }
+  };
+  if (pl.position === 'pinned-bottom') {
+    const height = build(frame.width).height;
+    return frame.layout ? { at: { x: 0, y: 0 }, width: frame.width, layoutItem: { position: 'pinned-bottom' } } : { at: { x: 0, y: Math.max(0, frame.height - height) }, width: frame.width };
+  }
+  const maxW = Math.max(1, frame.width);
+  const width = {
+    'bottom-right': () => Math.min(build(def.defaultSize.width).width ?? def.defaultSize.width, maxW),
+    bottom: () => Math.max(1, maxW - PLACE_SIDE * 2),
+    'bottom-edge': () => maxW,
+    center: () => Math.min(def.defaultSize.width, Math.max(1, maxW - FREE_MARGIN * 2)),
+  }[pl.anchor]();
+  const height = build(width).height;
+  const floor = frame.height - (frame.inset ?? 0) - PLACE_BOTTOM;
+  const at = {
+    'bottom-right': { x: frame.width - PLACE_SIDE - width, y: floor - height },
+    bottom: { x: PLACE_SIDE, y: floor - height },
+    'bottom-edge': { x: 0, y: frame.height - height },
+    center: { x: (frame.width - width) / 2, y: (frame.height - height) / 2 },
+  }[pl.anchor];
+  return { at: { x: Math.max(0, at.x), y: Math.max(0, at.y) }, width, layoutItem: { position: 'free' } };
 }
