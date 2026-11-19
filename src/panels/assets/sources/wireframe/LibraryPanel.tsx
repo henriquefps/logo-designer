@@ -17,6 +17,7 @@ import { defaultProps, type AnyComponentDef, type PropSpec } from '@/wireframe/l
 import { libraryFor, type LibraryGroup } from '@/wireframe/libraryIndex';
 import { frameOf, frames } from '@/wireframe/screens';
 import { WF } from '@/wireframe/style';
+import { cn } from '@/lib/utils';
 
 export const COMPONENT_DRAG_MIME = 'application/x-designer-component';
 
@@ -36,10 +37,16 @@ const defaultIcons = (def: AnyComponentDef) =>
 /** The default instance drawn small, on white (like a screen). */
 function Preview({ def, iconsReady }: { def: AnyComponentDef; iconsReady: number }) {
   const built = useMemo(() => {
-    const width = Math.min(def.defaultSize.width, PREVIEW_WIDTH);
+    let width = Math.min(def.defaultSize.width, PREVIEW_WIDTH);
     try {
-      const r = def.build(defaultProps(def), { width });
-      return { width: r.width && def.sizing.width === 'hug' ? Math.min(r.width, width) : width, height: r.height, children: withIds(r.children, `lib-${def.kind}`) };
+      const props = defaultProps(def);
+      let r = def.build(props, { width });
+      // Hug-width components (a button): draw them at the width their content needs.
+      if (def.sizing.width === 'hug' && r.width && r.width !== width) {
+        width = Math.min(r.width, PREVIEW_WIDTH);
+        r = def.build(props, { width });
+      }
+      return { width, height: r.height, children: withIds(r.children, `lib-${def.kind}`) };
     } catch {
       return null;
     }
@@ -51,7 +58,7 @@ function Preview({ def, iconsReady }: { def: AnyComponentDef; iconsReady: number
     <svg
       aria-hidden
       viewBox={`${-pad} ${-pad} ${built.width + pad * 2} ${built.height + pad * 2}`}
-      className="block h-auto max-h-20 w-full"
+      className="mx-auto block h-auto max-h-20 w-full"
       preserveAspectRatio="xMidYMid meet"
       style={{ background: WF.paper }}
     >
@@ -121,7 +128,11 @@ function Item({ def, iconsReady }: { def: AnyComponentDef; iconsReady: number })
       }}
       onClick={() => insert(def.kind)}
       title={`Insert ${def.label.toLowerCase()} (or drag it onto a screen)`}
-      className="group/item flex flex-col gap-1.5 rounded-md border bg-card p-1.5 text-left outline-none hover:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      className={cn(
+        'group/item flex flex-col gap-1.5 rounded-md border bg-card p-1.5 text-left outline-none hover:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+        // Wide components (rows, bars) get the whole line; small ones share it.
+        def.sizing.width === 'fill' && 'min-[340px]:col-span-2',
+      )}
     >
       <div className="overflow-hidden rounded-sm border">
         <Preview def={def} iconsReady={iconsReady} />

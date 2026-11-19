@@ -209,6 +209,22 @@ Wireframe mode):
   screens by `adopt`; connector = canvas overlay; Note tool **K**; `notesFor(doc)` (`src/wireframe/notes.ts`) for
   the AI export. See architecture.md → Notes.
 
+### As built (component system, workstream 3)
+
+- Components are authored with the kit in `src/wireframe/kit.ts` and the tokens in `style.ts`; the authoring guide
+  with a complete example is in `docs/architecture.md` → Wireframe mode → Adding a component. A contract test runs
+  on every component in the library.
+- Icon props hold the Icons panel's keys (`lucide:Heart`, `iconify:ph:heart`). The glyph is stored in the
+  instance's children like everything else, so files keep their icons in the CLI and offline; instances made
+  outside the app show a placeholder square until the app loads the icon.
+- Bad prop values in a file fall back to the default with a warning; a number out of range is clamped.
+- Library: Assets → Components (wireframes only). Click appends to the selected screen (or the selected stack, or
+  after the selected object in a stack); drag drops at the point (placed freely in the frame under the pointer
+  until the layout workstream's drop target exists). Starter kinds: `heading`, `button`, `list-row`; the
+  foundation's `placeholder` stays (older files load).
+- Instances are one object everywhere (canvas click in their whole box, Cmd-click, Layers). Object → Detach
+  component (⌥⌘B) or the Detach button in Properties turns one into a plain group.
+
 ### Mobile layout
 
 Desktop-first, like the rest of Designer. On a phone a wireframe can be viewed, moved around and

@@ -381,18 +381,9 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
   call `buildComponentInto(draftInstance, { width })` from `steps/components/index.ts` (returns the height).
   The `layout` / `layoutItem` types and their validation are in place (`LayoutInfo`, `LayoutItemInfo` in
   `src/model/types.ts`, `layoutInfo` / `layoutItemInfo` in `src/io/projectFile.ts`); extend them there.
-- **Component system**: one folder per kind, `src/wireframe/library/<kind>/index.ts` →
-  `export default defineComponent({ kind, label, platforms, category, props, sizing, defaultSize, build, describe })`
-  (`library/types.ts`: `PropSpec` types text, multiline, number, boolean, choice, icon, list; `PropsOf<S>` types
-  `build`'s props; `resolveProps(def, raw)` fills defaults). `library/registry.ts` exposes `getComponents()`,
-  `getComponent(kind)`, `isComponentKind(kind)` (the importer uses it: unknown kinds load as plain groups with a
-  warning). `build(props, { width, height? })` returns `{ children, height }` in the instance's local space
-  (origin top-left); keep it pure and cheap, and take colours, font and stroke from `src/wireframe/style.ts`.
-  `placeholder/` is the stand-in that proves the contract (a grey box with an X; its `label` prop rebuilds the
-  children): keep, restyle or replace it. Insert an instance with
-  `useDocStore.getState().addNodes([{ ...createGroup({ name, transform }), component: { kind, props } }], { parentId })`;
-  the pipeline builds it. Still to build: the library panel (an asset source `wireframe`), the generated
-  properties section (a `src/panels/properties/sections/component/`), Detach (drop `component`, keep children).
+- **Component system**: built; see [Components](#components-srcwireframelibrary) below. The layout step sizes an
+  instance with `buildComponentInto(draftInstance, { width })` (returns the hug height); a `hug`-width component
+  (`button`) also returns its content width as `BuildResult.width`.
 - `import.meta.glob` in the CLI: Bun does not expand it, so `bin/designer.ts` installs `src/cli/globPlugin.ts`
   first, which rewrites the eager form in files named `registry.ts`. Keep new registries in a `registry.ts` file.
 
@@ -407,6 +398,112 @@ export includes the notes. `notesFor(doc)` → `{ noteId, text, targetId?, scree
 export (`screenId` = logical screen of the frame containing the target). App: Note tool **K** (click a node =
 attached note next to it, empty canvas or Shift = free note), Object menu / context menu **Add note** on a selected
 node, `note` Properties section (text, Attached to, Detach); commands in `wireframe/noteCommands.ts`.
+
+### Components (`src/wireframe/library/`)
+
+A component instance is a `group` with `component: { kind, props, size? }` whose children the `components` step
+builds from the library (`build(props, size)`), inside the same undo step as the change. Pieces:
+
+| File | What |
+| --- | --- |
+| `library/types.ts` | `defineComponent`, `PropSpec` (text, multiline, number, boolean, choice, icon, list), `resolveProps` (defaults, never throws), `validateProps` (load: bad values → default + warning), `defaultProps` |
+| `library/registry.ts` | `getComponents()`, `getComponent(kind)`, `isComponentKind(kind)` (folder-discovered) |
+| `library/<kind>/index.ts` | one component; `heading`, `button`, `list-row`, `placeholder` so far |
+| `kit.ts` | the lo-fi drawing kit for `build()` (below) |
+| `style.ts` | the tokens: `WF` colours, `WF_TEXT` styles, `WF_SPACE`, `WF_RADIUS`, `WF_SIZE` |
+| `icons.ts` | icon names (`lucide:Heart`, `iconify:ph:heart`, shorthands), the glyph cache `build()` draws from, `harvestIcons` (glyphs come back from stored children, so files keep their icons anywhere) |
+| `iconLoader.ts` | app: `ensureIcons(names)` before an edit/insert; `startIconLoader()` (App) loads icons drawn as placeholders (CLI files, pastes) and rebuilds those instances |
+| `instances.ts` | `newInstance`, where a click/drop puts one (`appendPosition`, `dropPosition`), `detachInstance` |
+| `componentCommands.ts` | app: `insertComponent(kind, at?)`, `setComponentProp(id, key, value)`, `detachSelected()` |
+| `libraryIndex.ts` | the library panel's search and platform-first grouping |
+
+UI: the **Components** tab of Assets (`panels/assets/sources/wireframe/`, `AssetSource.when` shows it only in
+wireframes; previews render `build()` with the default props; click = append to the selected screen or stack, drag =
+drop at a point), the **component** Properties section (`panels/properties/sections/component/`, fields generated
+from the specs, the icon field opens the Icons panel as a picker: `IconsPanel({ onPick })`), **Object → Detach
+component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are leaves everywhere: a click
+anywhere in their box (`sizedGroupBox` = `component.size`) selects them, Cmd-click too, and Layers lists them as one
+row without children.
+
+#### Adding a component
+
+1. Create `src/wireframe/library/<kind>/index.ts` (`kind` in kebab-case, unique). Nothing else to register.
+2. `export default defineComponent({...})`:
+   - `label`, `category` (the library panel's group: Text, Actions, Inputs, Lists, Navigation, Media, Feedback,
+     Layout, Data…), `platforms` (`'all'` for common ones, else `['phone', 'tablet']` / `['desktop']`: shown first
+     for screens of those platforms), `keywords` (extra search words).
+   - `props`: one `PropSpec` per prop, with a `label` and a `default` (choices: `options`, optional `labels`; numbers:
+     `min`/`max`/`step`/`unit`; lists: `item`, `min`/`max`; any: `help`). They generate the properties section and
+     validate files, so keep them few and semantic (what the thing *is*, not how it looks).
+   - `sizing` (how it behaves in a stack: `fill` / `hug` / a number) and `defaultSize` (a new instance outside a
+     stack). A `defaultSize.width` of 390 (a phone) means edge to edge (rows, bars); smaller `fill` components get
+     24 px margins when inserted.
+   - `build(props, { width })` returns `{ children, height }` (and `width` when `sizing.width` is `hug`): nodes in
+     the instance's local space, origin top-left, `0 ≤ x ≤ width`, `0 ≤ y ≤ height`. Pure and cheap: no stores, no
+     randomness, same input → same output. Draw only with the kit and the tokens (no colours of your own).
+   - `describe(props)`: one plain line for the AI export: what it is and the content that matters
+     (`'List row "Language", → value "English"'`).
+3. Test it in `src/wireframe/library/__tests__/` (or next to it): sizes, props → children (names, texts),
+   `describe()`. `contract.test.ts` already checks every component: valid defaults, children inside the box,
+   wireframe colours only, deterministic, no throw for any prop value or width (40 → 1440).
+
+The kit (`src/wireframe/kit.ts`), all coordinates top-left:
+
+| Helper | Draws |
+| --- | --- |
+| `box({ x, y, width, height, radius?, fill?, stroke? })` | rectangle (default white with a light outline); tones `ink`, `inkMuted`, `line`, `fill`, `surface`, `paper`, `none` |
+| `circle`, `polyline`, `divider`, `part(name, children)` | circle, 1 px line, hairline, a named group |
+| `text(value, { x, y, style?, tone?, weight?, align? })` | real text in Inter; styles `title` 28, `heading` 22, `subheading` 18, `body` 16, `label` 14, `caption` 12 |
+| `textInBand(value, { …, height })`, `lineHeight(style)`, `textWidth(value, style)`, `truncate(value, maxWidth, style)` | vertical centring and measuring (real metrics in the app) |
+| `textBars({ x, y, width, lines })`, `textBarsHeight(lines)` | grey bars for copy whose words don't matter |
+| `imagePlaceholder({ x, y, width, height })`, `avatar({ x, y, size? })` | grey box with an X; grey circle with a silhouette |
+| `icon(name, { x, y, size?, tone? })` | an icon prop's glyph (null for `''`); a dashed placeholder until loaded |
+| `chevron({ x, y, size?, direction? })`, `toggle({ x, y, on? })`, `checkbox({ x, y, checked? })`, `radio({ x, y, selected? })` | controls (`TOGGLE` = 40 × 24) |
+| `nodes(...)` | drops `null` / `false` / `''`, for conditional children |
+
+Sizes to reuse: `WF_SIZE.control` 44 (buttons, fields), `controlSmall` 32, `row` 56 / `rowTall` 72, `icon` 20,
+`avatar` 40; spacing `WF_SPACE` 4 / 8 / 12 / 16 / 24.
+
+A complete example (a chip):
+
+```ts
+// src/wireframe/library/chip/index.ts
+import { box, icon, nodes, textInBand, textWidth } from '../../kit';
+import { iconDisplayName } from '../../icons';
+import { WF_RADIUS, WF_SIZE, WF_SPACE } from '../../style';
+import { defineComponent } from '../types';
+
+export default defineComponent({
+  kind: 'chip',
+  label: 'Chip',
+  platforms: 'all',
+  category: 'Inputs',
+  keywords: ['tag', 'filter', 'pill'],
+  props: {
+    label: { type: 'text', label: 'Label', default: 'Chip' },
+    selected: { type: 'boolean', label: 'Selected', default: false },
+    icon: { type: 'icon', label: 'Icon', default: '' },
+  },
+  sizing: { width: 'hug', height: 'hug' },
+  defaultSize: { width: 80, height: WF_SIZE.controlSmall },
+  build(p, { width }) {
+    const h = WF_SIZE.controlSmall;
+    const iconW = p.icon ? 16 + WF_SPACE.xs : 0;
+    const content = iconW + textWidth(p.label, 'label');
+    const x = (width - content) / 2;
+    return {
+      children: nodes(
+        box({ x: 0, y: 0, width, height: h, radius: WF_RADIUS.pill, fill: p.selected ? 'fill' : 'paper', stroke: p.selected ? 'ink' : 'line', name: 'Background' }),
+        icon(p.icon, { x, y: (h - 16) / 2, size: 16 }),
+        textInBand(p.label, { x: x + iconW, y: 0, height: h, style: 'label', name: 'Label' }),
+      ),
+      height: h,
+      width: Math.ceil(content + WF_SPACE.md * 2),
+    };
+  },
+  describe: (p) => `Chip "${p.label}"${p.selected ? ' (selected)' : ''}${p.icon ? ` with icon ${iconDisplayName(p.icon)}` : ''}`,
+});
+```
 
 ### App
 
