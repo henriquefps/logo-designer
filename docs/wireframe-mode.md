@@ -24,6 +24,8 @@ Each phase is useful on its own and ships as one or more PRs.
 1. **Base** (this spec, in detail below): wireframe document, infinite canvas, screens, semantic
    components, stack/grid layout, component library (common, mobile, desktop), notes, export
    package.
+1.5. **Refinements** from the first real use (2026-11-19, detailed below): sizes that follow,
+   containers as library elements, container appearance, repeat (lists of anything).
 2. **Flow**: arrows from an element to a screen; dropping an arrow on empty canvas offers "New
    screen"; present mode (click through screens like a prototype); shared components (edit the top
    bar once, every screen updates); screen status *current / changed / new*.
@@ -294,6 +296,110 @@ Order and ownership, for the coordinator. Each ends in a PR against `main`.
 4. **Notes** (after 1).
 5. **Library content** (after 2 and 3): common, phone/tablet, web/desktop. Can be split in three.
 6. **Export for AI** (after 3): the zip, Copy for AI, the markdown format.
+
+## Phase 1.5: refinements (from the first real use, 2026-11-19)
+
+Henrique built a screen and hit three gaps. They come before phase 2 because they change how every
+screen is built.
+
+### R1. Sizes that follow (no silent no-ops)
+
+Today a card resized to a taller height keeps drawing its border at its content height: `build()`
+ignores `size.height`. Rule (decided): **every component either follows the size it is given or
+says it can't.**
+
+- A definition declares which axes the user can size: `resizable: { width: boolean; height: boolean }`
+  (defaults: width true, height false). When height is resizable and the parent or the user fixes it
+  (`layoutItem.height` = number or `fill`), `build(props, { width, height })` must use it: the surface
+  (border, background) takes the whole box; content keeps its natural place (top for a card,
+  centred for an empty state, the image fills an image's box).
+- Components that are surfaces get resizable height: card, image, text area, empty state, dialog,
+  modal, bottom sheet, sidebar navigation, data table (more empty rows), cards grid, image grid,
+  paragraph (more bars), and any other where a taller box has an obvious meaning.
+- Where an axis is not resizable, the UI says so: no handle for that axis, and the W/H field is
+  read-only with a short hint ("Height follows the content").
+- The contract test checks it: for every component, building with a larger height either produces a
+  taller drawing (resizable) or the definition declares the axis fixed.
+
+### R2. Containers are library elements
+
+Stacks and grids exist but only as Object → Vertical stack (wrapping a selection), which nobody
+finds. Add a **Layout** category at the top of the library panel with **Vertical stack**,
+**Horizontal stack** and **Grid**: insert an empty container and drop elements into it; they arrange
+themselves by the container's kind (like SwiftUI's VStack/HStack). Requirements:
+
+- An empty container shows a dashed outline with "Drop elements here" on the canvas (never exported)
+  and has a minimum size so it can be targeted.
+- Dropping into nested containers works at any depth (the innermost container under the pointer
+  wins; the insertion line shows where).
+- Wrap selection stays (Object menu) and gets shortcuts; also "Change to horizontal / vertical / grid"
+  on a selected container.
+- Containers can be resized like components (fixed width/height or fill/hug, per R1).
+
+### R3. Container appearance (custom cards)
+
+To build a custom card the user needs a container that looks like a card. Containers get a lo-fi
+**style**: `none` (default), `outline` (1 px border), `filled` (light grey), `outline + filled`, plus a
+corner radius (0 / small / large from the style tokens). Still no colours. The library's Layout
+category includes **Card container** (a vertical stack with outline, radius, padding 16, gap 8).
+The export describes it ("Card container (outlined): …children").
+
+### R4. Repeat: lists of anything
+
+"A list of my custom card, with space between them." Any container can **repeat its first child**:
+`layout.repeat: { count: number }`. The first child is the template; the pipeline generates
+`count − 1` copies after it (materialized, like component children). Editing the template updates
+every copy. Copies can't be selected one by one (clicking one selects the template; Layers shows them
+as "Copy 2…n", read-only). The container's gap is the space between items, so vertical = list,
+horizontal = carousel, grid = gallery. Properties: "Repeat first item" switch + count. The export
+says "List of 6 × (Card container: …)". Turning repeat off keeps only the template.
+
+## Phase 2: flow (detailed)
+
+### Flows
+
+- Model: `wireframe.flows: { id, from: Id /* any node inside a frame */, to: Id /* logical screen id */, label?: string }[]`.
+- Drawing: a selected element inside a screen shows a small **flow handle** (a circle on its right
+  edge). Drag from it: dropping on a screen links to that logical screen; dropping on empty canvas
+  opens a small menu at the drop point: **New screen** (same platform, placed there, named after the
+  source's label, e.g. "Language") and **Generate with AI** (shown disabled with "Coming later" until
+  phase 4). A Flow tool is optional; the handle is the main way.
+- Arrows are a canvas overlay (never in screen exports): a curve from the source element to the
+  target frame's nearest edge, with an arrowhead, following moves. When the target logical screen has
+  several variants, point at the one with the same platform as the source frame, else the first.
+  Selecting an arrow lets you delete it or edit its label. Deleting a source element or a logical
+  screen removes its flows (inside the same undo step).
+- Properties of a selected element show its outgoing flows ("→ Language"), with remove.
+
+### Present mode
+
+View → Present (and a button in the status bar): shows one frame at a time, fitted, on a dark
+backdrop. Elements with a flow show a subtle hotspot on hover; clicking one goes to the target
+screen (same platform if it exists). Back (← / Backspace / a button) and Esc to leave. Starts at the
+selected screen, else the first. A platform switch when variants exist.
+
+### Screen status
+
+Each logical screen has `status?: 'current' | 'changed' | 'new'` (unset = not stated), set in the
+Screen section and shown as a small badge on the frame label. Typical use: import a screenshot as
+"current", duplicate it, edit the copy and mark it "changed".
+
+### Shared components (user components)
+
+Select a group or container and **Make component**: it becomes a **master** stored in
+`wireframe.symbols` and the selection becomes an instance (`symbol: { id }`). Instances are linked
+copies: editing the content of any instance updates the master and every instance (a pipeline step
+keeps them in sync, in the same undo step). Phase 2 has no per-instance overrides except position
+and size. The library panel lists them under **My components** for inserting on other screens.
+**Detach** turns an instance back into plain content. The export describes a shared component once
+("Shared: Top bar …") and refers to it by name in each screen. R4's repeat template may be a shared
+component.
+
+### Export additions
+
+README gets a **Flow** section (a list "Settings → Language (from "Language" row)" and a Mermaid
+`flowchart` of logical screens) and each screen's status; each screen file lists its outgoing flows
+next to their source elements ("→ opens Language").
 
 ## Quality bar
 
