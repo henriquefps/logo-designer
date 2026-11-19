@@ -1,8 +1,13 @@
 #!/usr/bin/env bun
 // `designer` CLI entry: `bun run designer …` in the repo, or
 // `bunx --bun github:henriquefps/logo-designer designer …` anywhere. See docs/agents.md.
-import { setupHeadless } from '../src/cli/env.ts';
-import { main } from '../src/cli/main.ts';
+// The glob loader goes first: registries (wireframe components and pipeline steps) use
+// `import.meta.glob`, which only Vite expands; so everything else is imported after it.
+import { installGlobPlugin } from '../src/cli/globPlugin.ts';
+
+installGlobPlugin();
+const { setupHeadless } = await import('../src/cli/env.ts');
+const { main } = await import('../src/cli/main.ts');
 
 await setupHeadless();
 // `bunx … designer <cmd>` passes the bin name along; accept it.

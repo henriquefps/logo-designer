@@ -23,6 +23,7 @@ import {
   type SceneNode,
   type Transform,
 } from '@/model';
+import { runWireframePipeline } from '@/wireframe/pipeline';
 
 enablePatches();
 
@@ -127,15 +128,22 @@ export const useDocStore = create<DocState>()((set, get) => {
     }));
   };
 
+  // Wireframe documents: after every change the materialization pipeline (src/wireframe/pipeline.ts)
+  // updates generated content inside the same undo step. Other documents return null right away.
   const apply: DocState['apply'] = (recipe, opts) => {
     const { doc, txn } = get();
     if (txn) {
-      const next = produce(doc, recipe);
-      if (next !== doc) set((s) => ({ doc: next, version: s.version + 1 }));
+      let next = produce(doc, recipe);
+      if (next === doc) return;
+      next = runWireframePipeline(next, doc, 'change', { patches: false })?.doc ?? next;
+      set((s) => ({ doc: next, version: s.version + 1 }));
       return;
     }
     const [next, patches, inverse] = produceWithPatches(doc, recipe);
-    commitEntry(next, patches, inverse, opts?.label ?? 'Edit');
+    if (!patches.length) return;
+    const m = runWireframePipeline(next, doc, 'settle');
+    if (m) commitEntry(m.doc, [...patches, ...m.patches], [...m.inverse, ...inverse], opts?.label ?? 'Edit');
+    else commitEntry(next, patches, inverse, opts?.label ?? 'Edit');
   };
 
   return {
@@ -152,8 +160,16 @@ export const useDocStore = create<DocState>()((set, get) => {
       set({ txn: { label, base: get().doc, selection: currentSelection() } });
     },
     commitTransaction: () => {
-      const { txn, doc } = get();
+      const { txn } = get();
       if (!txn) return;
+      let doc = get().doc;
+      if (doc !== txn.base) {
+        const settled = runWireframePipeline(doc, txn.base, 'settle', { patches: false });
+        if (settled) {
+          doc = settled.doc;
+          set((s) => ({ doc, version: s.version + 1 }));
+        }
+      }
       set({ txn: null });
       if (doc === txn.base) return;
       // One undo step: diff the top-level keys against the snapshot taken at begin.
@@ -198,7 +214,10 @@ export const useDocStore = create<DocState>()((set, get) => {
     canUndo: () => get().past.length > 0,
     canRedo: () => get().future.length > 0,
 
-    load: (doc) => set((s) => ({ doc, past: [], future: [], txn: null, version: s.version + 1 })),
+    load: (doc) => {
+      const ready = runWireframePipeline(doc, null, 'load', { patches: false })?.doc ?? doc;
+      set((s) => ({ doc: ready, past: [], future: [], txn: null, version: s.version + 1 }));
+    },
 
     addNodes: (nodes, opts = {}) => {
       apply(
