@@ -22,7 +22,7 @@ export function FlowDropMenu() {
       <DropdownMenuTrigger asChild>
         <span aria-hidden="true" className="pointer-events-none fixed size-0" style={{ left: origin.x + (menu?.screen.x ?? 0), top: origin.y + (menu?.screen.y ?? 0) }} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+      <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-72" onCloseAutoFocus={(e) => e.preventDefault()}>
         <DropdownMenuLabel className="text-xs text-muted-foreground">Flow from “{name || 'element'}”</DropdownMenuLabel>
         <DropdownMenuItem
           onSelect={() => {
@@ -36,7 +36,7 @@ export function FlowDropMenu() {
         <DropdownMenuItem disabled>
           <SparkleIcon />
           Generate with AI
-          <span className="ml-auto text-xs text-muted-foreground">Coming later</span>
+          <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">Coming later</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

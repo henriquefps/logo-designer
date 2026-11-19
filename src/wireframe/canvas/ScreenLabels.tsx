@@ -23,16 +23,17 @@ export function ScreenLabels() {
         const selected = selection.includes(f.id);
         const detail = `${platformDef(f.screen.platform).label} · ${Math.round(f.screen.width)}`;
         const status = screenStatus(doc, f.screen.screenId);
-        const badge = status && w > 80 ? STATUS_LABELS[status] : null;
+        const badge = status && w > 90 ? STATUS_LABELS[status] : null;
         const badgeW = badge ? Math.ceil(labelWidth(badge, 500) * (10 / 12)) + 12 : 0;
-        const bx = p.x + labelWidth(f.name, 500) + 8;
+        // Right-aligned on the frame's label strip: no need to measure the name.
+        const bx = p.x + w - badgeW;
         return (
           <g key={f.id}>
             <text x={p.x} y={p.y - 7} fill={selected ? 'var(--primary)' : 'var(--muted-foreground)'}>
               <tspan fontWeight={500} fill={selected ? 'var(--primary)' : 'var(--foreground)'}>
                 {f.name}
               </tspan>
-              {w > 140 && <tspan dx={badge ? badgeW + 14 : 6}>{detail}</tspan>}
+              {w > (badge ? 240 : 140) && <tspan dx={6}>{detail}</tspan>}
             </text>
             {badge && (
               <g data-slot="screen-status" data-status={status}>
