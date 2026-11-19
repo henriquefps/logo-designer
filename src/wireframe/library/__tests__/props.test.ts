@@ -74,3 +74,19 @@ describe('props on load', () => {
     ]);
   });
 });
+
+describe('conditional props (visibleWhen)', () => {
+  it('list row: Icon only for a leading icon, Value only for a value, On only for toggle/checkbox', async () => {
+    const { default: row } = await import('../list-row');
+    const { isPropVisible } = await import('../types');
+    const shown = (raw: Record<string, unknown>) => {
+      const p = resolveProps(row, raw);
+      return Object.entries(row.props).filter(([, s]) => isPropVisible(s, p)).map(([k]) => k);
+    };
+    expect(shown({})).toEqual(['title', 'subtitle', 'leading', 'trailing', 'divider']);
+    expect(shown({ leading: 'icon', trailing: 'value' })).toEqual(['title', 'subtitle', 'leading', 'leadingIcon', 'trailing', 'value', 'divider']);
+    expect(shown({ trailing: 'toggle' })).toContain('checked');
+    expect(shown({ trailing: 'checkbox' })).toContain('checked');
+    expect(shown({ trailing: 'chevron' })).not.toContain('checked');
+  });
+});

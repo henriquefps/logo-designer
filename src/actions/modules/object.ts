@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { allReferences, applyReference, applyWorldMatrix, findNode, parentWorldMatrix, rectCenter, scaleAbout, selectionBounds, walk } from '@/model';
+import { allReferences, applyReference, applyWorldMatrix, canRotateSelection, findNode, parentWorldMatrix, rectCenter, scaleAbout, selectionBounds, walk } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { doc, editableSelection, hasSelection, sel } from '../selection';
@@ -9,7 +9,11 @@ const ds = () => useDocStore.getState();
 const ed = () => useEditorStore.getState();
 const isGroupSelected = () => sel().some((id) => findNode(doc(), id)?.type === 'group');
 
+/** Notes and component instances are never flipped. */
+const canFlip = () => hasSelection() && canRotateSelection(doc(), sel());
+
 function flip(axis: 'x' | 'y') {
+  if (!canFlip()) return;
   const ids = editableSelection();
   const b = selectionBounds(doc(), ids);
   if (!b) return;
@@ -103,7 +107,7 @@ const actions: Action[] = [
     submenu: 'Transform',
     order: 20,
     shortcut: 'shift+h',
-    enabled: hasSelection,
+    enabled: canFlip,
     run: () => flip('x'),
   },
   {
@@ -114,7 +118,7 @@ const actions: Action[] = [
     submenu: 'Transform',
     order: 21,
     shortcut: 'shift+v',
-    enabled: hasSelection,
+    enabled: canFlip,
     run: () => flip('y'),
   },
   {

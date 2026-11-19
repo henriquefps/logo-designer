@@ -28,6 +28,6 @@ const group = (defs: AnyComponentDef[]): LibraryGroup[] => {
  * `others` = the rest (other platforms only), still reachable. With no platform everything is main.
  */
 export function libraryFor(defs: readonly AnyComponentDef[], platform: ScreenPlatform | null, query = ''): { main: LibraryGroup[]; others: LibraryGroup[] } {
-  const hits = defs.filter((d) => matchesComponent(d, query));
+  const hits = defs.filter((d) => !d.hidden && matchesComponent(d, query));
   return { main: group(hits.filter((d) => forPlatform(d, platform))), others: group(hits.filter((d) => !forPlatform(d, platform))) };
 }

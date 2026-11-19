@@ -11,7 +11,7 @@ import { ResponsiveDialog, ResponsiveDialogBody, ResponsiveDialogContent, Respon
 import { IconsPanel } from '@/assets-icons/IconsPanel';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
 import { getComponent } from '@/wireframe/library/registry';
-import { resolveProps, type PropSpec } from '@/wireframe/library/types';
+import { isPropVisible, resolveProps, type PropSpec } from '@/wireframe/library/types';
 import { detachSelected, setComponentProp } from '@/wireframe/componentCommands';
 import { ensureIcons } from '@/wireframe/iconLoader';
 import { iconDisplayName, iconGlyph, normalizeIconName, recolor } from '@/wireframe/icons';
@@ -46,7 +46,9 @@ function InstanceFields({ node }: { node: ComponentNode }) {
         </Button>
       }
     >
-      {Object.entries(def.props as Record<string, PropSpec>).map(([key, spec]) => (
+      {Object.entries(def.props as Record<string, PropSpec>)
+        .filter(([, spec]) => isPropVisible(spec, props))
+        .map(([key, spec]) => (
         <PropField key={key} id={`${node.id}-${key}`} spec={spec} value={props[key]} onChange={(v) => set(key, v)} />
       ))}
       <p className="text-xs text-muted-foreground" title="How the AI export describes this component">

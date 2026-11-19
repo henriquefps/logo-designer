@@ -1,4 +1,4 @@
-import { canResizeSelection } from '@/model';
+import { canResizeSelection, canRotateSelection } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { getSelectionFrame, handlePosition, rotationHandlePosition } from '../selectionFrame';
@@ -18,6 +18,7 @@ export function SelectionOverlay() {
   if (!frame) return null;
   const corners = frame.corners.map(toScreen);
   const showHandles = tool === 'select' && canResizeSelection(doc, selection);
+  const showRotate = showHandles && canRotateSelection(doc, selection);
   const tiny = frame.width * zoom < 16 || frame.height * zoom < 16;
   const top = toScreen(handlePosition(frame, 1));
   const rot = toScreen(rotationHandlePosition(frame, zoom));
@@ -26,8 +27,12 @@ export function SelectionOverlay() {
       <polygon points={corners.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="var(--primary)" strokeWidth={1} />
       {showHandles && !busy && (
         <>
-          <line x1={top.x} y1={top.y} x2={rot.x} y2={rot.y} stroke="var(--primary)" strokeWidth={1} />
-          <circle cx={rot.x} cy={rot.y} r={HANDLE / 2 + 1} fill="var(--card)" stroke="var(--primary)" strokeWidth={1.5} />
+          {showRotate && (
+            <>
+              <line x1={top.x} y1={top.y} x2={rot.x} y2={rot.y} stroke="var(--primary)" strokeWidth={1} />
+              <circle cx={rot.x} cy={rot.y} r={HANDLE / 2 + 1} fill="var(--card)" stroke="var(--primary)" strokeWidth={1.5} />
+            </>
+          )}
           {Array.from({ length: 8 }, (_, i) => {
             if (tiny && i % 2 === 1) return null;
             const p = toScreen(handlePosition(frame, i));
