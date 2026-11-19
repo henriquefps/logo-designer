@@ -253,7 +253,9 @@ describe('real components in a stack', () => {
     const b = (findNode(doc, 'btn') as ComponentNode).component.size!;
     expect(b.width).toBeLessThan(120);
     expect(b.width).toBeGreaterThan(30);
-    expect((findNode(doc, 'row') as ComponentNode).component.size).toEqual({ width: 358, height: 56 });
+    // list-row is edge to edge by default (sizing.bleed): it spans the screen's padding
+    expect((findNode(doc, 'row') as ComponentNode).component.size).toEqual({ width: 390, height: 56 });
+    expect(pos(doc, 'row')).toEqual([0, 16]);
     expect(pos(doc, 'btn')).toEqual([16, 16 + 56 + 12]);
   });
 });
@@ -265,5 +267,24 @@ describe('library drop', () => {
     const id = await insertComponent('heading', { x: 200, y: 175 });
     expect(order(s().doc)).toEqual(['a', id, 'b', 'c']);
     expect(pos(s().doc, id!)).toEqual([16, 128]);
+  });
+});
+
+describe('editing traits of stacks', () => {
+  it('a stack is not painted by the user and not rotated; its flow children are not rotated, free ones can be', async () => {
+    const { canRotateNode, canRotateSelection, isUserPaintable } = await import('@/model');
+    const r = { ...createRect({ width: 50, height: 20 }), id: 'r' };
+    const free = { ...createRect({ width: 50, height: 20 }), id: 'free', layoutItem: { position: 'free' as const } };
+    const stackNode: GroupNode = { ...createGroup({ name: 's' }), id: 's', layout: { kind: 'vstack', gap: 0, padding: 0, align: 'start' }, children: [r, free] };
+    const doc = wireframe([], [stackNode]);
+    const st = findNode(doc, 's')!;
+    expect(isUserPaintable(st)).toBe(false);
+    expect(canRotateNode(st)).toBe(false);
+    expect(canRotateSelection(doc, ['s'])).toBe(false);
+    expect(canRotateSelection(doc, ['r'])).toBe(false);
+    expect(canRotateSelection(doc, ['free'])).toBe(true);
+    expect(isUserPaintable(findNode(doc, 'r')!)).toBe(true);
+    // screens keep their behaviour
+    expect(canRotateNode(findNode(doc, 'F')!)).toBe(true);
   });
 });

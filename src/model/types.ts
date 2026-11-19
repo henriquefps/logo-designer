@@ -197,6 +197,11 @@ export interface LayoutItemInfo {
   height?: LayoutSize;
   /** `flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack. */
   position?: 'flow' | 'pinned-bottom' | 'free';
+  /**
+   * Edge to edge: the child ignores the parent's padding on the cross axis (horizontal padding in a
+   * vertical stack, vertical in a horizontal one; no effect in a grid). Default: the component's `sizing.bleed`.
+   */
+  bleed?: boolean;
 }
 
 /**

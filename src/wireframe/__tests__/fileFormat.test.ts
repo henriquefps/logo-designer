@@ -58,6 +58,7 @@ describe('wireframe file format', () => {
     expect(err(wf([screen([{ type: 'group', layout: { gap: 4 }, children: [] }])]))).toMatch(/children\[0\]\.children\[0\]\.layout\.kind: expected one of "vstack", "hstack", "grid", got nothing/);
     expect(err(wf([screen([{ type: 'group', layout: { kind: 'grid', columns: 1.5 }, children: [] }])]))).toMatch(/layout\.columns: expected a whole number/);
     expect(err(wf([screen([{ type: 'rect', width: 1, height: 1, layoutItem: { width: 'big' } }])]))).toMatch(/children\[0\]\.children\[0\]\.layoutItem\.width: expected "fill", "hug" or a number/);
+    expect(err(wf([screen([{ type: 'rect', width: 1, height: 1, layoutItem: { bleed: 'yes' } }])]))).toMatch(/children\[0\]\.children\[0\]\.layoutItem\.bleed: expected true or false/);
     expect(err(wf([], { wireframe: { screens: [{ id: 'a' }, { id: 'a' }] } }))).toMatch(/wireframe\.screens\[1\]\.id: duplicate/);
     expect(err(wf([], { icon: { preset: 'app-icon' } }))).toMatch(/wireframe: a document is either an app icon/);
   });

@@ -1,5 +1,6 @@
 import type { LayoutSize, SceneNode } from '@/model';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { itemSizing, type Position } from '@/wireframe/layout';
 import { layoutParent } from '@/wireframe/layoutEdit';
 import { setLayoutItem } from '@/wireframe/layoutCommands';
@@ -63,10 +64,26 @@ export function LayoutItemSection({ ctx }: { ctx: SelectionContext }) {
   const inFrame = ctx.ids.every((id) => !!layoutParent(ctx.doc, id)?.screen);
   const position = common(ctx.nodes, (n) => itemSizing(n).position);
   const plainOnly = ctx.nodes.every(isPlain);
+  // Edge to edge applies to stacks (not grids), for children in the flow.
+  const kinds = new Set(ctx.ids.map((id) => layoutParent(ctx.doc, id)?.layout.kind));
+  const crossBleed = !kinds.has('grid') && position !== 'free' && position !== 'pinned-bottom';
+  const bleed = common(ctx.nodes, (n) => itemSizing(n).bleed);
   return (
     <Section title="In stack">
       <SizeRow ctx={ctx} dim="width" />
       <SizeRow ctx={ctx} dim="height" />
+      {crossBleed && (
+        <FieldRow label="Edge to edge">
+          <div className="flex w-full items-center gap-2">
+            <Switch
+              aria-label="Edge to edge"
+              checked={bleed === true}
+              onCheckedChange={(v) => setLayoutItem(ctx.ids, { bleed: v }, v ? 'Edge to edge' : 'Inside the padding')}
+            />
+            <span className="text-xs text-muted-foreground">{bleed === null ? 'Mixed' : `Ignores the stack's ${kinds.has('hstack') && !kinds.has('vstack') ? 'top and bottom' : 'side'} padding`}</span>
+          </div>
+        </FieldRow>
+      )}
       <FieldRow label="Position">
         <Select value={position ?? ''} onValueChange={(p) => setLayoutItem(ctx.ids, { position: p as Position }, 'Position in stack')}>
           <SelectTrigger size="sm" className="w-full" aria-label="Position in stack">

@@ -241,8 +241,11 @@ Wireframe mode):
   are flow); free children don't count for the screen height.
 - Modifier to take a child out of every stack: **⌘ / Ctrl** while dropping (Alt is duplicate-drag). Resizing a
   child inside a stack makes that dimension fixed.
-- Open: a full-bleed option for flow children (a top app bar edge to edge in a padded screen); today use padding 0
-  on the screen and a padded inner stack, or build the bar's inset into the component.
+- Edge to edge: `layoutItem.bleed` (default from the component's `sizing.bleed`; list rows have it) makes a flow
+  child ignore the stack's cross-axis padding, so bars and rows span a padded screen. Properties → In stack → Edge
+  to edge.
+- Stacks are not painted, rotated or flipped by the user (like instances); children in a stack's flow are not
+  rotated either (free children can be).
 
 ### Mobile layout
 

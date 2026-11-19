@@ -1,7 +1,7 @@
 // Screen frames of wireframe documents (docs/wireframe-mode.md). Pure geometry the model needs
 // (bounds, hit testing, scale baking); the behaviour lives in src/wireframe.
 import type { DesignDocument, GroupNode, Rect, ScreenPlatform, SceneNode } from './types';
-import { findNode } from './tree';
+import { findNode, locate } from './tree';
 
 export interface PlatformDef {
   id: ScreenPlatform;
@@ -55,17 +55,28 @@ export function sizedGroupBox(n: SceneNode): Rect | null {
 /** False for nodes whose size is not the user's to change (notes: fixed width, auto height): no resize/rotate handles, no W/H/rotation/flip fields. */
 export const canResizeNode = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
 
-/** False for nodes that are not styled by the user (notes, component instances): the fill/stroke swatches skip them and Properties hides Appearance / Fill / Stroke. */
-export const isUserPaintable = (n: SceneNode): boolean => !(n.type === 'group' && (!!n.note || !!n.component));
+/** A stack / grid of a wireframe (a group with `layout` that is neither a screen frame nor an instance). */
+const isStack = (n: SceneNode): boolean => n.type === 'group' && !!n.layout && !n.screen && !n.component;
 
-/** False for nodes that are never rotated or flipped (notes, component instances: they are resized, which rebuilds them): no rotate handle, no rotation/flip fields. */
-export const canRotateNode = (n: SceneNode): boolean => canResizeNode(n) && !(n.type === 'group' && !!n.component);
+/** False for nodes that are not styled by the user (notes, component instances, stacks / grids): the fill/stroke swatches skip them and Properties hides Appearance / Fill / Stroke. */
+export const isUserPaintable = (n: SceneNode): boolean => !(n.type === 'group' && (!!n.note || !!n.component)) && !isStack(n);
+
+/** False for nodes that are never rotated or flipped (notes, component instances: they are resized, which rebuilds them; stacks / grids): no rotate handle, no rotation/flip fields. */
+export const canRotateNode = (n: SceneNode): boolean => canResizeNode(n) && !(n.type === 'group' && !!n.component) && !isStack(n);
+
+/** A child placed by its parent's stack / grid (not `free`): the layout owns its transform, so it is never rotated. */
+export function isInLayoutFlow(doc: DesignDocument, id: string): boolean {
+  const loc = locate(doc, id);
+  if (!loc || loc.parent === doc) return false;
+  const p = loc.parent as GroupNode;
+  return !!p.layout && !p.component && loc.node.layoutItem?.position !== 'free';
+}
 
 /** Whether every node of the selection can be rotated/flipped. */
 export const canRotateSelection = (doc: DesignDocument, ids: readonly string[]): boolean =>
   ids.every((id) => {
     const n = findNode(doc, id);
-    return !n || canRotateNode(n);
+    return !n || (canRotateNode(n) && !(doc.wireframe && isInLayoutFlow(doc, id)));
   });
 
 /** Whether every node of the selection can be resized/rotated. */

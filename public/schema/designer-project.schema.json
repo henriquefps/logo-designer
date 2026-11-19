@@ -410,6 +410,10 @@
             "free"
           ],
           "description": "`flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack."
+        },
+        "bleed": {
+          "type": "boolean",
+          "description": "Edge to edge: the child ignores the parent's padding on the cross axis (horizontal padding in a vertical stack, vertical in a horizontal one; no effect in a grid). Default: the component's `sizing.bleed`."
         }
       },
       "description": "A child's sizing inside a layout container. Missing fields take the defaults (component `sizing`, containers fill × hug)."

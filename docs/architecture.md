@@ -383,7 +383,8 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
   component rebuilds through `env.build` = `buildComponentInto(draft, { width, height? })`), never assigning an
   equal value. Measurements are memoized in `WeakMap`s keyed by node identity (a component's height by its
   `component` object and width), so untouched subtrees cost a cache hit. Rules: vstack / hstack / grid; gap,
-  padding (all sides); align = cross axis (`stretch` makes hugging children fill it); sizes `fill` (main axis:
+  padding (all sides; `bleed` children ignore it on the cross axis: vstack sides, hstack top/bottom, not in grids);
+  align = cross axis (`stretch` makes hugging children fill it); sizes `fill` (main axis:
   share what is left; a vstack grows fill children from their hug height up to the container's minimum height),
   `hug` (a component's build height / its definition's default width; a stack's content), a number (fixed,
   passed to `build` as `height`). Plain shapes and groups keep their size and are only moved (their bounds land
@@ -466,7 +467,8 @@ UI: the **Components** tab of Assets (`panels/assets/sources/wireframe/`, `Asset
 wireframes; previews render `build()` with the default props; click = append to the selected screen or stack, drag =
 drop at a point: into the stack under it at that index, `layoutDropTarget` + the insertion line `showDropLine`), the **component** Properties section (`panels/properties/sections/component/`, fields generated
 from the specs, the icon field opens the Icons panel as a picker: `IconsPanel({ onPick })`), **Object → Detach
-component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are not user-styled and
+component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances (and stacks / grids, and
+children in a stack's flow for rotation: `isInLayoutFlow`) are not user-styled and
 never rotate or flip (`isUserPaintable` / `canRotateNode` in `model/screen.ts`: no Appearance section, the
 fill/stroke swatches ignore them, no rotate handle, rotation field or flip); resizing changes the width they are
 built for. Instances are leaves everywhere: a click
@@ -489,9 +491,14 @@ row without children.
      component and the values ones they can take (`isPropVisible(spec, props)` in `library/types.ts`).
    - `hidden: true` keeps a component out of the library panel (stand-ins like `placeholder`); its instances still
      load, render and edit.
-   - `sizing` (how it behaves in a stack: `fill` / `hug` / a number) and `defaultSize` (a new instance outside a
-     stack). A `defaultSize.width` of 390 (a phone) means edge to edge (rows, bars); smaller `fill` components get
-     24 px margins when inserted.
+   - `sizing` (how it behaves in a stack: `width` / `height` = `fill` / `hug` / a number, and `bleed`) and
+     `defaultSize` (a new instance outside a stack). **`bleed: true` = edge to edge**: in a stack the instance
+     ignores the stack's cross-axis padding (a screen's 16 px side padding), so set it on everything that spans the
+     screen and pads its own content: list rows, top app bars, bottom navigation, tabs, section headers, headers
+     with navigation, toolbars, footers, dividers that run to the edge. Leave it off for content that sits inside
+     the margins (headings, text, buttons, fields, cards). Instances inherit it; users override it per instance
+     (Properties → In stack → Edge to edge, `layoutItem.bleed`). Outside stacks, a `defaultSize.width` of 390 (a
+     phone) means edge to edge when inserted on a free screen; smaller `fill` components get 24 px margins.
    - `build(props, { width })` returns `{ children, height }` (and `width` when `sizing.width` is `hug`): nodes in
      the instance's local space, origin top-left, `0 ≤ x ≤ width`, `0 ≤ y ≤ height`. Pure and cheap: no stores, no
      randomness, same input → same output. Draw only with the kit and the tokens (no colours of your own).

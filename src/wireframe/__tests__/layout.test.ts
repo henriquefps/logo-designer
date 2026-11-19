@@ -111,6 +111,46 @@ describe('vertical stack (a screen)', () => {
   });
 });
 
+describe('edge to edge (bleed)', () => {
+  it('vstack: a bleeding child ignores the horizontal padding', () => {
+    const doc = wireframe([box('a', 40), box('b', 40, { bleed: true }), box('c', 40, { bleed: true, width: 100 })], { kind: 'vstack', gap: 0, padding: 20, align: 'center' });
+    expect(pos(doc, 'a')).toEqual([20, 20]);
+    expect(size(doc, 'a')).toEqual([350, 40]);
+    expect(pos(doc, 'b')).toEqual([0, 60]);
+    expect(size(doc, 'b')).toEqual([390, 40]);
+    expect(pos(doc, 'c')).toEqual([145, 100]); // centred in the full width
+  });
+
+  it('hstack: a bleeding child ignores the vertical padding', () => {
+    const row = stack('row', { kind: 'hstack', gap: 0, padding: 10, align: 'stretch' }, [box('a', 40, { width: 100 }), box('b', 40, { width: 100, bleed: true })]);
+    const doc = wireframe([row]);
+    expect(size(doc, 'row')).toEqual([358, 60]);
+    expect(pos(doc, 'a')).toEqual([10, 10]);
+    expect(size(doc, 'a')).toEqual([100, 40]);
+    expect(pos(doc, 'b')).toEqual([110, 0]);
+    expect(size(doc, 'b')).toEqual([100, 60]);
+  });
+
+  it('grids ignore it', () => {
+    const doc = wireframe([stack('g', { kind: 'grid', columns: 2, gap: 0, padding: 10 }, [box('a', 40, { bleed: true })])]);
+    expect(pos(doc, 'a')).toEqual([10, 10]);
+  });
+
+  it('components inherit their definition default; an instance can override it', () => {
+    const row = (id: string, item?: LayoutItemInfo): ComponentNode => ({ ...createGroup({ name: id }), id, component: { kind: 'list-row', props: {} }, ...(item ? { layoutItem: item } : {}) });
+    const doc = wireframe([row('dflt'), row('inside', { bleed: false })]);
+    expect(pos(doc, 'dflt')[0]).toBe(0);
+    expect(size(doc, 'dflt')?.[0]).toBe(390);
+    expect(pos(doc, 'inside')[0]).toBe(16);
+    expect(size(doc, 'inside')?.[0]).toBe(358);
+  });
+
+  it('a hugging stack is as wide as its widest edge-to-edge child', () => {
+    const doc = wireframe([stack('s', { kind: 'vstack', padding: 20 }, [box('a', 20, { width: 50 }), box('b', 20, { width: 120, bleed: true })], { width: 'hug' })]);
+    expect(size(doc, 's')?.[0]).toBe(120);
+  });
+});
+
 describe('pinned-bottom and free', () => {
   it('pinned children sit at the bottom of the minimum height, full width, edge to edge', () => {
     const doc = wireframe([box('a', 100), box('nav', 64, { position: 'pinned-bottom' })]);

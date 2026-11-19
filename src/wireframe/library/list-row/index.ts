@@ -25,7 +25,7 @@ export default defineComponent({
     checked: { type: 'boolean', label: 'On', default: true, visibleWhen: { trailing: ['toggle', 'checkbox'] } },
     divider: { type: 'boolean', label: 'Divider', default: false },
   },
-  sizing: { width: 'fill', height: 'hug' },
+  sizing: { width: 'fill', height: 'hug', bleed: true }, // edge to edge: the row pads its own content
   defaultSize: { width: 390, height: WF_SIZE.row },
   build(p, { width }) {
     const h = p.subtitle ? WF_SIZE.rowTall : WF_SIZE.row;

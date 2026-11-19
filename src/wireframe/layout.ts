@@ -11,6 +11,8 @@
 // fill × hug; plain shapes and groups always hug their bounds and are only moved):
 //   - a number: fixed;
 //   - `hug`: the content (a component's build height; the width its build reports, else its default width);
+//   - `bleed` (edge to edge; default from the component's `sizing.bleed`): the child ignores the
+//     padding on the cross axis (vstack: horizontal, hstack: vertical; grids ignore it);
 //   - `fill`: main axis: shares the space left (vstack: grows from its hug height, only when the
 //     container is taller than its content, e.g. a screen's minimum height); cross axis: the
 //     container's inner size. `align: stretch` makes hugging children fill the cross axis.
@@ -55,17 +57,17 @@ export function defaultScreenLayout(platform: ScreenPlatform): LayoutInfo {
 
 export type Position = NonNullable<LayoutItemInfo['position']>;
 
-/** How a child sits in its container: the sizes and position after defaults. */
-export function itemSizing(n: SceneNode): { width: LayoutSize; height: LayoutSize; position: Position } {
+/** How a child sits in its container: the sizes, position and bleed after defaults. */
+export function itemSizing(n: SceneNode): { width: LayoutSize; height: LayoutSize; position: Position; bleed: boolean } {
   const item = n.layoutItem ?? {};
   const position = item.position ?? 'flow';
   if (n.type === 'group' && n.component) {
     const def = getComponent(n.component.kind);
-    const base = def?.sizing ?? { width: 'hug', height: 'hug' };
-    return { width: item.width ?? base.width, height: item.height ?? base.height, position };
+    const base: { width: LayoutSize; height: LayoutSize; bleed?: boolean } = def?.sizing ?? { width: 'hug', height: 'hug' };
+    return { width: item.width ?? base.width, height: item.height ?? base.height, position, bleed: item.bleed ?? base.bleed ?? false };
   }
-  if (isLayoutContainer(n)) return { width: item.width ?? 'fill', height: item.height ?? 'hug', position };
-  return { width: 'hug', height: 'hug', position };
+  if (isLayoutContainer(n)) return { width: item.width ?? 'fill', height: item.height ?? 'hug', position, bleed: item.bleed ?? false };
+  return { width: 'hug', height: 'hug', position, bleed: item.bleed ?? false };
 }
 
 /** Plain shapes and groups keep their size: the layout only moves them. */
@@ -130,7 +132,15 @@ export function hugWidth(n: SceneNode): number {
   else if (c.layout.kind === 'grid') {
     const cols = gridColumns(c.layout);
     w = cols * Math.max(0, ...ws) + g * (cols - 1);
-  } else w = Math.max(0, ...ws);
+  } else {
+    // vstack: edge-to-edge children span the padding too.
+    const flow = flowChildren(c, false);
+    const inner = flow.filter((n) => !itemSizing(n).bleed).map(basisWidth);
+    const bleed = flow.filter((n) => itemSizing(n).bleed).map(basisWidth);
+    w = Math.max(inner.length ? Math.max(...inner) + 2 * p : 2 * p, ...bleed);
+    widthCache.set(c, w);
+    return w;
+  }
   w += 2 * p;
   widthCache.set(c, w);
   return w;
@@ -249,8 +259,11 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
     if (box.height === undefined && box.minHeight !== undefined) ih = Math.max(ih, box.minHeight - 2 * p - pinnedTotal);
     let x = p;
     for (const m of ms) {
-      const h = m.fillH ? ih : m.h;
-      items.push({ index: m.index, x, y: p + crossOffset(L.align, ih, h), width: m.w, height: h });
+      // Edge to edge: the cross axis is the full height (no vertical padding).
+      const bleed = itemSizing(m.node).bleed;
+      const space = bleed ? ih + 2 * p : ih;
+      const h = m.fillH ? space : m.h;
+      items.push({ index: m.index, x, y: (bleed ? 0 : p) + crossOffset(L.align, space, h), width: m.w, height: h });
       x += m.w + g;
     }
     const H = box.height ?? Math.max(box.minHeight ?? 0, ih + 2 * p + pinnedTotal);
@@ -280,7 +293,11 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
   }
 
   // vstack
-  const ms = flow.map((n) => ({ ...measure(n, iw, iw, L.align), index: indexOf.get(n)! }));
+  // Edge-to-edge children measure against the full width (no horizontal padding).
+  const ms = flow.map((n) => {
+    const space = itemSizing(n).bleed ? W : iw;
+    return { ...measure(n, space, space, L.align), index: indexOf.get(n)! };
+  });
   const content = ms.reduce((a, m) => a + m.h, 0) + g * Math.max(0, ms.length - 1);
   const H = box.height ?? Math.max(box.minHeight ?? 0, content + 2 * p + pinnedTotal);
   const fills = ms.filter((m) => m.fillH);
@@ -288,7 +305,8 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
   if (fills.length && extra > EPS) for (const m of fills) m.h += extra / fills.length;
   let y = p;
   for (const m of ms) {
-    items.push({ index: m.index, x: p + crossOffset(L.align, iw, m.w), y, width: m.w, height: m.h });
+    const x = itemSizing(m.node).bleed ? crossOffset(L.align, W, m.w) : p + crossOffset(L.align, iw, m.w);
+    items.push({ index: m.index, x, y, width: m.w, height: m.h });
     y += m.h + g;
   }
   placePinned(H);

@@ -73,7 +73,11 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   /** Drives the generated properties section. */
   props: S;
   /** Default behaviour inside a stack. */
-  sizing: { width: LayoutSize; height: LayoutSize };
+  /**
+   * `bleed`: edge to edge in a stack (ignores the parent's cross-axis padding) unless the instance overrides it.
+   * Set it on components that span the screen and pad their own content: list rows, top bars, tabs, section headers.
+   */
+  sizing: { width: LayoutSize; height: LayoutSize; bleed?: boolean };
   /** Size of a new instance outside a stack (and of instances without `component.size`). */
   defaultSize: { width: number; height: number };
   /** Pure and deterministic: same props + size → same children. */
