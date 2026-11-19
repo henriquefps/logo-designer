@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeftIcon, XIcon } from '@phosphor-icons/react';
 import { platformDef, type ScreenNode, type ScreenPlatform } from '@/model';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
@@ -70,8 +70,8 @@ function Presenter() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
-  const shown = useMemo<ScreenNode | null>(() => (frame ? { ...frame, transform: { ...frame.transform, x: 0, y: 0 } } : null), [frame]);
-  const spots = useMemo(() => hotspots(doc, state), [doc, state]);
+  const shown: ScreenNode | null = frame ? { ...frame, transform: { ...frame.transform, x: 0, y: 0 } } : null;
+  const spots = hotspots(doc, state);
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
   if (!frame || !shown) return null;
 
@@ -135,7 +135,7 @@ function Presenter() {
               onClick={() => follow(h.flow)}
               aria-label={h.flow.label || `Open ${doc.wireframe?.screens.find((s) => s.id === h.flow.to)?.name ?? 'screen'}`}
               title={h.flow.label}
-              className={`absolute cursor-pointer rounded-sm outline-2 -outline-offset-1 transition-colors hover:bg-sky-400/20 hover:outline hover:outline-sky-400 focus-visible:bg-sky-400/20 focus-visible:outline focus-visible:outline-sky-400 ${flash ? 'bg-sky-400/15 outline outline-sky-400/70' : ''}`}
+              className={`absolute cursor-pointer rounded-sm outline-2 -outline-offset-1 transition-colors hover:bg-sky-400/20 hover:outline-sky-400 focus-visible:bg-sky-400/20 focus-visible:outline-sky-400 ${flash ? 'bg-sky-400/15 outline-sky-400/70' : 'outline-transparent'}`}
               style={{ left: h.rect.x * scale, top: h.rect.y * scale, width: h.rect.width * scale, height: h.rect.height * scale }}
             />
           ))}
