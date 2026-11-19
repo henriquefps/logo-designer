@@ -47,6 +47,9 @@ const step: WireframeStep = {
     for (const f of all) {
       const logical = wf.screens.find((s) => s.id === f.screen.screenId)!;
       if (f.name !== logical.name) f.name = logical.name;
+      // Geometry only changes when the frame (or anything in it) did: skip untouched frames.
+      const snapshot = plain(f) as ScreenNode;
+      if (ctx.phase !== 'load' && ctx.previous(f.id) === snapshot) continue;
       const t = f.transform;
       if (t.rotation !== 0 || t.scaleX !== 1 || t.scaleY !== 1) {
         f.screen.width *= Math.abs(t.scaleX);
@@ -55,7 +58,7 @@ const step: WireframeStep = {
       const width = Math.max(1, Math.round(f.screen.width * 100) / 100);
       if (f.screen.width !== width) f.screen.width = width;
       if (!platformDef(f.screen.platform)) f.screen.platform = 'phone';
-      const height = screenHeight(plain(f) as ScreenNode);
+      const height = screenHeight(f.screen.width !== snapshot.screen.width ? (plain(f) as ScreenNode) : snapshot);
       if (f.screen.height !== height) f.screen.height = height;
     }
   },

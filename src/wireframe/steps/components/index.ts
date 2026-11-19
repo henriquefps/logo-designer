@@ -34,15 +34,18 @@ export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: n
   return built.height;
 }
 
-function visit(nodes: readonly SceneNode[], draftNodes: Draft<SceneNode>[], ctx: PipelineContext) {
+/** Index paths of the instances to rebuild. Walks plain nodes only; skips subtrees that did not change. */
+function stale(nodes: readonly SceneNode[], ctx: PipelineContext, path: number[], out: number[][]) {
   nodes.forEach((n, i) => {
     if (n.type !== 'group') return;
+    const prev = ctx.previous(n.id);
+    if (ctx.phase !== 'load' && prev === n) return; // untouched subtree (immer structural sharing)
     if (n.component) {
-      const prev = ctx.previous(n.id) as GroupNode | null;
-      if (ctx.phase === 'load' || !prev || prev.component !== n.component) buildComponentInto(draftNodes[i] as Draft<ComponentNode>);
-      return; // generated children are never instances to rebuild on their own
+      // Generated children are never instances to rebuild on their own.
+      if (ctx.phase === 'load' || !prev || (prev as GroupNode).component !== n.component) out.push([...path, i]);
+      return;
     }
-    visit(n.children, (draftNodes[i] as Draft<GroupNode>).children, ctx);
+    stale(n.children, ctx, [...path, i], out);
   });
 }
 
@@ -52,7 +55,17 @@ const step: WireframeStep = {
   run(d, ctx) {
     // Traverse a plain snapshot (cheap: the input itself unless an earlier step wrote to the
     // draft); touch the draft only on the path to a rebuilt instance.
-    visit(plain(d).children, d.children, ctx);
+    const paths: number[][] = [];
+    stale(plain(d).children, ctx, [], paths);
+    for (const p of paths) {
+      let list = d.children as Draft<SceneNode>[];
+      let node: Draft<SceneNode> | undefined;
+      for (const i of p) {
+        node = list[i];
+        list = node.type === 'group' ? node.children : [];
+      }
+      if (node) buildComponentInto(node as Draft<ComponentNode>);
+    }
   },
 };
 
