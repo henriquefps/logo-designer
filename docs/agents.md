@@ -44,6 +44,7 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | `designer fit <project> [-o file]` | **scale and centre the glyph of an app icon project onto its keyline**: the same transform as the app's *Fit to keyline* (shared code, strokes scale with the glyph), measured like `icons`. In place unless `-o`. Prints before/after (long side as a fraction of T, on keyline yes/no). Error if the project is not an app icon. Run it after manual edits or `knockout`; exports fit automatically, so this only keeps the canvas in line with them. Idempotent |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer to-png <wireframe> [--screen N] [--platform P] [--size N] [-o dir\|file.png]` | wireframe projects: **one PNG per screen frame**, `<screen>.<platform>.png` (e.g. `settings.phone.png`) in `-o dir` (default `<project>-screens/`); `--screen` (name or slug) and `--platform` pick frames; `--size` = PNG width (default the frame width, 1×; the height follows the frame). One matching frame and `-o x.png` writes that file |
+| `designer export-ai <wireframe> [-o out.zip \| --dir folder]` | wireframe projects: the **Export for AI** package, same as File → Export for AI… in the app: `README.md` (screens and platforms, free notes), `screens/<slug>.md` (every variant's component tree from the components' descriptions, with the notes next to their elements), `screens/<slug>.<platform>.png` (resvg, notes excluded) and `project.designer.json`, in a `<project>/` folder inside the zip. Default output `<project>-for-ai.zip`; `--dir` writes the files into a folder instead. Give the zip (or the `.md` files) to an agent that builds the app |
 | `designer to-svg <wireframe> [--screen N] [--platform P] [-o file]` | one screen frame (white, content clipped; `--platform` when the screen has several) or, without `--screen`, every screen on one canvas |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure. For icon projects, a `note:` (not an error) when the glyph is off its keyline |
 | `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with names, world bounds and ids (`[id]` at the end of each line); for icon projects also `keyline: …, on keyline: yes/no` (`keyline` in `--json`): use them to address objects in `knockout` |
@@ -117,7 +118,8 @@ Content goes inside a frame's `children` in the frame's local space (origin = it
 instances (`component: { kind, props }`) are generated on open; write their props, not their children.
 `validate`, `info` and the renders materialize the file first (screen heights, component children), exactly
 like the app does on open, and print a `warning:` for what was ignored (an unknown component kind loads as a
-plain group). More wireframe commands (components, flows, export for AI) come in phase 3.
+plain group). `export-ai` turns the project into the package an AI agent reads to build the app (`bun run designer export-ai notes.designer.json`).
+More wireframe commands (components, flows) come in phase 3.
 
 ## The workflow
 

@@ -569,6 +569,17 @@ export default defineComponent({
 });
 ```
 
+### Export for AI (`src/wireframe/aiExport.ts`)
+
+Pure module: `aiMarkdown(doc)` (README + one markdown per logical screen), `aiMarkdownCombined(doc)` (the
+clipboard text), `aiPackageFiles` / `aiZip(doc, renderPng)` (the package; the caller supplies the PNG
+renderer: `renderExport` in the app, resvg in the CLI's `export-ai`). Component lines are each definition's
+`describe()`, so new components need nothing here. Stacks are named only when they hold more than one child;
+`layoutItem.position` becomes "pinned to bottom" / "floating, bottom right"; notes (`notesFor`) are written under
+the element they are attached to (generated children resolve to their instance). Slugs come from the logical
+screen names, `-2`, `-3` on a clash. Phase 2 hooks: `README_SECTIONS` (flows) and `SCREEN_SECTIONS` (status).
+UI: File → Export for AI… and Copy for AI (`src/io/aiExportActions.ts`), wireframe documents only.
+
 ### App
 
 - Canvas: no artboard, grid over the whole view (`GridLayer`), Fit (⌘0) fits the content

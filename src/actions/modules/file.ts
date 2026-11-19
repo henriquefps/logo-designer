@@ -8,6 +8,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { IMAGE_ACCEPT, openSvgFileAsDocument, placeReferenceImage, SVG_ACCEPT } from '@/io/importActions';
 import { copySvgToClipboard } from '@/io/exportActions';
+import { copyForAi, exportForAi } from '@/io/aiExportActions';
 import type { Action } from '../types';
 
 const open = (id: string) => useEditorStore.getState().openDialog(id);
@@ -144,6 +145,28 @@ const actions: Action[] = [
     order: 22,
     shortcut: 'mod+alt+c',
     run: () => void copySvgToClipboard(),
+  },
+  {
+    id: 'file.exportForAi',
+    label: 'Export for AI…',
+    menu: 'file',
+    group: 'io',
+    order: 23,
+    get hidden() {
+      return !useDocStore.getState().doc.wireframe;
+    },
+    run: () => void exportForAi(),
+  },
+  {
+    id: 'file.copyForAi',
+    label: 'Copy for AI',
+    menu: 'file',
+    group: 'io',
+    order: 24,
+    get hidden() {
+      return !useDocStore.getState().doc.wireframe;
+    },
+    run: () => void copyForAi(),
   },
 ];
 
