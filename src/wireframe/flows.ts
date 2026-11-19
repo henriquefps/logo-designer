@@ -59,11 +59,13 @@ export const flowsTo = (doc: DocLike, screenId: Id): WireframeFlow[] => flowsOf(
 /**
  * The node a flow from `id` starts at: `id` itself, or the component instance it was generated
  * for (generated children are not elements). Null when `id` is not inside a screen frame (the
- * frame itself, a note, a node on the bare canvas, a missing id).
+ * frame itself, a note, a node on the bare canvas, a repeat copy, a missing id).
  */
 export function flowSource(doc: DocLike, id: Id): Id | null {
   const loc = locate(asDoc(doc), id);
   if (!loc || !loc.ancestors.length || !isScreenNode(loc.ancestors[0])) return null;
+  // Repeat copies (and their content) are generated: flows start at the template, never at a copy.
+  if (loc.node.repeatCopy || loc.ancestors.some((a) => a.repeatCopy)) return null;
   const owner = loc.ancestors.slice(1).find((a) => isComponentNode(a));
   return owner ? owner.id : id;
 }

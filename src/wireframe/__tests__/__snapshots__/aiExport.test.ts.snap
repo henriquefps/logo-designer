@@ -15,6 +15,8 @@ Wireframe of an app, exported for an AI agent. It describes structure and conten
 - Each screen file has one section per variant (platform and width). A variant is a full layout for that device class, not a responsive rule.
 - Components are indented lists, top to bottom, as laid out. Children are indented under their container.
 - "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.
+- "Card container (outlined)" (or filled) is a group drawn as a card around its children.
+- "List of 6 × (…)" is a repeated item: build it once and repeat it (a list, a horizontal list or a grid); the content under it is one item.
 - "Note:" lines are the designer's remarks about the element above them.
 - \`screens/<name>.<platform>.png\` is an image of each variant; \`project.designer.json\` is the editable project.
 - Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.

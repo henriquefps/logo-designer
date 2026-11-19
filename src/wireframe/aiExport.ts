@@ -32,6 +32,8 @@ import { notesFor, type NoteForExport } from './notes';
 import { logicalScreen, screenSlug } from './screens';
 import { flowOpensLine, flowReadmeSection, flowScreenSection, STATUS_TEXT } from './flowExport';
 import { flowsOf } from './flows';
+import { styleWords } from './containers';
+import { repeatCount, repeatTemplate } from './repeat';
 
 const PLATFORM_ORDER: ScreenPlatform[] = ['phone', 'tablet', 'desktop'];
 const platformLabel = (p: ScreenPlatform) => p[0].toUpperCase() + p.slice(1);
@@ -92,6 +94,22 @@ export function aiScreens(doc: DesignDocument): AiScreen[] {
 // ---------- the component tree ----------
 
 const stackName = (l: LayoutInfo) => (l.kind === 'vstack' ? 'Vertical stack' : l.kind === 'hstack' ? 'Horizontal stack' : `Grid (${l.columns ?? 2} columns)`);
+
+/** A container's line: its kind, and its look when styled ("Card container (outlined)", "Grid (2 columns, filled)"). */
+function containerName(l: LayoutInfo): string {
+  const look = styleWords(l);
+  if (!look) return stackName(l);
+  if (l.kind === 'vstack') return `Card container (${look})`;
+  if (l.kind === 'hstack') return `Horizontal stack (${look})`;
+  return `Grid (${l.columns ?? 2} columns, ${look})`;
+}
+
+/** "List of 6 × (…)", by the container's kind: vertical = list, horizontal = carousel, grid = gallery. */
+function listName(l: LayoutInfo, count: number, item: string): string {
+  if (l.kind === 'hstack') return `Horizontal list of ${count} × (${item})`;
+  if (l.kind === 'grid') return `Grid of ${count} × (${item}), ${l.columns ?? 2} columns`;
+  return `List of ${count} × (${item})`;
+}
 
 function shapeLine(n: SceneNode): string {
   switch (n.type) {
@@ -193,7 +211,8 @@ class TreeWriter {
 
   /** Children in reading order: stack order for a laid-out parent, top-to-bottom for free placement. */
   private ordered(parent: GroupNode): SceneNode[] {
-    const kids = parent.children.filter((c) => c.visible && !c.reference);
+    // Repeat copies are described once, by their template ("List of N × (…)").
+    const kids = parent.children.filter((c) => c.visible && !c.reference && !c.repeatCopy);
     if (parent.layout) return kids;
     return [...kids].sort((a, b) => a.transform.y - b.transform.y || a.transform.x - b.transform.x);
   }
@@ -218,14 +237,43 @@ class TreeWriter {
       } else text = `Component "${n.component.kind}" (unknown kind)`;
       return this.line(depth, withPos(text), [n.id, ...carried]);
     }
-    const kids = n.children.filter((c) => c.visible && !c.reference);
+    const kids = n.children.filter((c) => c.visible && !c.reference && !c.repeatCopy);
     if (!kids.length) return;
     if (n.layout) {
+      const template = repeatTemplate(n);
+      if (template && kids.includes(template)) return this.repeat(n as GroupNode & { layout: LayoutInfo }, template, kids, depth, withPos, carried);
       // A single child in a plain stack adds nothing: list the child directly.
-      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
-      this.line(depth, withPos(stackName(n.layout)), [n.id, ...carried]);
+      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos && !styleWords(n.layout)) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
+      this.line(depth, withPos(containerName(n.layout)), [n.id, ...carried]);
     } else this.line(depth, withPos('Group'), [n.id, ...carried]);
     this.write(n, depth + 1, false);
+  }
+
+  /** A repeating container: "List of N × (template)", the template's content under it, then any other children. */
+  private repeat(n: GroupNode & { layout: LayoutInfo }, template: SceneNode, kids: SceneNode[], depth: number, withPos: (t: string) => string, carried: Id[]): void {
+    const count = repeatCount(n.layout);
+    const rest = kids.filter((c) => c !== template);
+    const own = !rest.length && !styleWords(n.layout);
+    const at = own ? depth : depth + 1;
+    if (!own) this.line(depth, withPos(containerName(n.layout)), [n.id, ...carried]);
+    let item: string;
+    let inner: GroupNode | null = null;
+    if (template.type !== 'group') item = shapeLine(template);
+    else if (isComponentNode(template)) {
+      const def = getComponent(template.component.kind);
+      try {
+        item = def ? def.describe(resolveProps(def, template.component.props)) : `Component "${template.component.kind}" (unknown kind)`;
+      } catch {
+        item = `${def?.label ?? 'Unknown'} component`;
+      }
+    } else {
+      item = template.layout ? containerName(template.layout) : 'Group';
+      inner = template;
+    }
+    const text = listName(n.layout, count, item) + (inner && inner.children.some((c) => c.visible && !c.reference) ? ', each:' : '');
+    this.line(at, own ? withPos(text) : text, own ? [n.id, template.id, ...carried] : [template.id]);
+    if (inner) this.write(inner, at + 1, false);
+    for (const c of rest) this.node(c, depth + 1, false, []);
   }
 
   /** Notes attached to something in this frame that no line could carry (e.g. a hidden node). */
@@ -311,6 +359,8 @@ export function aiMarkdown(doc: DesignDocument): AiMarkdown {
     '- Each screen file has one section per variant (platform and width). A variant is a full layout for that device class, not a responsive rule.',
     '- Components are indented lists, top to bottom, as laid out. Children are indented under their container.',
     '- "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.',
+    '- "Card container (outlined)" (or filled) is a group drawn as a card around its children.',
+    '- "List of 6 × (…)" is a repeated item: build it once and repeat it (a list, a horizontal list or a grid); the content under it is one item.',
     '- "Note:" lines are the designer\'s remarks about the element above them.',
     '- `screens/<name>.<platform>.png` is an image of each variant; `project.designer.json` is the editable project.',
     ...(screens.some((s) => s.status) ? ['- Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.'] : []),

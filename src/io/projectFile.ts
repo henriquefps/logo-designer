@@ -10,6 +10,7 @@ import {
   type LayoutInfo,
   type LayoutItemInfo,
   type LayoutSize,
+  type RepeatCopyInfo,
   type NodeBase,
   type Paint,
   type SceneNode,
@@ -24,6 +25,7 @@ import {
 } from '@/model';
 import { getComponent } from '@/wireframe/library/registry';
 import { validateProps } from '@/wireframe/library/types';
+import { MAX_REPEAT } from '@/wireframe/repeat';
 import { downloadBlob, safeFileName } from './download';
 
 export const PROJECT_EXTENSION = '.designer.json';
@@ -210,7 +212,35 @@ function layoutInfo(v: unknown, path: string): LayoutInfo {
     const so = obj(o.size, at(path, 'size'));
     out.size = { width: nonNegative(so.width, 0, at(at(path, 'size'), 'width')), height: nonNegative(so.height, 0, at(at(path, 'size'), 'height')) };
   }
+  // Container appearance and repeat (docs/wireframe-mode.md → R3, R4).
+  if (o.style !== undefined && o.style !== null) {
+    const style = oneOf(o.style, CONTAINER_STYLES, 'none', at(path, 'style'));
+    if (style !== 'none') out.style = style;
+  }
+  if (o.radius !== undefined && o.radius !== null) {
+    const radius = oneOf(o.radius, CONTAINER_RADII, 'none', at(path, 'radius'));
+    if (radius !== 'none') out.radius = radius;
+  }
+  if (o.repeat !== undefined && o.repeat !== null) {
+    const rp = at(path, 'repeat');
+    const r = obj(o.repeat, rp);
+    const c = finite(r.count, at(rp, 'count'));
+    if (!Number.isInteger(c) || c < 1 || c > MAX_REPEAT) fail(at(rp, 'count'), `expected a whole number from 1 to ${MAX_REPEAT}, got ${show(r.count)}`);
+    out.repeat = { count: c };
+  }
   return out;
+}
+
+const CONTAINER_STYLES = ['none', 'outline', 'filled', 'outline-filled'] as const;
+const CONTAINER_RADII = ['none', 'small', 'large'] as const;
+
+function repeatCopyInfo(v: unknown, path: string): RepeatCopyInfo {
+  const o = obj(v, path);
+  const template = str(o.template, at(path, 'template'));
+  if (!template) fail(at(path, 'template'), 'must not be empty');
+  const index = finite(o.index, at(path, 'index'));
+  if (!Number.isInteger(index) || index < 2) fail(at(path, 'index'), `expected a whole number ≥ 2, got ${show(o.index)}`);
+  return { template, index };
 }
 
 function layoutSize(v: unknown, path: string): LayoutSize {
@@ -232,7 +262,7 @@ function layoutItemInfo(v: unknown, path: string): LayoutItemInfo {
   return out;
 }
 
-const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem', 'note'] as const;
+const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem', 'note', 'repeatCopy'] as const;
 
 /** The optional wireframe fields of a node (only on wireframe documents; elsewhere dropped with a warning). */
 function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx: NodeCtx): Partial<Pick<NodeBase, (typeof WIREFRAME_FIELDS)[number]>> {
@@ -272,6 +302,12 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
     out.note = noteInfo(o.note, np);
   }
   if (o.layoutItem !== undefined && o.layoutItem !== null) out.layoutItem = layoutItemInfo(o.layoutItem, at(path, 'layoutItem'));
+  if (o.repeatCopy !== undefined && o.repeatCopy !== null) {
+    const info = repeatCopyInfo(o.repeatCopy, at(path, 'repeatCopy'));
+    // Copies only live in the container that repeats them; the pipeline drops strays (it regenerates copies anyway).
+    if (depth === 0) ctx.warnings.push(`${at(path, 'repeatCopy')}: ignored, a repeat copy must be inside the container that repeats it`);
+    else out.repeatCopy = info;
+  }
   return out;
 }
 

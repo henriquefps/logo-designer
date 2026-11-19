@@ -12,8 +12,9 @@ import * as wireframe from '@/wireframe/commands';
 import * as components from '@/wireframe/componentCommands';
 import * as flows from '@/wireframe/flowCommands';
 import * as flowModel from '@/wireframe/flows';
+import * as containers from '@/wireframe/containerCommands';
 
 /** Dev-only handle for browser QA scripts (`window.__designer`). Never bundled in production. */
 export function installDebugHandle() {
-  (window as unknown as Record<string, unknown>).__designer = { model, useDocStore, useEditorStore, useProjectsStore, actions, tools, sync, fontStore, fontUploads, theme, wireframe, components, flows, flowModel };
+  (window as unknown as Record<string, unknown>).__designer = { model, useDocStore, useEditorStore, useProjectsStore, actions, tools, sync, fontStore, fontUploads, theme, wireframe, components, flows, flowModel, containers };
 }

@@ -61,6 +61,34 @@ export function LayersPanel() {
       const n = nodes[i];
       // A component instance's children are generated: not listed (select and edit the instance).
       const instance = n.type === 'group' && !!n.component;
+      // A repeat copy (wireframes) is generated too: one read-only row; clicking it selects the template.
+      const copy = n.repeatCopy;
+      if (copy) {
+        rows.push(
+          <LayerRow
+            key={n.id}
+            node={n}
+            depth={depth}
+            copyLabel={`Copy ${copy.index}`}
+            selected={selection.includes(copy.template)}
+            expanded={false}
+            dimmed
+            drop={null}
+            onSelect={(e) => select(copy.template, e)}
+            onToggleExpand={() => {}}
+            onRename={() => {}}
+            onToggleVisible={() => {}}
+            onToggleLock={() => {}}
+            onStopReference={() => {}}
+            onHover={(on) => ed().setHover(on ? copy.template : null)}
+            onDragStart={(e) => e.preventDefault()}
+            onDragOver={() => {}}
+            onDrop={(e) => e.preventDefault()}
+            onDragEnd={() => {}}
+          />,
+        );
+        continue;
+      }
       const expanded = n.type === 'group' && !instance && !collapsed.has(n.id);
       rows.push(
         <LayerRow

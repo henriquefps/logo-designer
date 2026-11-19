@@ -41,7 +41,22 @@ export type WfTextStyle = keyof typeof WF_TEXT;
 
 /** Spacing scale (padding, gaps) and corner radii. */
 export const WF_SPACE = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
-export const WF_RADIUS = { sm: 4, md: 8, lg: 12, pill: 9999 } as const;
+export const WF_RADIUS = { sm: 4, md: 8, lg: 12, xl: 16, pill: 9999 } as const;
+
+/**
+ * Container appearance (docs/wireframe-mode.md → R3): a stack / grid can look like a card. Corner
+ * radius by name, and the tones of its outline and fill. Still no colours.
+ */
+export const WF_CONTAINER = {
+  radius: { none: 0, small: WF_RADIUS.md, large: WF_RADIUS.xl },
+  /** `outline`: 1 px border. */
+  stroke: WF.line,
+  /** `filled`: light grey. */
+  fill: WF.surface,
+  /** Empty container placeholder (canvas only, never exported). */
+  placeholderStroke: '#a8a8a8',
+  placeholderInk: '#8a8a8a',
+} as const;
 
 /** Standard heights of tappable things (buttons, rows, fields). */
 export const WF_SIZE = {

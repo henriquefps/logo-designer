@@ -367,7 +367,8 @@ Built-in steps, in order: **`adopt`** (50, settle only: an object whose centre e
 child, a child dragged off goes back to the canvas or onto the frame it was dropped on; world position kept;
 only for objects whose transform changed or that are new at the top level, never when the change itself
 reparented them), **`components`** (100: rebuilds instances whose `component` changed, or all on load; children
-get stable ids `<instance id>~<index>`; instances placed by a stack are left to the layout step), **`layout`** (500:
+get stable ids `<instance id>~<index>`; instances placed by a stack are left to the layout step), **`resize`** (400: a flow child the user resized gets that dimension fixed in
+`layoutItem`), **`repeat`** (450: repeat copies, see "Containers, style, repeat" below), **`layout`** (500:
 stacks and grids, below), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
 screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
 renames its logical screen, empty logical screens are removed; frame normalisation and height), **`flows`** (950,
@@ -398,7 +399,7 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
   children whose size did not change. Two gesture rules: in the `change` phase a flow child whose transform the
   user changed is not snapped back (it follows the pointer and lands when the gesture settles); a flow child
   whose `component.size` / `layout.size` the user changed (resize handles, W/H fields) gets that dimension fixed
-  in `layoutItem`. The components step leaves laid-out instances to this step (one build per change, at the
+  in `layoutItem` (the `resize` step, 400, so repeat copies get it too). The components step leaves laid-out instances to this step (one build per change, at the
   slot's size). Cost: ~1 ms per drag frame (store + pipeline) for a 100-component screen in a 10-screen
   document (test in `__tests__/layout.test.ts`). `useDocStore.updateNode(s)` / `replaceNodes` find nodes on the
   plain document and step into the draft by index (`locateDraft`): walking a draft proxies every node it visits.
@@ -423,6 +424,35 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
 - **Properties**: `sections/layout` (order 6: kind, columns, gap, padding, align, Remove stack; a free frame gets
   "Use a vertical stack") and `sections/layoutItem` (order 7, "In stack": width / height fill · hug · fixed,
   position flow · pinned to bottom · free).
+
+### Containers, style, repeat (phase 1.5 R2–R4: `containers.ts`, `repeat.ts`, `containerCommands.ts`)
+
+- **Layout presets** (`CONTAINER_PRESETS` in `containers.ts`): Vertical stack, Horizontal stack, Grid, Card container
+  (vstack, `style: 'outline'`, `radius: 'small'`, padding 16, gap 8). The library panel shows them first, in its
+  **Layout** category (`ContainerItem`, drag MIME `application/x-designer-container`); `insertContainer(preset, at?)`
+  inserts an empty one: a drop goes into the innermost stack under the pointer (`layoutDropTarget`), a click into the
+  selected container / screen, and the new container is selected, so the next library click goes inside it.
+- **Empty containers** (no visible flow child) lay out at `EMPTY_CONTAINER` (160 × 64, or their padding) so they can be
+  targeted. The canvas draws a dashed outline with "Drop elements here" (`wireframe/canvas/ContainerRenderer`,
+  `EmptyContainerPlaceholder`); the SVG/PNG export and the export for AI never show it.
+- **Style** (`layout.style` none / outline / filled / outline-filled, `layout.radius` none / small / large, tokens in
+  `WF_CONTAINER` in `style.ts`): like a screen's paper, the background is drawn from the materialized `layout.size` by
+  the canvas (`ContainerBackground`) and the SVG export (`containerBackground()` in both), under the children. Bounds and
+  hit testing already use `layout.size`. Containers stay non-paintable (`isUserPaintable`); Properties → Layout has Style
+  and Corners. The export for AI calls a styled vertical stack "Card container (outlined)".
+- **Repeat** (`layout.repeat: { count }`, at most `MAX_REPEAT` = 50): the first child that is not a copy is the template;
+  the `repeat` step (`repeatChildren`) writes `[template, copy 2…n, …other children]`. A copy is a deep clone whose root
+  carries `repeatCopy: { template, index }`; every id gets the prefix `<template id>~r<index>~`, a pure prefix, so the
+  ids `buildComponentInto` gives an instance's children (`<instance id>~<i>`) are the same whether a copy was cloned or
+  rebuilt (idempotence). Existing copies keep their own root transform (the layout's) and are only rewritten when
+  different (`deepEqual`), so untouched copies keep their identity. Bottom-up: a repeat inside a template is complete
+  before the template is copied; nothing inside a copy is processed. Copies without a repeating container (repeat off,
+  template deleted, pasted, a duplicated container's stale copies) are removed or regenerated. Read-only: `hitTest`
+  maps a hit in a copy to its template, `nodesInRect` too, `layoutDropTarget` skips copies and never drops before the
+  template, Layers lists them as "Copy 2…n" (click selects the template), Remove stack turns them into real objects.
+  The export for AI writes "List of N × (…)" (horizontal: "Horizontal list of N × (…)", grid: "Grid of N × (…)").
+- Object menu: Vertical stack ⌥⇧V, Horizontal stack ⌥⇧H, Grid ⌥⇧G (wrap the selection), Change to vertical stack /
+  horizontal stack / grid (a selected container keeps its children, gap, padding, style and repeat).
 
 ### Seams for the next workstreams
 

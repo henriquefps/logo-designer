@@ -12,6 +12,8 @@
 //   50  adopt       (settle only) objects dropped onto a screen become its children, and leave it
 //                   when dragged out
 //  100  components  rebuilds component instances whose `component` (kind, props, size) changed
+//  400  resize      a flow child the user resized gets that dimension fixed (`layoutItem`)
+//  450  repeat      copies of a repeating container's first child (../repeat.ts)
 //  500  layout      stacks / grids (../layout.ts): child transforms, container sizes, frame heights
 //  900  screens     logical screens ↔ frames, one frame per platform, frame height = max(min, content)
 //  950  flows       (settle, load) flows whose source element or target screen is gone are removed
