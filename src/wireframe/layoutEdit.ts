@@ -4,6 +4,7 @@
 // Object menu, library panel) and tests use them. The layout step then places what they insert.
 import {
   apply,
+  cloneWithNewIds,
   fromTransform,
   IDENTITY,
   invert,
@@ -25,6 +26,7 @@ import {
   type Vec,
 } from '@/model';
 import { childBox, defaultLayout, itemSizing, type ContainerNode } from './layout';
+import { plain } from './types';
 
 type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
 const asDoc = (d: DocLike) => d as DesignDocument;
@@ -83,6 +85,12 @@ function indexAt(c: ContainerNode, p: Vec, exclude: Set<Id>): number {
   return slots[slots.length - 1].index + 1;
 }
 
+/** Index a drop takes in a container: never before a repeat's template (it would become the template). */
+function dropIndex(c: ContainerNode, p: Vec, exclude: Set<Id>): number {
+  const i = indexAt(c, p, exclude);
+  return c.layout.repeat && c.children.some((n) => !n.repeatCopy && !exclude.has(n.id)) ? Math.max(1, i) : i;
+}
+
 /**
  * The deepest stack / grid (or screen frame with a layout) under a document point, and the index a
  * node dropped there takes. `exclude`: nodes being dragged (they and their subtrees are not targets,
@@ -94,7 +102,8 @@ export function layoutDropTarget(doc: DocLike, point: Vec, opts: { exclude?: rea
   const search = (nodes: readonly SceneNode[], parentM: Matrix): LayoutDropTarget | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      if (n.type !== 'group' || n.component || !n.visible || n.locked || exclude.has(n.id)) continue;
+      // Repeat copies are read-only: never a target (the template is).
+      if (n.type !== 'group' || n.component || n.repeatCopy || !n.visible || n.locked || exclude.has(n.id)) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       const local = apply(invert(m), point);
       if (n.screen) {
@@ -106,7 +115,7 @@ export function layoutDropTarget(doc: DocLike, point: Vec, opts: { exclude?: rea
       }
       if (laysOut(n)) {
         if (!rectContains(containerRect(n), local)) continue;
-        return search(n.children, m) ?? { containerId: n.id, index: indexAt(n, local, exclude) };
+        return search(n.children, m) ?? { containerId: n.id, index: dropIndex(n, local, exclude) };
       }
       const inner = search(n.children, m);
       if (inner) return inner;
@@ -320,7 +329,14 @@ export function unwrapLayout(doc: DocLike, id: Id): Id[] | null {
     return c.children.map((n) => n.id);
   }
   const m = fromTransform(c.transform);
-  const kids = c.children.map((n) => {
+  // A repeat's copies become real objects (fresh ids, no longer copies): what you see stays.
+  const real = (n: SceneNode): SceneNode => {
+    if (!n.repeatCopy) return n;
+    const out = cloneWithNewIds(plain(n));
+    delete out.repeatCopy;
+    return out;
+  };
+  const kids = c.children.map(real).map((n) => {
     const out = { ...n, transform: toTransform(multiply(m, fromTransform(n.transform))) } as SceneNode;
     if (loc.parent === doc || !laysOut(loc.parent as GroupNode)) delete out.layoutItem;
     return out;

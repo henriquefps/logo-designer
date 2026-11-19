@@ -107,31 +107,35 @@ export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}):
   // documents) are scopes: clicking inside one picks its direct child, or the frame itself on empty
   // space; their content is clipped, so points outside the frame never reach it. Component instances
   // are leaves: their generated children are never picked one by one.
+  // Repeat copies (wireframes) are read-only: a hit anywhere in one picks its template.
+  const one = (n: SceneNode, parentM: Matrix): { leaf: Id; top: Id } | null => {
+    const m = multiply(parentM, fromTransform(n.transform));
+    if (n.type === 'group') {
+      if (n.screen) {
+        const p = apply(invert(m), world);
+        if (!rectContains(screenLocalRect(n as ScreenNode), p)) return null;
+        return search(n.children, m) ?? { leaf: n.id, top: n.id };
+      }
+      if (n.component) {
+        // The whole box counts (a click between a row's texts selects the row).
+        const box = sizedGroupBox(n);
+        const inBox = box && rectContains(box, apply(invert(m), world));
+        return inBox || hitTestNode(n, m, world, tolerance) ? { leaf: n.id, top: n.id } : null;
+      }
+      const r = search(n.children, m);
+      if (r) return { leaf: r.leaf, top: n.id };
+      // A laid-out stack / grid is grabbed on its empty space (padding, gaps) too.
+      if (n.layout?.size && rectContains({ x: 0, y: 0, ...n.layout.size }, apply(invert(m), world))) return { leaf: n.id, top: n.id };
+      return null;
+    }
+    return hitTestNode(n, m, world, tolerance) ? { leaf: n.id, top: n.id } : null;
+  };
   const search = (nodes: SceneNode[], parentM: Matrix): { leaf: Id; top: Id } | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
       if (!n.visible || n.locked || n.reference) continue;
-      const m = multiply(parentM, fromTransform(n.transform));
-      if (n.type === 'group') {
-        if (n.screen) {
-          const p = apply(invert(m), world);
-          if (!rectContains(screenLocalRect(n as ScreenNode), p)) continue;
-          return search(n.children, m) ?? { leaf: n.id, top: n.id };
-        }
-        if (n.component) {
-          // The whole box counts (a click between a row's texts selects the row).
-          const box = sizedGroupBox(n);
-          const inBox = box && rectContains(box, apply(invert(m), world));
-          if (inBox || hitTestNode(n, m, world, tolerance)) return { leaf: n.id, top: n.id };
-          continue;
-        }
-        const r = search(n.children, m);
-        if (r) return { leaf: r.leaf, top: n.id };
-        // A laid-out stack / grid is grabbed on its empty space (padding, gaps) too.
-        if (n.layout?.size && rectContains({ x: 0, y: 0, ...n.layout.size }, apply(invert(m), world))) return { leaf: n.id, top: n.id };
-      } else if (hitTestNode(n, m, world, tolerance)) {
-        return { leaf: n.id, top: n.id };
-      }
+      const r = one(n, parentM);
+      if (r) return n.repeatCopy ? { leaf: n.repeatCopy.template, top: n.repeatCopy.template } : r;
     }
     return null;
   };
@@ -172,14 +176,15 @@ export function nodesInRect(doc: DesignDocument, rect: Rect, opts: { deep?: bool
     for (const n of nodes) {
       if (!n.visible || n.locked || n.reference) continue;
       const m = multiply(parentM, fromTransform(n.transform));
-      if (opts.deep && n.type === 'group' && !n.component) {
+      if (opts.deep && n.type === 'group' && !n.component && !n.repeatCopy) {
         visit(n.children, m);
         continue;
       }
       const b = boundsIn(n, m);
-      if (b && rectsIntersect(b, rect)) out.push(n.id);
+      // A repeat copy (wireframes) stands for its template.
+      if (b && rectsIntersect(b, rect)) out.push(n.repeatCopy?.template ?? n.id);
     }
   };
   visit(doc.children, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
-  return out;
+  return [...new Set(out)];
 }

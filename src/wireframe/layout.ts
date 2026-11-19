@@ -25,6 +25,7 @@ import type { Draft } from 'immer';
 import { boundsIn, fromTransform, type GroupNode, type LayoutInfo, type LayoutItemInfo, type LayoutSize, type SceneNode, type ScreenPlatform } from '@/model';
 import { getComponent } from './library/registry';
 import { resizableAxes, resolveProps } from './library/types';
+import { EMPTY_CONTAINER } from './containers';
 
 export const EPS = 1e-6;
 
@@ -146,6 +147,12 @@ export function hugWidth(n: SceneNode): number {
   const cached = widthCache.get(c);
   if (cached !== undefined) return cached;
   const { padding: p, gap: g } = c.layout;
+  if (!c.screen && !flowChildren(c, false).length) {
+    // An empty stack keeps a minimum size, so it can be seen and dropped onto.
+    const empty = Math.max(EMPTY_CONTAINER.width, 2 * p);
+    widthCache.set(c, empty);
+    return empty;
+  }
   const ws = flowChildren(c, false).map(basisWidth);
   let w: number;
   if (c.layout.kind === 'hstack') w = ws.reduce((a, b) => a + b, 0) + g * Math.max(0, ws.length - 1);
@@ -247,6 +254,11 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
   const pinned = box.frame ? c.children.filter((n) => n.visible && itemSizing(n).position === 'pinned-bottom') : [];
   const pinnedM = pinned.map((n) => ({ ...measure(n, W, W, L.align), index: indexOf.get(n)! }));
   const pinnedTotal = pinnedM.reduce((a, m) => a + m.h, 0);
+
+  if (!box.frame && !c.screen && !flow.length) {
+    // An empty stack: the minimum size (its placeholder on the canvas), unless it is given a height.
+    return { width: W, height: box.height ?? Math.max(box.minHeight ?? 0, EMPTY_CONTAINER.height, 2 * p), items: [] };
+  }
 
   const placePinned = (H: number) => {
     let y = H - pinnedTotal;
