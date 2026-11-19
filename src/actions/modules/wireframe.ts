@@ -1,14 +1,29 @@
 // Wireframe document commands (see src/wireframe). Hidden in other documents.
-import { CopySimpleIcon, DeviceMobileIcon, LinkBreakIcon } from '@phosphor-icons/react';
+import { CopySimpleIcon, DeviceMobileIcon, LinkBreakIcon, PlayIcon } from '@phosphor-icons/react';
 import { SCREEN_PLATFORMS } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { addScreenCommand, duplicatablePlatforms, duplicateSelectedScreenAs, selectedScreen } from '@/wireframe/commands';
 import { detachSelected, selectedInstanceIds } from '@/wireframe/componentCommands';
+import { enterPresentMode } from '@/wireframe/presentStore';
 import type { Action } from '../types';
 
 const notWireframe = () => !useDocStore.getState().doc.wireframe;
 
 const actions: Action[] = [
+  {
+    id: 'view.present',
+    label: 'Present',
+    menu: 'view',
+    group: 'present',
+    order: 30,
+    icon: PlayIcon,
+    shortcut: 'alt+mod+p',
+    get hidden() {
+      return notWireframe();
+    },
+    enabled: () => !notWireframe(),
+    run: () => void enterPresentMode(),
+  },
   ...SCREEN_PLATFORMS.map(
     (p, i): Action => ({
       id: `wireframe.addScreen.${p.id}`,

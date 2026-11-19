@@ -22,7 +22,9 @@ import {
   type Id,
   type SceneNode,
   type Transform,
+  type WireframeFlow,
 } from '@/model';
+import { attachFlows, copyFlows, copyIdMap, flowsOf, screenIdsOf } from '@/wireframe/flows';
 import { runWireframePipeline } from '@/wireframe/pipeline';
 
 enablePatches();
@@ -76,7 +78,8 @@ export interface DocState {
   /** Replaces the document and clears history (open project). */
   load: (doc: DesignDocument) => void;
 
-  addNodes: (nodes: SceneNode[], opts?: { parentId?: Id | null; index?: number; label?: string }) => Id[];
+  /** `flows`: copied flows (new ids) to add with the nodes; those whose target screen does not exist are dropped. */
+  addNodes: (nodes: SceneNode[], opts?: { parentId?: Id | null; index?: number; label?: string; flows?: WireframeFlow[] }) => Id[];
   updateNode: (id: Id, patch: NodePatch, opts?: { label?: string }) => void;
   updateNodes: (ids: Id[], recipe: (node: Draft<SceneNode>) => void, opts?: { label?: string }) => void;
   /** Replaces whole nodes by id (used by transform gestures computing from a snapshot). */
@@ -262,6 +265,7 @@ export const useDocStore = create<DocState>()((set, get) => {
           const container = getContainer(d as DesignDocument, opts.parentId ?? null) ?? d;
           const index = opts.index ?? container.children.length;
           (container.children as SceneNode[]).splice(index, 0, ...nodes);
+          if (opts.flows?.length) attachFlows(d, opts.flows, screenIdsOf(nodes));
         },
         { label: opts.label ?? (nodes.length === 1 ? `Add ${nodes[0].name}` : 'Add objects') },
       );
@@ -455,16 +459,21 @@ export const useDocStore = create<DocState>()((set, get) => {
       const doc = get().doc;
       const ordered = sortByDocumentOrder(doc, topmostIds(doc, ids));
       const newIds: Id[] = [];
+      const idMap = new Map<Id, Id>();
       apply(
         (d) => {
           for (const id of [...ordered].reverse()) {
             const loc = locate(d as DesignDocument, id);
             if (!loc) continue;
-            const copy = cloneWithNewIds(findNode(doc, id)!);
+            const original = findNode(doc, id)!;
+            const copy = cloneWithNewIds(original);
+            copyIdMap(original, copy, idMap);
             copy.transform = { ...copy.transform, x: copy.transform.x + offset, y: copy.transform.y + offset };
             (loc.parent.children as SceneNode[]).splice(loc.index + 1, 0, copy);
             newIds.unshift(copy.id);
           }
+          // The copies keep their originals' outgoing flows.
+          if (doc.wireframe) attachFlows(d, copyFlows(flowsOf(doc), idMap));
         },
         { label: 'Duplicate' },
       );

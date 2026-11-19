@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { isEditableTarget } from '@/app/useKeyboard';
 import { getImporters, importerForFile } from '@/io/importers/registry';
 import { isMac } from '@/actions/registry';
-import { hasClipboard, parseClipboardText, pasteNodes } from '@/store/clipboard';
+import { hasClipboard, parseClipboardPayload, pasteNodes } from '@/store/clipboard';
 import { isFontFile } from '@/fonts/store';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Vec } from '@/model';
@@ -45,9 +45,9 @@ export function useImportHandlers() {
       }
       const svgData = data.getData('image/svg+xml');
       const text = svgData || data.getData('text/plain');
-      const nodes = text ? parseClipboardText(text) : null;
-      if (nodes) {
-        useEditorStore.getState().setSelection(pasteNodes(nodes));
+      const payload = text ? parseClipboardPayload(text) : null;
+      if (payload) {
+        useEditorStore.getState().setSelection(pasteNodes(payload.nodes, payload.flows));
         return;
       }
       void (async () => {

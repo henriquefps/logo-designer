@@ -10,6 +10,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { isFirstVisit } from '@/dialogs/newDocument/welcome';
 import { startSync } from '@/sync/engine';
 import { useTheme } from '@/theme/theme';
+import { PresentMode } from '@/wireframe/canvas/PresentMode';
 import { startIconLoader } from '@/wireframe/iconLoader';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -54,6 +55,7 @@ export function App() {
     <TooltipProvider delayDuration={300}>
       {mobile ? <MobileLayout /> : <DesktopLayout />}
       <DialogHost />
+      <PresentMode />
       <Toaster theme={theme} position={mobile ? 'top-center' : 'bottom-right'} />
     </TooltipProvider>
   );
