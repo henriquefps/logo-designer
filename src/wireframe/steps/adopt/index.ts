@@ -27,6 +27,8 @@ const step: WireframeStep = {
     const candidates: { node: SceneNode; parent: ScreenNode | null }[] = [];
     const consider = (node: SceneNode, parent: ScreenNode | null) => {
       if (isScreenNode(node) || node.note || node.locked) return; // notes stay on the canvas
+      // Children placed by the frame's stack belong to the layout (dragging them out is the select tool's job).
+      if (parent?.layout && node.layoutItem?.position !== 'free') return;
       const prev = ctx.previous(node.id);
       if (!prev) {
         if (parent === null && !prevParent.has(node.id)) candidates.push({ node, parent });

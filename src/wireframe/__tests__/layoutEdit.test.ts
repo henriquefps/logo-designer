@@ -222,3 +222,25 @@ describe('wrap and unwrap', () => {
     expect(worldBounds(s().doc, 'rb')).toMatchObject({ x: 1000, y: 1032 });
   });
 });
+
+describe('settling', () => {
+  it('a stack child whose centre ends up off the frame stays in the stack when the drop lands on it', () => {
+    s().load(wireframe());
+    // grab `a` near its right edge and drop with the pointer just inside the frame: its centre is outside
+    s().beginTransaction('Move');
+    const ld = startLayoutDrag(useDocStore.getState, ['a']);
+    s().updateNode('a', { transform: { x: 16 + 330, y: 16 + 250 } });
+    ld?.move({ x: 100 + 380, y: 50 + 300 }, false);
+    ld?.drop();
+    s().commitTransaction();
+    expect(getParent(s().doc, 'a')?.id).toBe('F');
+    expect(order(s().doc)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('a nudge does not move a stack child (the layout owns its position)', () => {
+    s().load(wireframe());
+    s().updateNode('b', { transform: { x: 500 } });
+    expect(pos(s().doc, 'b')).toEqual([16, 128]);
+    expect(getParent(s().doc, 'b')?.id).toBe('F');
+  });
+});
