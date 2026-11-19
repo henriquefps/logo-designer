@@ -6,6 +6,8 @@ import { toolContext } from '@/tools/context';
 import type { ToolPointerEvent } from '@/tools/types';
 import { isAncestorOrSelf, type Vec } from '@/model';
 import { isMac } from '@/actions/registry';
+import { useProjectsStore } from '@/store/useProjectsStore';
+import { acceptsCanvasInput } from './inputGate';
 import { SceneLayer } from './SceneLayer';
 import { SelectionOverlay } from './overlays/SelectionOverlay';
 import { HoverOverlay } from './overlays/HoverOverlay';
@@ -37,6 +39,7 @@ export function CanvasView() {
   const cursor = useEditorStore((s) => s.cursor);
   const spacePan = useEditorStore((s) => s.spacePan);
   const tool = getTool(toolId);
+  const ready = useProjectsStore((s) => s.ready);
   const ToolOverlay = tool?.Overlay;
 
   const pointers = useRef(new Map<number, Vec>());
@@ -122,6 +125,7 @@ export function CanvasView() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (!acceptsCanvasInput()) return;
     // Focus the canvas so keyboard shortcuts don't go to a previously focused input.
     (document.activeElement as HTMLElement | null)?.blur?.();
     ref.current!.setPointerCapture(e.pointerId);
@@ -225,6 +229,8 @@ export function CanvasView() {
       <div
         ref={ref}
         data-slot="canvas"
+        data-ready={ready}
+        aria-busy={!ready}
         className="relative size-full touch-none overflow-hidden bg-muted select-none"
         style={{ cursor: spacePan && cursor !== 'grabbing' ? 'grab' : cursor }}
         onPointerDown={onPointerDown}
