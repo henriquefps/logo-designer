@@ -1,5 +1,6 @@
 import type { Icon } from '@phosphor-icons/react';
 import type { ComponentType } from 'react';
+import type { DesignDocument } from '@/model';
 
 /**
  * A tab in the Assets panel (icon libraries, fonts, templates…). Put each in
@@ -11,5 +12,7 @@ export interface AssetSource {
   label: string;
   icon: Icon;
   order: number;
+  /** Shown only for documents where this returns true (default: always). */
+  when?: (doc: DesignDocument) => boolean;
   Component: ComponentType;
 }

@@ -1,7 +1,7 @@
 import { boundsIn, localBounds, rectContains, rectsIntersect } from './bounds';
 import { apply, fromTransform, invert, multiply, type Matrix } from './matrix';
 import { flattenSubpaths, nodeSubpaths } from './path';
-import { screenLocalRect, type ScreenNode } from './screen';
+import { screenLocalRect, sizedGroupBox, type ScreenNode } from './screen';
 import type { DesignDocument, Id, Rect, SceneNode, Vec } from './types';
 
 export interface HitOptions {
@@ -119,7 +119,10 @@ export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}):
           return search(n.children, m) ?? { leaf: n.id, top: n.id };
         }
         if (n.component) {
-          if (hitTestNode(n, m, world, tolerance)) return { leaf: n.id, top: n.id };
+          // The whole box counts (a click between a row's texts selects the row).
+          const box = sizedGroupBox(n);
+          const inBox = box && rectContains(box, apply(invert(m), world));
+          if (inBox || hitTestNode(n, m, world, tolerance)) return { leaf: n.id, top: n.id };
           continue;
         }
         const r = search(n.children, m);

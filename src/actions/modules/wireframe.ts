@@ -1,8 +1,9 @@
 // Wireframe document commands (see src/wireframe). Hidden in other documents.
-import { CopySimpleIcon, DeviceMobileIcon } from '@phosphor-icons/react';
+import { CopySimpleIcon, DeviceMobileIcon, LinkBreakIcon } from '@phosphor-icons/react';
 import { SCREEN_PLATFORMS } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { addScreenCommand, duplicatablePlatforms, duplicateSelectedScreenAs, selectedScreen } from '@/wireframe/commands';
+import { detachSelected, selectedInstanceIds } from '@/wireframe/componentCommands';
 import type { Action } from '../types';
 
 const notWireframe = () => !useDocStore.getState().doc.wireframe;
@@ -39,6 +40,20 @@ const actions: Action[] = [
       run: () => void duplicateSelectedScreenAs(p.id),
     }),
   ),
+  {
+    id: 'wireframe.detach',
+    label: 'Detach component',
+    menu: 'object',
+    group: 'component',
+    order: 85,
+    icon: LinkBreakIcon,
+    shortcut: 'mod+alt+b',
+    get hidden() {
+      return notWireframe();
+    },
+    enabled: () => selectedInstanceIds().length > 0,
+    run: () => void detachSelected(),
+  },
 ];
 
 export default actions;

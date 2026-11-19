@@ -10,6 +10,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { isFirstVisit } from '@/dialogs/newDocument/welcome';
 import { startSync } from '@/sync/engine';
 import { useTheme } from '@/theme/theme';
+import { startIconLoader } from '@/wireframe/iconLoader';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
 import { useKeyboard } from './useKeyboard';
@@ -19,6 +20,8 @@ export function App() {
   const theme = useTheme();
   useKeyboard();
   useImportHandlers();
+  // Wireframes: icons drawn as placeholders (files from the CLI, pastes) are loaded and filled in.
+  useEffect(() => startIconLoader(), []);
   useEffect(() => {
     let stopSync: (() => void) | null = null;
     let unmounted = false;
