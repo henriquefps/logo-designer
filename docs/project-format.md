@@ -175,7 +175,7 @@ Starter components (phase 1):
 | `heading` | `text`; `level` `title` / `heading` / `subheading`; `align` `left` / `center` / `right` |
 | `button` | `label`; `variant` `primary` / `secondary` / `text`; `icon` (before the label) |
 | `list-row` | `title`; `subtitle`; `leading` `none` / `icon` / `avatar`; `leadingIcon`; `trailing` `none` / `chevron` / `toggle` / `value` / `checkbox`; `value` (trailing text); `checked` (toggle/checkbox state); `divider` |
-| `placeholder` | `label`; `height` (a grey box with an X) |
+| `placeholder` | `label`; `height` (a grey box with an X; the foundation's stand-in, not listed in the library, still valid in files) |
 
 Icons are drawn from the glyphs stored in the instance's children, so a file shows its icons anywhere (the CLI
 included). An instance created outside the app (the CLI, a hand-written file) draws a placeholder square until the

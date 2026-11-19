@@ -9,7 +9,15 @@ interface PropBase {
   label: string;
   /** One short hint under the field (optional). */
   help?: string;
+  /**
+   * Show the field only when other props have these values (all must match; an array = any of them), e.g.
+   * `{ leading: 'icon' }` or `{ trailing: ['toggle', 'checkbox'] }`. Hidden props keep their value.
+   */
+  visibleWhen?: Readonly<Record<string, PropCondition>>;
 }
+
+export type PropScalar = string | number | boolean;
+export type PropCondition = PropScalar | readonly PropScalar[];
 
 export type PropSpec =
   | (PropBase & { type: 'text' | 'multiline'; default: string; placeholder?: string })
@@ -58,6 +66,8 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   /** Where the library panel shows it first; 'all' = common. */
   platforms: readonly ScreenPlatform[] | 'all';
   category: string;
+  /** Not listed in the library panel (stand-ins kept so older files load). Instances still load, render and edit. */
+  hidden?: boolean;
   /** Extra words the library panel's search matches ("cta" for a button). */
   keywords?: readonly string[];
   /** Drives the generated properties section. */
@@ -139,3 +149,12 @@ export function resolveProps<S extends PropSpecs>(def: ComponentDef<S>, raw: Rec
 
 /** Default values of every prop (what a new instance starts with). */
 export const defaultProps = <S extends PropSpecs>(def: ComponentDef<S>): PropsOf<S> => resolveProps(def, {});
+
+/** Whether a prop's field applies, given the resolved values of the other props (`visibleWhen`). */
+export function isPropVisible(spec: PropSpec, props: Readonly<Record<string, unknown>>): boolean {
+  if (!spec.visibleWhen) return true;
+  return Object.entries(spec.visibleWhen).every(([key, cond]) => {
+    const v = props[key];
+    return Array.isArray(cond) ? cond.includes(v as PropScalar) : v === cond;
+  });
+}

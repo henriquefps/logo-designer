@@ -46,13 +46,23 @@ export function sizedGroupBox(n: SceneNode): Rect | null {
   return null;
 }
 
-// ---------- per-node editing traits (generic hooks; today only notes opt out) ----------
+// ---------- per-node editing traits (generic hooks; notes and component instances opt out) ----------
 
 /** False for nodes whose size is not the user's to change (notes: fixed width, auto height): no resize/rotate handles, no W/H/rotation/flip fields. */
 export const canResizeNode = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
 
-/** False for nodes that are not styled by the user (notes): the fill/stroke swatches skip them and Properties hides Appearance / Fill / Stroke. */
-export const isUserPaintable = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
+/** False for nodes that are not styled by the user (notes, component instances): the fill/stroke swatches skip them and Properties hides Appearance / Fill / Stroke. */
+export const isUserPaintable = (n: SceneNode): boolean => !(n.type === 'group' && (!!n.note || !!n.component));
+
+/** False for nodes that are never rotated or flipped (notes, component instances: they are resized, which rebuilds them): no rotate handle, no rotation/flip fields. */
+export const canRotateNode = (n: SceneNode): boolean => canResizeNode(n) && !(n.type === 'group' && !!n.component);
+
+/** Whether every node of the selection can be rotated/flipped. */
+export const canRotateSelection = (doc: DesignDocument, ids: readonly string[]): boolean =>
+  ids.every((id) => {
+    const n = findNode(doc, id);
+    return !n || canRotateNode(n);
+  });
 
 /** Whether every node of the selection can be resized/rotated. */
 export const canResizeSelection = (doc: DesignDocument, ids: readonly string[]): boolean =>

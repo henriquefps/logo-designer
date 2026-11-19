@@ -122,3 +122,28 @@ describe('library index', () => {
     expect(libraryFor(getComponents(), null).others).toEqual([]);
   });
 });
+
+describe('hidden components', () => {
+  it('the placeholder stand-in is not in the library but still loads and builds', () => {
+    const lib = libraryFor(getComponents(), null);
+    expect(lib.main.flatMap((g) => g.items.map((d) => d.kind))).not.toContain('placeholder');
+    expect(libraryFor(getComponents(), null, 'placeholder').main).toEqual([]);
+    const screen = loadWireframe();
+    const box = newInstance(def('placeholder'), { x: 24, y: 24 }, 342, { label: 'Map', height: 200 });
+    s().addNodes([box], { parentId: screen });
+    expect((findNode(s().doc, box.id) as GroupNode).children.map((c) => c.name)).toEqual(['Box', 'Cross', 'Label']);
+  });
+
+  it('instances are not user-paintable, not rotatable, but resizable', async () => {
+    const { canResizeNode, canRotateNode, isUserPaintable, canRotateSelection } = await import('@/model');
+    const screen = loadWireframe();
+    const row = newInstance(def('list-row'), { x: 0, y: 100 }, 390);
+    s().addNodes([row], { parentId: screen });
+    const n = findNode(s().doc, row.id)!;
+    expect(isUserPaintable(n)).toBe(false);
+    expect(canRotateNode(n)).toBe(false);
+    expect(canResizeNode(n)).toBe(true);
+    expect(canRotateSelection(s().doc, [screen])).toBe(true);
+    expect(canRotateSelection(s().doc, [screen, row.id])).toBe(false);
+  });
+});

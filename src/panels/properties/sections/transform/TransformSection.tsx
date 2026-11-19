@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import {
   canResizeSelection,
+  canRotateSelection,
   rotationAbout,
   scaleAbout,
   selectionBounds,
@@ -38,6 +39,8 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
   const ids = ctx.ids;
   const topLeft = frame.corners[0];
   const resizable = canResizeSelection(ctx.doc, ids);
+  // Component instances resize (rebuild) but never rotate or flip.
+  const rotatable = resizable && canRotateSelection(ctx.doc, ids);
 
   const resize = (w: number | null, h: number | null) => {
     let kx = w !== null && frame.width ? w / frame.width : 1;
@@ -110,7 +113,7 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
             </Tooltip>
           </div>
         )}
-        {resizable && (
+        {rotatable && (
           <NumberField
             label={<AngleIcon />}
             ariaLabel="Rotation"
@@ -127,7 +130,7 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
             }
           />
         )}
-        {resizable && (
+        {rotatable && (
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>

@@ -406,7 +406,7 @@ builds from the library (`build(props, size)`), inside the same undo step as the
 
 | File | What |
 | --- | --- |
-| `library/types.ts` | `defineComponent`, `PropSpec` (text, multiline, number, boolean, choice, icon, list), `resolveProps` (defaults, never throws), `validateProps` (load: bad values → default + warning), `defaultProps` |
+| `library/types.ts` | `defineComponent`, `PropSpec` (text, multiline, number, boolean, choice, icon, list; `visibleWhen`), `isPropVisible`, `resolveProps` (defaults, never throws), `validateProps` (load: bad values → default + warning), `defaultProps` |
 | `library/registry.ts` | `getComponents()`, `getComponent(kind)`, `isComponentKind(kind)` (folder-discovered) |
 | `library/<kind>/index.ts` | one component; `heading`, `button`, `list-row`, `placeholder` so far |
 | `kit.ts` | the lo-fi drawing kit for `build()` (below) |
@@ -421,7 +421,10 @@ UI: the **Components** tab of Assets (`panels/assets/sources/wireframe/`, `Asset
 wireframes; previews render `build()` with the default props; click = append to the selected screen or stack, drag =
 drop at a point), the **component** Properties section (`panels/properties/sections/component/`, fields generated
 from the specs, the icon field opens the Icons panel as a picker: `IconsPanel({ onPick })`), **Object → Detach
-component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are leaves everywhere: a click
+component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are not user-styled and
+never rotate or flip (`isUserPaintable` / `canRotateNode` in `model/screen.ts`: no Appearance section, the
+fill/stroke swatches ignore them, no rotate handle, rotation field or flip); resizing changes the width they are
+built for. Instances are leaves everywhere: a click
 anywhere in their box (`sizedGroupBox` = `component.size`) selects them, Cmd-click too, and Layers lists them as one
 row without children.
 
@@ -435,6 +438,12 @@ row without children.
    - `props`: one `PropSpec` per prop, with a `label` and a `default` (choices: `options`, optional `labels`; numbers:
      `min`/`max`/`step`/`unit`; lists: `item`, `min`/`max`; any: `help`). They generate the properties section and
      validate files, so keep them few and semantic (what the thing *is*, not how it looks).
+   - `visibleWhen` on a prop hides its field when it does not apply: `{ leading: 'icon' }` (equal) or
+     `{ trailing: ['toggle', 'checkbox'] }` (any of); several keys must all match. The value is kept while hidden,
+     and `build()` should ignore it then. The contract test checks that the keys are other props of the
+     component and the values ones they can take (`isPropVisible(spec, props)` in `library/types.ts`).
+   - `hidden: true` keeps a component out of the library panel (stand-ins like `placeholder`); its instances still
+     load, render and edit.
    - `sizing` (how it behaves in a stack: `fill` / `hug` / a number) and `defaultSize` (a new instance outside a
      stack). A `defaultSize.width` of 390 (a phone) means edge to edge (rows, bars); smaller `fill` components get
      24 px margins when inserted.
@@ -483,19 +492,22 @@ export default defineComponent({
     label: { type: 'text', label: 'Label', default: 'Chip' },
     selected: { type: 'boolean', label: 'Selected', default: false },
     icon: { type: 'icon', label: 'Icon', default: '' },
+    // Only for a selected chip: the count shown after the label ('' = none).
+    count: { type: 'text', label: 'Count', default: '', visibleWhen: { selected: true } },
   },
   sizing: { width: 'hug', height: 'hug' },
   defaultSize: { width: 80, height: WF_SIZE.controlSmall },
   build(p, { width }) {
     const h = WF_SIZE.controlSmall;
     const iconW = p.icon ? 16 + WF_SPACE.xs : 0;
-    const content = iconW + textWidth(p.label, 'label');
+    const label = p.selected && p.count ? `${p.label} · ${p.count}` : p.label;
+    const content = iconW + textWidth(label, 'label');
     const x = (width - content) / 2;
     return {
       children: nodes(
         box({ x: 0, y: 0, width, height: h, radius: WF_RADIUS.pill, fill: p.selected ? 'fill' : 'paper', stroke: p.selected ? 'ink' : 'line', name: 'Background' }),
         icon(p.icon, { x, y: (h - 16) / 2, size: 16 }),
-        textInBand(p.label, { x: x + iconW, y: 0, height: h, style: 'label', name: 'Label' }),
+        textInBand(label, { x: x + iconW, y: 0, height: h, style: 'label', name: 'Label' }),
       ),
       height: h,
       width: Math.ceil(content + WF_SPACE.md * 2),

@@ -221,7 +221,9 @@ Wireframe mode):
 - Library: Assets → Components (wireframes only). Click appends to the selected screen (or the selected stack, or
   after the selected object in a stack); drag drops at the point (placed freely in the frame under the pointer
   until the layout workstream's drop target exists). Starter kinds: `heading`, `button`, `list-row`; the
-  foundation's `placeholder` stays (older files load).
+  foundation's `placeholder` is hidden from the library (older files still load and render it). Fields that don't
+  apply are hidden (`visibleWhen`: a list row's Icon only for a leading icon, Value only for a value, On only for a
+  toggle or checkbox). Instances are not styled, rotated or flipped by the user; resizing rebuilds them.
 - Instances are one object everywhere (canvas click in their whole box, Cmd-click, Layers). Object → Detach
   component (⌥⌘B) or the Detach button in Properties turns one into a plain group.
 

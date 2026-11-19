@@ -54,6 +54,23 @@ describe.each(getComponents().map((d) => [d.kind, d] as const))('component %s', 
     }
   });
 
+  it('visibleWhen only references other existing props, with values they can take', () => {
+    const specs = def.props as Record<string, PropSpec>;
+    for (const [key, spec] of Object.entries(specs)) {
+      for (const [ref, cond] of Object.entries(spec.visibleWhen ?? {})) {
+        expect(ref, `${key}.visibleWhen`).not.toBe(key);
+        const target = specs[ref];
+        expect(target, `${key}.visibleWhen references unknown prop "${ref}"`).toBeDefined();
+        for (const v of Array.isArray(cond) ? cond : [cond]) {
+          if (target.type === 'choice') expect(target.options, `${key}.visibleWhen.${ref}`).toContain(v);
+          else if (target.type === 'boolean') expect(typeof v, `${key}.visibleWhen.${ref}`).toBe('boolean');
+          else if (target.type === 'number') expect(typeof v, `${key}.visibleWhen.${ref}`).toBe('number');
+          else expect(typeof v, `${key}.visibleWhen.${ref}`).toBe('string');
+        }
+      }
+    }
+  });
+
   it('builds with default props: children inside the box, wireframe colours only, deterministic', () => {
     const props = defaultProps(def);
     const width = def.defaultSize.width;

@@ -10,6 +10,8 @@ export default defineComponent({
   label: 'Placeholder',
   platforms: 'all',
   category: 'Common',
+  // The foundation's stand-in: not offered in the library any more; files that use it still load.
+  hidden: true,
   props: {
     label: { type: 'text', label: 'Label', default: 'Placeholder' },
     height: { type: 'number', label: 'Height', default: 120, min: 16, max: 4000, step: 8 },

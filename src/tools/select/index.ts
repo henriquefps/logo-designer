@@ -1,7 +1,7 @@
 import { CursorIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { setReference } from '@/actions/modules/object';
-import { canResizeSelection, hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
+import { canResizeSelection, canRotateSelection, hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
 import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
@@ -31,7 +31,7 @@ function hitHandle(ctx: ToolContext, e: ToolPointerEvent): HandleHit {
   if (!frame) return null;
   const tol = HANDLE_HIT_PX * ctx.px();
   const near = (p: Vec) => Math.hypot(p.x - e.point.x, p.y - e.point.y) <= tol;
-  if (near(rotationHandlePosition(frame, ed.zoom))) return { kind: 'rotate', frame };
+  if (canRotateSelection(ctx.doc(), ids) && near(rotationHandlePosition(frame, ed.zoom))) return { kind: 'rotate', frame };
   const tiny = frame.width / ctx.px() < 16 || frame.height / ctx.px() < 16;
   for (let i = 0; i < 8; i++) {
     if (tiny && i % 2 === 1) continue; // only corners on tiny boxes
