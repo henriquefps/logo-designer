@@ -408,6 +408,12 @@ backdrop. Elements with a flow show a subtle hotspot on hover; clicking one goes
 screen (same platform if it exists). Back (← / Backspace / a button) and Esc to leave. Starts at the
 selected screen, else the first. A platform switch when variants exist.
 
+Built (`wireframe/present.ts` = pure state machine, `presentStore.ts`, `canvas/PresentMode.tsx`): View → Present, shortcut
+**⌥⌘P** (Ctrl+Alt+P), and a Present button in the status bar of wireframe documents. The overlay is read-only and swallows
+every other key, so Delete / Cmd+D cannot change the document underneath; Esc restores the editor exactly as it was. Hotspots
+are real buttons (keyboard focus and touch work); on touch, tapping the empty part of a screen flashes all hotspots. Hotspots
+on repeat copies follow the template's flow. A flow to a screen without a frame of the same platform opens its first variant.
+
 ### Screen status
 
 Each logical screen has `status?: 'current' | 'changed' | 'new'` (unset = not stated), set in the

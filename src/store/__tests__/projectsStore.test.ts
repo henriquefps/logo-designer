@@ -42,3 +42,13 @@ describe('useProjectsStore', () => {
     expect(await loadDocument(firstId)).toBeNull();
   });
 });
+
+describe('canvas input gate (first click on a freshly loaded page)', () => {
+  it('refuses canvas input until the saved project has been loaded', async () => {
+    const { acceptsCanvasInput } = await import('@/canvas/inputGate');
+    useProjectsStore.setState({ ready: false });
+    expect(acceptsCanvasInput()).toBe(false);
+    await p().init();
+    expect(acceptsCanvasInput()).toBe(true);
+  });
+});

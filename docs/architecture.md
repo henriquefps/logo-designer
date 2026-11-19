@@ -454,6 +454,18 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
 - Object menu: Vertical stack ⌥⇧V, Horizontal stack ⌥⇧H, Grid ⌥⇧G (wrap the selection), Change to vertical stack /
   horizontal stack / grid (a selected container keeps its children, gap, padding, style and repeat).
 
+### Present mode and copies of flows
+
+- `wireframe/present.ts`: pure navigation over a document — `startPresent(doc, selection)`, `follow`, `back`, `switchPlatform`,
+  `platformsOf`, `hotspots` (frame-local rectangles, repeat copies included); state = `{ frameId, history[] }`. `presentStore.ts`
+  holds it for the app, `canvas/PresentMode.tsx` renders it (mounted in `App`); `view.present` (⌥⌘P) lives in `actions/modules/wireframe.ts`.
+- Flows follow copies: `useDocStore.duplicate` and `pasteNodes` copy the flows whose source is inside the copied nodes
+  (`copyIdMap` / `copyFlows` / `attachFlows` in `flows.ts`; new ids, same targets). The clipboard carries them
+  (`{ nodes, flows }`); a paste drops flows whose target screen does not exist in the destination document.
+- `canvas/inputGate.ts`: the canvas ignores pointer input until `useProjectsStore.ready` (before that the editor holds a placeholder
+  document, which swallowed the first click on a freshly loaded page). The canvas element carries `data-ready` for scripts.
+- Frame label strip: `labelLayout` in `canvas/labels.ts` (name truncates first, "Phone" stays, badge goes last).
+
 ### Seams for the next workstreams
 
 - **Layout**: built (see "Stacks and grids" above). The library panel drops components with

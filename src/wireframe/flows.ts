@@ -17,6 +17,7 @@ import {
   type DesignDocument,
   type Id,
   type Rect,
+  type SceneNode,
   type ScreenNode,
   type ScreenStatus,
   type Vec,
@@ -143,6 +144,52 @@ export function pruneFlows(doc: DocLike): number {
   else delete wf.flows;
   return removed;
 }
+
+// ---------- copies (duplicate, copy-paste) ----------
+
+/** Old id → new id for a node and its copy (a structured clone with fresh ids has the same shape). */
+export function copyIdMap(original: SceneNode, copy: SceneNode, map: Map<Id, Id> = new Map()): Map<Id, Id> {
+  map.set(original.id, copy.id);
+  if (original.type === 'group' && copy.type === 'group') original.children.forEach((c, i) => copy.children[i] && copyIdMap(c, copy.children[i], map));
+  return map;
+}
+
+/** Flows (plain copies) whose source is `nodes` or inside them, for the clipboard. */
+export function flowsInside(doc: DocLike, nodes: readonly SceneNode[]): WireframeFlow[] {
+  const flows = flowsOf(doc);
+  if (!flows.length) return [];
+  const ids = new Set<Id>();
+  for (const n of nodes) walk([plain(n) as SceneNode], (x) => void ids.add(x.id));
+  return flows.filter((f) => ids.has(f.from)).map((f) => ({ ...f }));
+}
+
+/** New flows (fresh ids, same targets and labels) for the copies of `flows`' sources; flows from nodes without a copy are skipped. */
+export function copyFlows(flows: readonly WireframeFlow[], ids: ReadonlyMap<Id, Id>): WireframeFlow[] {
+  const out: WireframeFlow[] = [];
+  for (const f of flows) {
+    const from = ids.get(f.from);
+    if (from) out.push({ id: newId('f'), from, to: f.to, ...(f.label ? { label: f.label } : {}) });
+  }
+  return out;
+}
+
+/**
+ * Adds copied flows to `doc`, keeping only those whose target is a logical screen of the document or
+ * one of `extraScreens` (screens carried by pasted frames). Returns how many were added.
+ */
+export function attachFlows(doc: DocLike, flows: readonly WireframeFlow[], extraScreens: Iterable<Id> = []): number {
+  const wf = doc.wireframe;
+  if (!wf || !flows.length) return 0;
+  const targets = new Set<Id>([...wf.screens.map((s) => s.id), ...extraScreens]);
+  const keep = flows.filter((f) => targets.has(f.to));
+  if (!keep.length) return 0;
+  if (!wf.flows) wf.flows = [];
+  wf.flows.push(...keep);
+  return keep.length;
+}
+
+/** Logical screen ids carried by the frames among `nodes` (top-level). */
+export const screenIdsOf = (nodes: readonly SceneNode[]): Id[] => nodes.filter(isScreenNode).map((f) => f.screen.screenId);
 
 // ---------- naming and New screen ----------
 

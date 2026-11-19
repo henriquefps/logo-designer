@@ -1,9 +1,9 @@
-import { CloudCheckIcon, CloudArrowUpIcon, WarningCircleIcon } from '@phosphor-icons/react';
+import { CloudCheckIcon, CloudArrowUpIcon, PlayIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { findNode } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
-import { runAction } from '@/actions/registry';
+import { formatShortcut, runAction } from '@/actions/registry';
 
 const fmt = (n: number) => Math.round(n).toString();
 
@@ -51,6 +51,11 @@ export function StatusBar() {
           ? `${doc.wireframe.screens.length} ${doc.wireframe.screens.length === 1 ? 'screen' : 'screens'}`
           : `${doc.artboard.width} × ${doc.artboard.height}`}
       </span>
+      {doc.wireframe && (
+        <button type="button" className="flex items-center gap-1 rounded-sm px-1 hover:text-foreground" onClick={() => runAction('view.present')} title={`Present (${formatShortcut('alt+mod+p')})`}>
+          <PlayIcon className="size-4" /> Present
+        </button>
+      )}
       <SaveIndicator />
     </div>
   );
