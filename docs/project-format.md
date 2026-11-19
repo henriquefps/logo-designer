@@ -145,10 +145,41 @@ Wireframe fields of nodes (optional; on a document without `wireframe` they are 
 | Field | On | Notes |
 | --- | --- | --- |
 | `screen` | top-level `group` only | a **screen frame**: `{ screenId, platform, width, height }`. `platform`: `phone` (390 wide, min height 844), `tablet` (820 / 1180) or `desktop` (1440 / 900), default `phone`. `width` defaults to the platform width; `height` is recomputed on open: max(platform minimum, content bottom). `screenId` names the logical screen (a new one when missing). At most one frame per platform per logical screen: a second one becomes its own logical screen "<name> copy". The group's `transform` places the frame's **top-left corner** (frames are never rotated or scaled); children use the frame's local space (origin = top-left). Content is clipped to the frame in exports |
-| `component` | `group` | a **component instance**: `{ kind, props, size? }`. `kind` names a library component (`src/wireframe/library/<kind>`; phase 1 has `placeholder` with props `label`, `height`); `props` its prop values (defaults fill the rest); `size` `{ width, height }` the box it was built for (default: the component's size). The children are **generated** from `kind` + `props` + `size` and rewritten on open, so edit props, not children. An unknown `kind` (a file from a newer version) loads as a plain group with a warning |
+| `component` | `group` | a **component instance**: `{ kind, props, size? }`. `kind` names a library component (`src/wireframe/library/<kind>`: `heading`, `button`, `list-row`, `placeholder`, …; the Components tab of the Assets panel lists them); `props` its prop values (missing props take the definition's defaults; see [Component props](#component-props)); `size` `{ width, height }` the box it was built for (default: the component's size). The children are **generated** from `kind` + `props` + `size` and rewritten on open, so edit props, not children. An unknown `kind` (a file from a newer version) loads as a plain group with a warning |
 | `layout` | `group` | reserved for stacks and grids (layout workstream): `{ kind: "vstack" \| "hstack" \| "grid", gap?, padding?, align?: "start" \| "center" \| "end" \| "stretch", columns? }` (defaults 0, 0, `stretch`, 2 for a grid). Validated and saved; not applied yet |
 | `note` | top-level `group` only | a **note** (sticky): `{ text, target? }`. `text` defaults to `""`; `target` is the id of the node it is attached to (any node: screen, component, shape; omit for a free note, and it is cleared on open when that node no longer exists). The sticky and its text are **generated** children (rewritten on open; edit `text`). Notes stay on the canvas (never adopted into a screen), are unscaled and unrotated, and are left out of screen exports (PNG/SVG per screen, `to-png`); the connector line to the target is drawn by the app, not stored. Not together with `screen` / `component` |
 | `layoutItem` | any node | reserved: how the node sits in its parent's layout: `{ width?, height?: "fill" \| "hug" \| number, position?: "flow" \| "pinned-bottom" \| "free" }` |
+
+#### Component props
+
+Each component declares its props (`src/wireframe/library/<kind>/index.ts`); the types are:
+
+| Type | JSON value | Notes |
+| --- | --- | --- |
+| `text`, `multiline` | string | `multiline` keeps `\n` line breaks |
+| `number` | number | clamped to the prop's `min`/`max` |
+| `boolean` | `true` / `false` | |
+| `choice` | one of the listed strings | e.g. `button.variant`: `"primary"`, `"secondary"`, `"text"` |
+| `icon` | string | an icon from the app's libraries: `"lucide:Heart"`, `"iconify:ph:heart"`; shorthands `"heart"`, `"arrow-right"` (Lucide) and `"ph:heart"` (Iconify) are accepted; `""` = no icon |
+| `list` | array of strings | e.g. tab labels, table columns |
+
+Props are checked on open: a value of the wrong type or outside a `choice` is dropped (the default applies) and a number
+out of range is clamped, each with a warning naming the JSON path (`children[0].children[2].component.props.trailing:
+expected one of …`). Unknown prop names are kept as they are (a newer version may use them). A file never fails to open
+because of a prop value.
+
+Starter components (phase 1):
+
+| `kind` | Props |
+| --- | --- |
+| `heading` | `text`; `level` `title` / `heading` / `subheading`; `align` `left` / `center` / `right` |
+| `button` | `label`; `variant` `primary` / `secondary` / `text`; `icon` (before the label) |
+| `list-row` | `title`; `subtitle`; `leading` `none` / `icon` / `avatar`; `leadingIcon`; `trailing` `none` / `chevron` / `toggle` / `value` / `checkbox`; `value` (trailing text); `checked` (toggle/checkbox state); `divider` |
+| `placeholder` | `label`; `height` (a grey box with an X) |
+
+Icons are drawn from the glyphs stored in the instance's children, so a file shows its icons anywhere (the CLI
+included). An instance created outside the app (the CLI, a hand-written file) draws a placeholder square until the
+app loads the icon library.
 
 Errors name the path (`children[0].screen.platform: expected one of "phone", "tablet", "desktop", got "watch"`,
 `children[0].children[1].screen: screen frames must be top-level objects`). `designer new --preset wireframe`

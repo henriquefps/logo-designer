@@ -41,7 +41,7 @@ export function LayersPanel() {
     if (!dragging || !drop) return;
     const loc = locate(doc, drop.id);
     if (!loc) return;
-    if (drop.pos === 'inside' && loc.node.type === 'group') {
+    if (drop.pos === 'inside' && loc.node.type === 'group' && !loc.node.component) {
       ds().moveNodes(dragging, loc.node.id, loc.node.children.length);
       setCollapsed((c) => {
         const n = new Set(c);
@@ -59,12 +59,15 @@ export function LayersPanel() {
   const renderLevel = (nodes: SceneNode[], depth: number, hiddenParent: boolean) => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      const expanded = n.type === 'group' && !collapsed.has(n.id);
+      // A component instance's children are generated: not listed (select and edit the instance).
+      const instance = n.type === 'group' && !!n.component;
+      const expanded = n.type === 'group' && !instance && !collapsed.has(n.id);
       rows.push(
         <LayerRow
           key={n.id}
           node={n}
           depth={depth}
+          instance={instance}
           selected={selection.includes(n.id)}
           expanded={expanded}
           dimmed={hiddenParent || !n.visible}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon, ImageSquareIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon, ImageSquareIcon, PuzzlePieceIcon } from '@phosphor-icons/react';
 import type { SceneNode } from '@/model';
 import { cn } from '@/lib/utils';
 import { NODE_ICONS } from './nodeIcons';
@@ -9,6 +9,8 @@ export type DropPosition = 'above' | 'below' | 'inside';
 interface LayerRowProps {
   node: SceneNode;
   depth: number;
+  /** A component instance: shown as one item (its generated children are not listed). */
+  instance?: boolean;
   selected: boolean;
   expanded: boolean;
   dimmed: boolean;
@@ -29,8 +31,8 @@ interface LayerRowProps {
 export function LayerRow(p: LayerRowProps) {
   const { node, depth, selected } = p;
   const [editing, setEditing] = useState(false);
-  const Icon = NODE_ICONS[node.type];
-  const isGroup = node.type === 'group';
+  const Icon = p.instance ? PuzzlePieceIcon : NODE_ICONS[node.type];
+  const isGroup = node.type === 'group' && !p.instance;
 
   const position = (e: React.DragEvent): DropPosition => {
     const r = e.currentTarget.getBoundingClientRect();

@@ -4,12 +4,25 @@
 // properties section and the real components; this file is the seam they build on.
 import type { LayoutSize, ScreenPlatform, SceneNode } from '@/model';
 
+interface PropBase {
+  /** Field label in the properties panel. */
+  label: string;
+  /** One short hint under the field (optional). */
+  help?: string;
+}
+
 export type PropSpec =
-  | { type: 'text' | 'multiline' | 'icon'; label: string; default: string }
-  | { type: 'number'; label: string; default: number; min?: number; max?: number; step?: number }
-  | { type: 'boolean'; label: string; default: boolean }
-  | { type: 'choice'; label: string; options: readonly string[]; default: string }
-  | { type: 'list'; label: string; default: readonly string[] };
+  | (PropBase & { type: 'text' | 'multiline'; default: string; placeholder?: string })
+  /** An icon name from the app's icon libraries (`lucide:Heart`, `iconify:ph:heart`; '' = none). See src/wireframe/icons.ts. */
+  | (PropBase & { type: 'icon'; default: string })
+  | (PropBase & { type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string })
+  | (PropBase & { type: 'boolean'; default: boolean })
+  /** `labels` maps an option to its label in the panel (default: the option, capitalised). */
+  | (PropBase & { type: 'choice'; options: readonly string[]; default: string; labels?: Readonly<Record<string, string>> })
+  /** A list of strings (tab labels, table columns). `item` names one entry in the editor ("Tab"). */
+  | (PropBase & { type: 'list'; default: readonly string[]; item?: string; min?: number; max?: number });
+
+export type PropType = PropSpec['type'];
 
 export type PropSpecs = Record<string, PropSpec>;
 
@@ -35,6 +48,8 @@ export interface BuildResult {
   children: SceneNode[];
   /** The height the component takes (hug). */
   height: number;
+  /** Components whose `sizing.width` is `hug`: the width their content needs (a button's label + padding). */
+  width?: number;
 }
 
 export interface ComponentDef<S extends PropSpecs = PropSpecs> {
@@ -43,6 +58,8 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   /** Where the library panel shows it first; 'all' = common. */
   platforms: readonly ScreenPlatform[] | 'all';
   category: string;
+  /** Extra words the library panel's search matches ("cta" for a button). */
+  keywords?: readonly string[];
   /** Drives the generated properties section. */
   props: S;
   /** Default behaviour inside a stack. */
@@ -63,27 +80,62 @@ export function defineComponent<const S extends PropSpecs>(def: ComponentDef<S>)
   return def;
 }
 
-/** Prop values with defaults filled in and wrong types replaced by the default. */
+const show = (v: unknown) => (typeof v === 'string' ? JSON.stringify(v) : Array.isArray(v) ? 'a list' : v === null ? 'null' : typeof v === 'object' ? 'an object' : String(v));
+
+/**
+ * Checks one value against its spec. Returns the value to use and, when the value was not usable as
+ * is, why (the caller turns it into a warning). `undefined` (prop not set) is fine: the default.
+ */
+export function checkProp(spec: PropSpec, v: unknown): { value: unknown; problem?: string } {
+  if (v === undefined) return { value: spec.type === 'list' ? [...spec.default] : spec.default };
+  switch (spec.type) {
+    case 'number': {
+      if (typeof v !== 'number' || !Number.isFinite(v)) return { value: spec.default, problem: `expected a number, got ${show(v)}` };
+      const c = Math.min(spec.max ?? Infinity, Math.max(spec.min ?? -Infinity, v));
+      return c === v ? { value: v } : { value: c, problem: `${v} is out of range (${spec.min ?? '−∞'}..${spec.max ?? '∞'}), using ${c}` };
+    }
+    case 'boolean':
+      return typeof v === 'boolean' ? { value: v } : { value: spec.default, problem: `expected true or false, got ${show(v)}` };
+    case 'list': {
+      if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) return { value: [...spec.default], problem: `expected a list of strings, got ${show(v)}` };
+      if (spec.max !== undefined && v.length > spec.max) return { value: v.slice(0, spec.max), problem: `at most ${spec.max} entries, got ${v.length}` };
+      return { value: [...v] };
+    }
+    case 'choice':
+      return typeof v === 'string' && spec.options.includes(v)
+        ? { value: v }
+        : { value: spec.default, problem: `expected one of ${spec.options.map((o) => `"${o}"`).join(', ')}, got ${show(v)}` };
+    default:
+      return typeof v === 'string' ? { value: v } : { value: spec.default, problem: `expected text, got ${show(v)}` };
+  }
+}
+
+/**
+ * Validates raw props (a file, the CLI, an AI). Bad values are replaced by the default (numbers out of
+ * range are clamped) and reported; unknown keys are kept untouched (a newer version may use them).
+ * `props` is what to store: the raw object minus the bad values, with clamped numbers.
+ */
+export function validateProps(def: AnyComponentDef, raw: Record<string, unknown>): { props: Record<string, unknown>; problems: { key: string; message: string }[] } {
+  const props: Record<string, unknown> = { ...raw };
+  const problems: { key: string; message: string }[] = [];
+  for (const [key, spec] of Object.entries(def.props as PropSpecs)) {
+    if (raw[key] === undefined) continue;
+    const r = checkProp(spec, raw[key]);
+    if (!r.problem) continue;
+    problems.push({ key, message: `${r.problem}; ${spec.type === 'number' && typeof raw[key] === 'number' ? 'clamped' : 'using the default'}` });
+    if (spec.type === 'number' && typeof raw[key] === 'number' && Number.isFinite(raw[key])) props[key] = r.value;
+    else if (spec.type === 'list' && Array.isArray(raw[key]) && (raw[key] as unknown[]).every((x) => typeof x === 'string')) props[key] = r.value;
+    else delete props[key];
+  }
+  return { props, problems };
+}
+
+/** Prop values with defaults filled in and wrong types replaced by the default. Never throws. */
 export function resolveProps<S extends PropSpecs>(def: ComponentDef<S>, raw: Record<string, unknown>): PropsOf<S> {
   const out: Record<string, unknown> = {};
-  for (const [key, spec] of Object.entries(def.props)) {
-    const v = raw[key];
-    switch (spec.type) {
-      case 'number':
-        out[key] = typeof v === 'number' && Number.isFinite(v) ? Math.min(spec.max ?? Infinity, Math.max(spec.min ?? -Infinity, v)) : spec.default;
-        break;
-      case 'boolean':
-        out[key] = typeof v === 'boolean' ? v : spec.default;
-        break;
-      case 'list':
-        out[key] = Array.isArray(v) && v.every((x) => typeof x === 'string') ? [...v] : [...spec.default];
-        break;
-      case 'choice':
-        out[key] = typeof v === 'string' && spec.options.includes(v) ? v : spec.default;
-        break;
-      default:
-        out[key] = typeof v === 'string' ? v : spec.default;
-    }
-  }
+  for (const [key, spec] of Object.entries(def.props)) out[key] = checkProp(spec, raw?.[key]).value;
   return out as PropsOf<S>;
 }
+
+/** Default values of every prop (what a new instance starts with). */
+export const defaultProps = <S extends PropSpecs>(def: ComponentDef<S>): PropsOf<S> => resolveProps(def, {});

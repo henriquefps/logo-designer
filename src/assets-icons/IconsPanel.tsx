@@ -22,8 +22,9 @@ const ALL = '__all__';
 const INFO = { lucide: 'Lucide · ISC license', phosphor: 'Phosphor · MIT license (loaded from Iconify on demand)' };
 
 /** Dropping an icon from the grid onto the canvas inserts it at the drop point. */
-function useCanvasDrop() {
+function useCanvasDrop(enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     const canvasOf = (e: DragEvent) => ((e.target as Element | null)?.closest?.('[data-slot="canvas"]') as HTMLElement | null) ?? null;
     const isIcon = (e: DragEvent) => !!e.dataTransfer?.types.includes(ICON_DRAG_MIME);
     const onOver = (e: DragEvent) => {
@@ -47,7 +48,7 @@ function useCanvasDrop() {
       document.removeEventListener('dragover', onOver);
       document.removeEventListener('drop', onDrop);
     };
-  }, []);
+  }, [enabled]);
 }
 
 function insert(ref: IconRef, at?: { x: number; y: number }) {
@@ -57,8 +58,13 @@ function insert(ref: IconRef, at?: { x: number; y: number }) {
   );
 }
 
-export function IconsPanel() {
-  useCanvasDrop();
+/**
+ * The icon libraries. Without `onPick`, a click inserts the icon (or drag it onto the canvas). With
+ * `onPick` (an icon picker, e.g. a wireframe component's icon prop), a click hands back the icon's
+ * key (`lucide:Heart`, `iconify:ph:heart`) and nothing is inserted.
+ */
+export function IconsPanel({ onPick }: { onPick?: (key: string) => void } = {}) {
+  useCanvasDrop(!onPick);
   const o = useIconOptions();
   const { favorites, recents, toggleFavorite } = useIconPrefs();
   const artboard = useDocStore((s) => s.doc.artboard);
@@ -164,6 +170,7 @@ export function IconsPanel() {
         </p>
       </Section>
 
+      {!onPick && (
       <Section title="Insert options">
         <FieldRow label="Color">
           <ColorField ariaLabel="Icon color" value={o.color} showAlpha={false} onChange={(color) => o.set({ color: color.slice(0, 7) })} />
@@ -209,6 +216,7 @@ export function IconsPanel() {
           </FieldRow>
         )}
       </Section>
+      )}
 
       <Section title="Icons" actions={<span className="text-xs text-muted-foreground">{loading ? '' : `${items.length.toLocaleString()}`}</span>}>
         <div className="relative">
@@ -226,13 +234,17 @@ export function IconsPanel() {
             Recent
           </ToggleGroupItem>
         </ToggleGroup>
-        <IconGrid items={items} maps={{ lucide: lucideMap }} favorites={favorites} onPick={(r) => insert(r)} onToggleFavorite={(r) => toggleFavorite(refKey(r))} empty={empty} />
+        <IconGrid items={items} maps={{ lucide: lucideMap }} favorites={favorites} onPick={(r) => {
+            if (!onPick) return insert(r);
+            useIconPrefs.getState().pushRecent(refKey(r));
+            onPick(refKey(r));
+          }} onToggleFavorite={(r) => toggleFavorite(refKey(r))} empty={empty} />
         {error && (
           <Button variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>
             <ArrowClockwiseIcon /> Retry
           </Button>
         )}
-        <p className="text-xs text-muted-foreground">Click to insert in the center, or drag onto the canvas.</p>
+        <p className="text-xs text-muted-foreground">{onPick ? 'Click an icon to use it.' : 'Click to insert in the center, or drag onto the canvas.'}</p>
       </Section>
     </div>
   );

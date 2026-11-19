@@ -19,7 +19,8 @@ import {
   type SubPath,
   type WireframeDocInfo,
 } from '@/model';
-import { isComponentKind } from '@/wireframe/library/registry';
+import { getComponent } from '@/wireframe/library/registry';
+import { validateProps } from '@/wireframe/library/types';
 import { downloadBlob, safeFileName } from './download';
 
 export const PROJECT_EXTENSION = '.designer.json';
@@ -240,8 +241,13 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
     if (type !== 'group') fail(at(path, 'component'), `only a group can be a component instance (this is a ${type})`);
     if (out.screen) fail(at(path, 'component'), 'a screen frame cannot also be a component');
     const c = componentInfo(o.component, at(path, 'component'));
-    if (isComponentKind(c.kind)) out.component = c;
-    else ctx.warnings.push(`${at(at(path, 'component'), 'kind')}: unknown component "${c.kind}" (made with a newer version?); loaded as a plain group`);
+    const def = getComponent(c.kind);
+    if (def) {
+      // Bad prop values fall back to the default (numbers are clamped), with a warning; never a failure.
+      const { props, problems } = validateProps(def, c.props);
+      for (const p of problems) ctx.warnings.push(`${at(at(at(path, 'component'), 'props'), p.key)}: ${p.message}`);
+      out.component = problems.length ? { ...c, props } : c;
+    } else ctx.warnings.push(`${at(at(path, 'component'), 'kind')}: unknown component "${c.kind}" (made with a newer version?); loaded as a plain group`);
   }
   if (o.layout !== undefined && o.layout !== null) {
     if (type !== 'group') fail(at(path, 'layout'), `only a group can lay out children (this is a ${type})`);

@@ -6,6 +6,7 @@ import type { Draft } from 'immer';
 import type { ComponentNode, GroupNode, SceneNode } from '@/model';
 import { getComponent } from '../../library/registry';
 import { resolveProps } from '../../library/types';
+import { harvestIcons } from '../../icons';
 import { plain, type PipelineContext, type WireframeStep } from '../../types';
 
 /** Gives built children stable ids derived from the instance id (deterministic rebuilds keep render identity cheap). */
@@ -26,7 +27,16 @@ export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: n
   if (!def) return null;
   const width = size?.width ?? node.component.size?.width ?? def.defaultSize.width;
   const props = resolveProps(def, node.component.props as Record<string, unknown>);
-  const built = def.build(props, { width });
+  // Icons the instance was saved with stay drawn even before the app loads the libraries.
+  harvestIcons(plain(node.children) as SceneNode[]);
+  let built;
+  try {
+    built = def.build(props, { width });
+  } catch (err) {
+    // A broken component must not break the document: keep what was built before.
+    console.warn(`Component "${def.kind}" failed to build`, err);
+    return node.component.size?.height ?? def.defaultSize.height;
+  }
   const children = assignIds(built.children, node.id);
   if (JSON.stringify(children) !== JSON.stringify(node.children)) node.children = children as Draft<SceneNode>[];
   const cur = node.component.size;
