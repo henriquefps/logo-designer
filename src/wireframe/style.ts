@@ -17,6 +17,12 @@ export const WF = {
   paper: '#ffffff',
   /** Screen frame border (canvas only; exports have no border). */
   frame: '#d0d0d0',
+  /** Notes: the one accent colour. A soft yellow sticky that reads on a light and a dark canvas. */
+  note: '#fde68a',
+  noteEdge: '#e0c04c',
+  noteInk: '#3d3200',
+  /** Connector line from a note to its target (canvas overlay). */
+  noteLine: '#d4a72c',
   font: 'Inter',
   strokeWidth: 1,
 } as const;

@@ -233,6 +233,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -410,6 +414,19 @@
       ],
       "description": "`fill` the available space, `hug` the content, or a fixed size."
     },
+    "NoteInfo": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/definitions/Id",
+          "description": "The node this note is attached to. Absent = a free note. Cleared when that node is deleted."
+        }
+      },
+      "description": "A note: a sticky on the canvas (a top-level group; its children are generated from `text`), optionally attached to a node (`target`: any node id) by a connector line that follows both. Notes are not part of screen exports; they are part of the export for AI."
+    },
     "PathNode": {
       "type": "object",
       "properties": {
@@ -476,6 +493,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -653,6 +674,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -721,6 +746,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -792,6 +821,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -887,6 +920,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [
@@ -952,6 +989,10 @@
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
           "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+        },
+        "note": {
+          "$ref": "#/definitions/NoteInfo",
+          "description": "Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node)."
         }
       },
       "required": [

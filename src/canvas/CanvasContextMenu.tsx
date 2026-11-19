@@ -26,6 +26,7 @@ const OBJECT_MENU: Entry[] = [
   '-',
   'object.group',
   'object.ungroup',
+  'wireframe.addNote',
   { label: 'Arrange', items: ['object.arrange.front', 'object.arrange.forward', 'object.arrange.backward', 'object.arrange.back'] },
   { label: 'Transform', items: ['object.flipH', 'object.flipV'] },
   { label: 'Path', items: ['path.editPoints', 'path.convert', 'path.outlineStroke', 'path.join', 'path.reverse', 'path.simplify'] },

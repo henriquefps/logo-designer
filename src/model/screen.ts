@@ -1,6 +1,7 @@
 // Screen frames of wireframe documents (docs/wireframe-mode.md). Pure geometry the model needs
 // (bounds, hit testing, scale baking); the behaviour lives in src/wireframe.
 import type { DesignDocument, GroupNode, Rect, ScreenPlatform, SceneNode } from './types';
+import { findNode } from './tree';
 
 export interface PlatformDef {
   id: ScreenPlatform;
@@ -42,3 +43,18 @@ export function sizedGroupBox(n: SceneNode): Rect | null {
   if (n.screen) return { x: 0, y: 0, width: n.screen.width, height: n.screen.height };
   return null;
 }
+
+// ---------- per-node editing traits (generic hooks; today only notes opt out) ----------
+
+/** False for nodes whose size is not the user's to change (notes: fixed width, auto height): no resize/rotate handles, no W/H/rotation/flip fields. */
+export const canResizeNode = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
+
+/** False for nodes that are not styled by the user (notes): the fill/stroke swatches skip them and Properties hides Appearance / Fill / Stroke. */
+export const isUserPaintable = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
+
+/** Whether every node of the selection can be resized/rotated. */
+export const canResizeSelection = (doc: DesignDocument, ids: readonly string[]): boolean =>
+  ids.every((id) => {
+    const n = findNode(doc, id);
+    return !n || canResizeNode(n);
+  });

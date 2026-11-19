@@ -1,7 +1,7 @@
 import { CursorIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { setReference } from '@/actions/modules/object';
-import { hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
+import { canResizeSelection, hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
 import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
@@ -26,6 +26,7 @@ function hitHandle(ctx: ToolContext, e: ToolPointerEvent): HandleHit {
   const ed = ctx.editor();
   const ids = ed.selection;
   if (!ids.length) return null;
+  if (!canResizeSelection(ctx.doc(), ids)) return null; // e.g. notes: move only
   const frame = getSelectionFrame(ctx.doc(), ids);
   if (!frame) return null;
   const tol = HANDLE_HIT_PX * ctx.px();

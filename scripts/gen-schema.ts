@@ -36,6 +36,7 @@ const OPTIONAL: Record<string, string[]> = {
   ScreenFrameInfo: ['screenId', 'platform', 'width', 'height'],
   ComponentInfo: ['props'],
   LayoutInfo: ['gap', 'padding', 'align'],
+  NoteInfo: ['text'],
 };
 
 export function generateSchema(): string {

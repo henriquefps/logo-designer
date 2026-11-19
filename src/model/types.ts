@@ -55,6 +55,8 @@ export interface NodeBase {
   layout?: LayoutInfo;
   /** Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step. */
   layoutItem?: LayoutItemInfo;
+  /** Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node). */
+  note?: NoteInfo;
 }
 
 export type PointType = 'corner' | 'smooth' | 'symmetric';
@@ -190,6 +192,17 @@ export interface LayoutItemInfo {
   height?: LayoutSize;
   /** `flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack. */
   position?: 'flow' | 'pinned-bottom' | 'free';
+}
+
+/**
+ * A note: a sticky on the canvas (a top-level group; its children are generated from `text`),
+ * optionally attached to a node (`target`: any node id) by a connector line that follows both.
+ * Notes are not part of screen exports; they are part of the export for AI.
+ */
+export interface NoteInfo {
+  text: string;
+  /** The node this note is attached to. Absent = a free note. Cleared when that node is deleted. */
+  target?: Id;
 }
 
 /** A logical screen (`Settings`, `Gallery`): one or more frames, at most one per platform. */
