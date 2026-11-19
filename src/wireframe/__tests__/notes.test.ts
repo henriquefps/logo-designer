@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDocument, createRect, findNode, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
+import { canResizeNode, canResizeSelection, createDocument, createRect, isUserPaintable, findNode, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
 import { validateDocument } from '@/io/projectFile';
 import { exportSvg } from '@/io/svgExport';
 import { useDocStore } from '@/store/useDocStore';
+import { useEditorStore } from '@/store/useEditorStore';
+import { selectedPaintedNodes } from '@/store/usePaintDefaults';
 import {
   addNote,
   attachNote,
@@ -238,5 +240,23 @@ describe('notesFor', () => {
     (doc.children[0] as GroupNode).note!.target = 'gone';
     expect(notesFor(doc)).toEqual([{ noteId: id, text: 'x' }]);
     expect(notesFor(createDocument())).toEqual([]);
+  });
+});
+
+describe('editing traits', () => {
+  it('notes cannot be resized and are not painted objects; other nodes are unaffected', () => {
+    const { home, box } = setup();
+    let id = '';
+    s().apply((d) => void (id = addNote(d, { text: 'x', target: box })));
+    expect(canResizeNode(node(id))).toBe(false);
+    expect(isUserPaintable(node(id))).toBe(false);
+    expect(canResizeNode(node(box))).toBe(true);
+    expect(canResizeSelection(s().doc, [home, box])).toBe(true);
+    expect(canResizeSelection(s().doc, [box, id])).toBe(false);
+    useEditorStore.getState().setSelection([id]);
+    expect(selectedPaintedNodes()).toHaveLength(0); // the toolbar swatches keep the defaults
+    useEditorStore.getState().setSelection([box]);
+    expect(selectedPaintedNodes()).toHaveLength(1);
+    useEditorStore.getState().setSelection([]);
   });
 });

@@ -1,3 +1,4 @@
+import { canResizeSelection } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { getSelectionFrame, handlePosition, rotationHandlePosition } from '../selectionFrame';
@@ -16,7 +17,7 @@ export function SelectionOverlay() {
   const frame = getSelectionFrame(doc, selection);
   if (!frame) return null;
   const corners = frame.corners.map(toScreen);
-  const showHandles = tool === 'select';
+  const showHandles = tool === 'select' && canResizeSelection(doc, selection);
   const tiny = frame.width * zoom < 16 || frame.height * zoom < 16;
   const top = toScreen(handlePosition(frame, 1));
   const rot = toScreen(rotationHandlePosition(frame, zoom));

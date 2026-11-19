@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DEFAULT_FILL_COLOR, defaultStroke, none, solid, walk, findNode, type Id, type Paint, type SceneNode, type Stroke } from '@/model';
+import { DEFAULT_FILL_COLOR, defaultStroke, none, solid, walk, findNode, isUserPaintable, type Id, type Paint, type SceneNode, type Stroke } from '@/model';
 import { useDocStore } from './useDocStore';
 import { useEditorStore } from './useEditorStore';
 
@@ -64,7 +64,7 @@ export function selectedPaintedNodes() {
     .selection.map((id) => findNode(doc, id))
     .filter((n): n is SceneNode => !!n);
   walk(roots, (n) => {
-    if (n.locked) return false;
+    if (n.locked || !isUserPaintable(n)) return false;
     if (painted(n)) out.push(n);
   });
   return out;
