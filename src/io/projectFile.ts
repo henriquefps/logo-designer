@@ -203,6 +203,10 @@ function layoutInfo(v: unknown, path: string): LayoutInfo {
     if (!Number.isInteger(c) || c < 1) fail(at(path, 'columns'), `expected a whole number ≥ 1, got ${show(o.columns)}`);
     out.columns = c;
   }
+  if (o.size !== undefined && o.size !== null) {
+    const so = obj(o.size, at(path, 'size'));
+    out.size = { width: nonNegative(so.width, 0, at(at(path, 'size'), 'width')), height: nonNegative(so.height, 0, at(at(path, 'size'), 'height')) };
+  }
   return out;
 }
 

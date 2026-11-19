@@ -51,9 +51,9 @@ export interface NodeBase {
   screen?: ScreenFrameInfo;
   /** Wireframe documents only: this group is a component instance; its children are generated. */
   component?: ComponentInfo;
-  /** Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step. */
+  /** Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts). */
   layout?: LayoutInfo;
-  /** Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step. */
+  /** Wireframe documents only: how this node sits in its parent's `layout`. */
   layoutItem?: LayoutItemInfo;
   /** Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node). */
   note?: NoteInfo;
@@ -170,7 +170,7 @@ export interface ComponentInfo {
 export type LayoutKind = 'vstack' | 'hstack' | 'grid';
 export type LayoutAlign = 'start' | 'center' | 'end' | 'stretch';
 
-/** Container layout (reserved: the layout step fills in the behaviour). */
+/** Container layout (src/wireframe/layout.ts). The container's local origin is its top-left corner. */
 export interface LayoutInfo {
   kind: LayoutKind;
   /** Space between children. */
@@ -181,12 +181,17 @@ export interface LayoutInfo {
   align: LayoutAlign;
   /** Grid only: number of columns. */
   columns?: number;
+  /**
+   * The container's box (local origin = top-left), written by the layout step. Screen frames keep
+   * theirs in `screen` instead. Omitted = not laid out yet (the layout step measures the content).
+   */
+  size?: { width: number; height: number };
 }
 
 /** `fill` the available space, `hug` the content, or a fixed size. */
 export type LayoutSize = 'fill' | 'hug' | number;
 
-/** A child's sizing inside a layout container (reserved for the layout step). */
+/** A child's sizing inside a layout container. Missing fields take the defaults (component `sizing`, containers fill × hug). */
 export interface LayoutItemInfo {
   width?: LayoutSize;
   height?: LayoutSize;

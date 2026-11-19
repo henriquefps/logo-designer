@@ -22,7 +22,7 @@ function assignIds(children: SceneNode[], prefix: string): SceneNode[] {
  * Exported for the layout step, which sizes instances and needs their hug height.
  * Returns the built height, or null for an unknown kind.
  */
-export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: number }): number | null {
+export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: number; height?: number }): number | null {
   const def = getComponent(node.component.kind);
   if (!def) return null;
   const width = size?.width ?? node.component.size?.width ?? def.defaultSize.width;
@@ -31,31 +31,37 @@ export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: n
   harvestIcons(plain(node.children) as SceneNode[]);
   let built;
   try {
-    built = def.build(props, { width });
+    // `height`: the layout fixes it (fixed or fill sizing); the box is that tall whatever build returns.
+    built = def.build(props, size?.height !== undefined ? { width, height: size.height } : { width });
   } catch (err) {
     // A broken component must not break the document: keep what was built before.
     console.warn(`Component "${def.kind}" failed to build`, err);
     return node.component.size?.height ?? def.defaultSize.height;
   }
+  const height = size?.height ?? built.height;
   const children = assignIds(built.children, node.id);
   if (JSON.stringify(children) !== JSON.stringify(node.children)) node.children = children as Draft<SceneNode>[];
   const cur = node.component.size;
-  if (!cur || cur.width !== width || cur.height !== built.height) node.component.size = { width, height: built.height };
-  return built.height;
+  if (!cur || cur.width !== width || cur.height !== height) node.component.size = { width, height };
+  return height;
 }
 
-/** Index paths of the instances to rebuild. Walks plain nodes only; skips subtrees that did not change. */
-function stale(nodes: readonly SceneNode[], ctx: PipelineContext, path: number[], out: number[][]) {
+/**
+ * Index paths of the instances to rebuild. Walks plain nodes only; skips subtrees that did not change.
+ * Instances placed by a stack / grid are left to the layout step, which builds them at their slot's size.
+ */
+function stale(nodes: readonly SceneNode[], ctx: PipelineContext, path: number[], out: number[][], parentLays = false) {
   nodes.forEach((n, i) => {
     if (n.type !== 'group') return;
     const prev = ctx.previous(n.id);
     if (ctx.phase !== 'load' && prev === n) return; // untouched subtree (immer structural sharing)
     if (n.component) {
+      if (parentLays && n.layoutItem?.position !== 'free') return;
       // Generated children are never instances to rebuild on their own.
       if (ctx.phase === 'load' || !prev || (prev as GroupNode).component !== n.component) out.push([...path, i]);
       return;
     }
-    stale(n.children, ctx, [...path, i], out);
+    stale(n.children, ctx, [...path, i], out, !!n.layout);
   });
 }
 

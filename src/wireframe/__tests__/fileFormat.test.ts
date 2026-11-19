@@ -83,7 +83,7 @@ describe('wireframe file format', () => {
 describe('screens on the canvas and in exports', () => {
   const make = () => {
     const doc = createDocument({ wireframe: { screens: [] } });
-    const id = addScreen(doc, { platform: 'phone', name: 'Home', x: 100, y: 50 });
+    const id = addScreen(doc, { layout: null, platform: 'phone', name: 'Home', x: 100, y: 50 });
     const s = doc.children[0] as ScreenNode;
     s.children.push(
       { ...(validateDocument(wf([{ type: 'rect', name: 'Card', width: 100, height: 100, transform: { x: 60, y: 60 }, fill: { kind: 'solid', color: '#000000' } }])).children[0]) },

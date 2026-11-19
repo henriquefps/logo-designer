@@ -37,12 +37,16 @@ export function screenNodes(doc: Pick<DesignDocument, 'children' | 'wireframe'>)
 /** The frame's box in its own local space (origin = top-left corner). */
 export const screenLocalRect = (n: ScreenNode): Rect => ({ x: 0, y: 0, width: n.screen.width, height: n.screen.height });
 
-/** The intrinsic box of a sized group (screen frame or component instance) in local space, else null. */
+/** A layout container (stack / grid) that is not a screen frame. */
+export const isContainerNode = (n: SceneNode): n is GroupNode & { layout: NonNullable<GroupNode['layout']> } => n.type === 'group' && !!n.layout && !n.screen;
+
+/** The intrinsic box of a sized group (screen frame or laid-out container) in local space, else null. */
 export function sizedGroupBox(n: SceneNode): Rect | null {
   if (n.type !== 'group') return null;
   if (n.screen) return { x: 0, y: 0, width: n.screen.width, height: n.screen.height };
   // A component instance is the box it was built for (its selection box and its hit area).
   if (n.component?.size) return { x: 0, y: 0, width: n.component.size.width, height: n.component.size.height };
+  if (n.layout?.size) return { x: 0, y: 0, width: n.layout.size.width, height: n.layout.size.height };
   return null;
 }
 

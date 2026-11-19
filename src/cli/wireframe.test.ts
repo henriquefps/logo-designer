@@ -63,7 +63,8 @@ describe('designer CLI: wireframes', () => {
     await writeFile(join(dir, 'grown.designer.json'), JSON.stringify(doc));
     const v = await cli('validate', 'grown.designer.json');
     expect(v.code).toBe(0);
-    expect(v.out).toMatch(/Home: phone 390×1300/);
+    // The screen's content is a vertical stack: padding 16 + 1200 + gap 12 + (the unknown kind, an empty group) + 16.
+    expect(v.out).toMatch(/Home: phone 390×1244/);
     expect(v.out).toMatch(/warning: children\[0\]\.children\[1\]\.component\.kind: unknown component "from-the-future"/);
   });
 
@@ -85,7 +86,7 @@ describe('designer CLI: wireframes', () => {
     const out = execFileSync('bun', [join(root, 'bin/designer.ts'), 'validate', join(dir, 'grown.designer.json')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     // The placeholder kind is known (from the glob-discovered library), so it is not reported as unknown.
     expect(out).not.toMatch(/unknown component "placeholder"/);
-    expect(out).toMatch(/Home: phone 390×1300/);
+    expect(out).toMatch(/Home: phone 390×1244/);
   });
 });
 

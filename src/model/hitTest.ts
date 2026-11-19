@@ -127,6 +127,8 @@ export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}):
         }
         const r = search(n.children, m);
         if (r) return { leaf: r.leaf, top: n.id };
+        // A laid-out stack / grid is grabbed on its empty space (padding, gaps) too.
+        if (n.layout?.size && rectContains({ x: 0, y: 0, ...n.layout.size }, apply(invert(m), world))) return { leaf: n.id, top: n.id };
       } else if (hitTestNode(n, m, world, tolerance)) {
         return { leaf: n.id, top: n.id };
       }

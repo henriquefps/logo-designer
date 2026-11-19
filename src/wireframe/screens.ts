@@ -14,11 +14,13 @@ import {
   type DesignDocument,
   type GroupNode,
   type Id,
+  type LayoutInfo,
   type Rect,
   type ScreenNode,
   type ScreenPlatform,
   type WireframeScreen,
 } from '@/model';
+import { defaultScreenLayout } from './layout';
 import { plain } from './types';
 
 /** Space between screens placed by the app (new screens, variants). */
@@ -73,11 +75,17 @@ export function uniqueScreenName(doc: DocLike, base: string): string {
 
 export const nextScreenName = (doc: DocLike) => uniqueScreenName(doc, `Screen ${(doc.wireframe?.screens.length ?? 0) + 1}`);
 
-/** A new frame (not yet in a document). Its height is the platform minimum until the pipeline runs. */
-export function createScreenFrame(o: { screenId: Id; name: string; platform: ScreenPlatform; x: number; y: number; width?: number }): ScreenNode {
+/**
+ * A new frame (not yet in a document). Its height is the platform minimum until the pipeline runs.
+ * Its content is a vertical stack (`defaultScreenLayout`) unless `layout: null` (free content).
+ */
+export function createScreenFrame(o: { screenId: Id; name: string; platform: ScreenPlatform; x: number; y: number; width?: number; layout?: LayoutInfo | null }): ScreenNode {
   const def = platformDef(o.platform);
   const g = createGroup({ name: o.name, transform: { x: o.x, y: o.y } });
-  return { ...g, screen: { screenId: o.screenId, platform: o.platform, width: o.width ?? def.width, height: def.minHeight } };
+  const frame: ScreenNode = { ...g, screen: { screenId: o.screenId, platform: o.platform, width: o.width ?? def.width, height: def.minHeight } };
+  const layout = o.layout === undefined ? defaultScreenLayout(o.platform) : o.layout;
+  if (layout) frame.layout = layout;
+  return frame;
 }
 
 function topLevelRects(doc: DocLike, exclude?: Id): Rect[] {
@@ -116,7 +124,7 @@ export function variantPosition(doc: DocLike, source: ScreenNode, width: number,
  * screen named `name` (default "Screen N"); with one, it adds a variant and fails if that platform
  * already has a frame. Returns the new frame's node id.
  */
-export function addScreen(doc: DocLike, o: { platform: ScreenPlatform; name?: string; screenId?: Id; x?: number; y?: number; width?: number }): Id {
+export function addScreen(doc: DocLike, o: { platform: ScreenPlatform; name?: string; screenId?: Id; x?: number; y?: number; width?: number; layout?: LayoutInfo | null }): Id {
   const wf = doc.wireframe;
   if (!wf) throw new Error('Not a wireframe document.');
   let logical: WireframeScreen;
@@ -130,7 +138,7 @@ export function addScreen(doc: DocLike, o: { platform: ScreenPlatform; name?: st
     wf.screens.push(logical);
   }
   const pos = o.x !== undefined && o.y !== undefined ? { x: o.x, y: o.y } : newScreenPosition(doc);
-  const frame = createScreenFrame({ screenId: logical.id, name: logical.name, platform: o.platform, x: pos.x, y: pos.y, width: o.width });
+  const frame = createScreenFrame({ screenId: logical.id, name: logical.name, platform: o.platform, x: pos.x, y: pos.y, width: o.width, layout: o.layout });
   doc.children.push(frame);
   return frame.id;
 }
@@ -154,6 +162,12 @@ export function duplicateScreenAs(doc: DocLike, frameId: Id, platform: ScreenPla
   renew(copy);
   copy.transform = { ...copy.transform, x: pos.x, y: pos.y, rotation: 0, scaleX: 1, scaleY: 1 };
   copy.screen = { ...copy.screen, platform, width: def.width, height: def.minHeight };
+  // A stack with the source platform's default spacing gets the target platform's.
+  const from = defaultScreenLayout(source.screen.platform);
+  if (copy.layout && copy.layout.padding === from.padding && copy.layout.gap === from.gap) {
+    const to = defaultScreenLayout(platform);
+    copy.layout = { ...copy.layout, padding: to.padding, gap: to.gap };
+  }
   doc.children.push(copy);
   return copy.id;
 }

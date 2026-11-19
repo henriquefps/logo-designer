@@ -69,6 +69,13 @@ export function bakeScale<T extends SceneNode>(node: T): T {
         node.transform = { ...t, scaleX: 1, scaleY: 1 };
         return node;
       }
+      if (node.layout?.size) {
+        // A stack / grid: the layout step lays its children out again at the new size.
+        const size = node.layout.size;
+        node.layout = { ...node.layout, size: { width: size.width * ax, height: size.height * ay } };
+        node.transform = { ...t, scaleX: 1, scaleY: 1 };
+        return node;
+      }
       return node;
     default:
       return node;

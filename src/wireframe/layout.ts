@@ -1,0 +1,366 @@
+// Stacks and grids of wireframe documents (docs/wireframe-mode.md → Layout: stacks and grids).
+//
+// A container is a group with `layout: { kind, gap, padding, align, columns? }` (a screen frame
+// can be one: its content is then a stack). Its local origin is its top-left corner. Children are
+// placed in the flow unless `layoutItem.position` says otherwise:
+//   - `free`: absolute, ignored by the flow (FAB, modal, badge);
+//   - `pinned-bottom` (direct children of a screen frame only; elsewhere it is `flow`): stacked at
+//     the bottom of the frame, which is max(platform minimum, content) tall, across the full frame
+//     width (bars are edge to edge, the frame's padding does not apply to them).
+// Sizes (`layoutItem.width/height`, defaults from the component definition's `sizing`; containers
+// fill × hug; plain shapes and groups always hug their bounds and are only moved):
+//   - a number: fixed;
+//   - `hug`: the content (a component's build height; its definition's default width);
+//   - `fill`: main axis: shares the space left (vstack: grows from its hug height, only when the
+//     container is taller than its content, e.g. a screen's minimum height); cross axis: the
+//     container's inner size. `align: stretch` makes hugging children fill the cross axis.
+//
+// Two passes, both pure: `plan*` measures plain nodes (memoized on node identity: immer's
+// structural sharing keeps untouched subtrees the same objects, so measuring them again is a cache
+// hit), `applyLayout` writes the plan into an immer draft (transforms, container sizes, component
+// rebuilds through `env.build`) and never assigns an equal value. Running it twice changes nothing.
+import type { Draft } from 'immer';
+import { boundsIn, fromTransform, type GroupNode, type LayoutInfo, type LayoutItemInfo, type LayoutSize, type SceneNode, type ScreenPlatform } from '@/model';
+import { getComponent } from './library/registry';
+import { resolveProps } from './library/types';
+
+export const EPS = 1e-6;
+
+export type ContainerNode = GroupNode & { layout: LayoutInfo };
+
+export const isLayoutContainer = (n: SceneNode): n is ContainerNode => n.type === 'group' && !!n.layout && !n.component;
+
+/** Default layout of a new stack / grid made with Object → Vertical stack / Horizontal stack / Grid. */
+export function defaultLayout(kind: LayoutInfo['kind']): LayoutInfo {
+  switch (kind) {
+    case 'hstack':
+      return { kind, gap: 8, padding: 0, align: 'center' };
+    case 'grid':
+      return { kind, gap: 12, padding: 0, align: 'stretch', columns: 2 };
+    default:
+      return { kind: 'vstack', gap: 12, padding: 0, align: 'stretch' };
+  }
+}
+
+/**
+ * Layout of a new screen frame: its content is a vertical stack. Padding and gap grow with the
+ * platform (phone 16 / 12, tablet 24 / 16, desktop 32 / 24); children align to the start (most
+ * components fill the width anyway; hugging ones such as a text button sit on the left).
+ */
+export function defaultScreenLayout(platform: ScreenPlatform): LayoutInfo {
+  if (platform === 'desktop') return { kind: 'vstack', gap: 24, padding: 32, align: 'start' };
+  if (platform === 'tablet') return { kind: 'vstack', gap: 16, padding: 24, align: 'start' };
+  return { kind: 'vstack', gap: 12, padding: 16, align: 'start' };
+}
+
+export type Position = NonNullable<LayoutItemInfo['position']>;
+
+/** How a child sits in its container: the sizes and position after defaults. */
+export function itemSizing(n: SceneNode): { width: LayoutSize; height: LayoutSize; position: Position } {
+  const item = n.layoutItem ?? {};
+  const position = item.position ?? 'flow';
+  if (n.type === 'group' && n.component) {
+    const def = getComponent(n.component.kind);
+    const base = def?.sizing ?? { width: 'hug', height: 'hug' };
+    return { width: item.width ?? base.width, height: item.height ?? base.height, position };
+  }
+  if (isLayoutContainer(n)) return { width: item.width ?? 'fill', height: item.height ?? 'hug', position };
+  return { width: 'hug', height: 'hug', position };
+}
+
+/** Plain shapes and groups keep their size: the layout only moves them. */
+const isPlain = (n: SceneNode) => !(n.type === 'group' && (n.component || isLayoutContainer(n)));
+
+const ZERO = { x: 0, y: 0, width: 0, height: 0 };
+/** Box of a child in its parent's space (where its transform puts it). */
+export const childBox = (n: SceneNode) => boundsIn(n, fromTransform(n.transform)) ?? { ...ZERO, x: n.transform.x, y: n.transform.y };
+
+// ---------- measuring (pure, memoized) ----------
+
+const heightCache = new WeakMap<object, Map<number, number>>();
+const widthCache = new WeakMap<object, number>();
+const planCache = new WeakMap<object, Map<string, Plan>>();
+
+function memo<K extends object, V>(cache: WeakMap<K, Map<number | string, V>>, key: K, sub: number | string, f: () => V): V {
+  let m = cache.get(key);
+  if (!m) cache.set(key, (m = new Map()));
+  let v = m.get(sub);
+  if (v === undefined) m.set(sub, (v = f()));
+  return v;
+}
+
+/** A component's build height at `width` (memoized on its `component` object). */
+function componentHeight(c: GroupNode & { component: NonNullable<GroupNode['component']> }, width: number): number {
+  const info = c.component;
+  return memo(heightCache as WeakMap<object, Map<number | string, number>>, info, width, () => {
+    const def = getComponent(info.kind);
+    if (!def) return info.size?.height ?? childBox(c).height;
+    return def.build(resolveProps(def, info.props as Record<string, unknown>), { width }).height;
+  });
+}
+
+/** Width the node takes when it hugs its content. */
+export function hugWidth(n: SceneNode): number {
+  if (isPlain(n)) return childBox(n).width;
+  if (n.type === 'group' && n.component) {
+    const def = getComponent(n.component.kind);
+    return def ? def.defaultSize.width : (n.component.size?.width ?? childBox(n).width);
+  }
+  const c = n as ContainerNode;
+  const cached = widthCache.get(c);
+  if (cached !== undefined) return cached;
+  const { padding: p, gap: g } = c.layout;
+  const ws = flowChildren(c, false).map(basisWidth);
+  let w: number;
+  if (c.layout.kind === 'hstack') w = ws.reduce((a, b) => a + b, 0) + g * Math.max(0, ws.length - 1);
+  else if (c.layout.kind === 'grid') {
+    const cols = gridColumns(c.layout);
+    w = cols * Math.max(0, ...ws) + g * (cols - 1);
+  } else w = Math.max(0, ...ws);
+  w += 2 * p;
+  widthCache.set(c, w);
+  return w;
+}
+
+/** Width a child asks for before any filling: fixed, else its hug width. */
+const basisWidth = (n: SceneNode) => {
+  const s = itemSizing(n);
+  return !isPlain(n) && typeof s.width === 'number' ? s.width : hugWidth(n);
+};
+
+/** Height the node takes at `width` when it hugs its content. */
+export function hugHeight(n: SceneNode, width: number): number {
+  if (isPlain(n)) return childBox(n).height;
+  if (n.type === 'group' && n.component) return componentHeight(n as Parameters<typeof componentHeight>[0], width);
+  return planContainer(n as ContainerNode, { width }).height;
+}
+
+export const gridColumns = (l: LayoutInfo) => Math.max(1, Math.round(l.columns ?? 2));
+
+function flowChildren(c: ContainerNode, pinnedAllowed: boolean): SceneNode[] {
+  return c.children.filter((n) => n.visible && itemSizing(n).position !== 'free' && !(pinnedAllowed && itemSizing(n).position === 'pinned-bottom'));
+}
+
+// ---------- planning ----------
+
+/** The box a container is laid out in: width always; a fixed height, or a minimum it grows from. */
+export interface LayoutBox {
+  width: number;
+  height?: number;
+  minHeight?: number;
+  /** A screen frame: `pinned-bottom` children are pinned. */
+  frame?: boolean;
+}
+
+export interface PlanItem {
+  /** Index in the container's `children`. */
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface Plan {
+  width: number;
+  height: number;
+  items: PlanItem[];
+}
+
+interface Measured {
+  index: number;
+  node: SceneNode;
+  w: number;
+  h: number;
+  fillW: boolean;
+  fillH: boolean;
+  plain: boolean;
+}
+
+function crossOffset(align: LayoutInfo['align'], space: number, size: number): number {
+  if (align === 'center') return (space - size) / 2;
+  if (align === 'end') return space - size;
+  return 0;
+}
+
+/** Lays out `c`'s children in `box` (pure; memoized on the node and the box). */
+export function planContainer(c: ContainerNode, box: LayoutBox): Plan {
+  const key = `${box.width}|${box.height ?? ''}|${box.minHeight ?? ''}|${box.frame ? 1 : 0}`;
+  return memo(planCache as WeakMap<object, Map<number | string, Plan>>, c, key, () => computePlan(c, box));
+}
+
+function computePlan(c: ContainerNode, box: LayoutBox): Plan {
+  const L = c.layout;
+  const p = L.padding;
+  const g = L.gap;
+  const W = box.width;
+  const iw = Math.max(0, W - 2 * p);
+  const indexOf = new Map(c.children.map((n, i) => [n, i]));
+  const flow = flowChildren(c, !!box.frame);
+  const items: PlanItem[] = [];
+
+  // Pinned-bottom children of a frame: full width, stacked at the bottom.
+  const pinned = box.frame ? c.children.filter((n) => n.visible && itemSizing(n).position === 'pinned-bottom') : [];
+  const pinnedM = pinned.map((n) => ({ ...measure(n, W, W, L.align), index: indexOf.get(n)! }));
+  const pinnedTotal = pinnedM.reduce((a, m) => a + m.h, 0);
+
+  const placePinned = (H: number) => {
+    let y = H - pinnedTotal;
+    for (const m of pinnedM) {
+      items.push({ index: m.index, x: crossOffset(L.align, W, m.w), y, width: m.w, height: m.h });
+      y += m.h;
+    }
+  };
+
+  if (L.kind === 'hstack') {
+    const ms = flow.map((n) => {
+      const s = itemSizing(n);
+      const plain = isPlain(n);
+      const fillW = !plain && s.width === 'fill';
+      const w = plain ? childBox(n).width : typeof s.width === 'number' ? s.width : fillW ? 0 : hugWidth(n);
+      return { index: indexOf.get(n)!, node: n, w, h: 0, fillW, fillH: false, plain } as Measured;
+    });
+    const fills = ms.filter((m) => m.fillW);
+    if (fills.length) {
+      const used = ms.reduce((a, m) => a + (m.fillW ? 0 : m.w), 0) + g * Math.max(0, ms.length - 1);
+      const share = Math.max(0, iw - used) / fills.length;
+      for (const m of fills) m.w = share;
+    }
+    for (const m of ms) {
+      const s = itemSizing(m.node);
+      m.h = m.plain ? childBox(m.node).height : typeof s.height === 'number' ? s.height : hugHeight(m.node, m.w);
+      m.fillH = !m.plain && (s.height === 'fill' || (s.height === 'hug' && L.align === 'stretch'));
+    }
+    let ih = box.height !== undefined ? Math.max(0, box.height - 2 * p) : Math.max(0, ...ms.map((m) => m.h));
+    if (box.height === undefined && box.minHeight !== undefined) ih = Math.max(ih, box.minHeight - 2 * p - pinnedTotal);
+    let x = p;
+    for (const m of ms) {
+      const h = m.fillH ? ih : m.h;
+      items.push({ index: m.index, x, y: p + crossOffset(L.align, ih, h), width: m.w, height: h });
+      x += m.w + g;
+    }
+    const H = box.height ?? Math.max(box.minHeight ?? 0, ih + 2 * p + pinnedTotal);
+    placePinned(H);
+    return { width: W, height: H, items: sortItems(items) };
+  }
+
+  if (L.kind === 'grid') {
+    const cols = gridColumns(L);
+    const cellW = Math.max(0, (iw - g * (cols - 1)) / cols);
+    const ms = flow.map((n) => ({ ...measure(n, cellW, cellW, L.align), index: indexOf.get(n)! }));
+    let y = p;
+    for (let r = 0; r * cols < ms.length; r++) {
+      const row = ms.slice(r * cols, r * cols + cols);
+      const rowH = Math.max(0, ...row.map((m) => m.h));
+      row.forEach((m, col) => {
+        const s = itemSizing(m.node);
+        const h = !m.plain && (s.height === 'fill' || (s.height === 'hug' && L.align === 'stretch')) ? rowH : m.h;
+        items.push({ index: m.index, x: p + col * (cellW + g) + crossOffset(L.align, cellW, m.w), y, width: m.w, height: h });
+      });
+      y += rowH + g;
+    }
+    const content = ms.length ? y - g - p : 0;
+    const H = box.height ?? Math.max(box.minHeight ?? 0, content + 2 * p + pinnedTotal);
+    placePinned(H);
+    return { width: W, height: H, items: sortItems(items) };
+  }
+
+  // vstack
+  const ms = flow.map((n) => ({ ...measure(n, iw, iw, L.align), index: indexOf.get(n)! }));
+  const content = ms.reduce((a, m) => a + m.h, 0) + g * Math.max(0, ms.length - 1);
+  const H = box.height ?? Math.max(box.minHeight ?? 0, content + 2 * p + pinnedTotal);
+  const fills = ms.filter((m) => m.fillH);
+  const extra = H - pinnedTotal - 2 * p - content;
+  if (fills.length && extra > EPS) for (const m of fills) m.h += extra / fills.length;
+  let y = p;
+  for (const m of ms) {
+    items.push({ index: m.index, x: p + crossOffset(L.align, iw, m.w), y, width: m.w, height: m.h });
+    y += m.h + g;
+  }
+  placePinned(H);
+  return { width: W, height: H, items: sortItems(items) };
+}
+
+const sortItems = (items: PlanItem[]) => items.sort((a, b) => a.index - b.index);
+
+/** Size of a child in a column of width `space` (vstack, grid cell, pinned bar); `fillTo` = what fill/stretch take. */
+function measure(n: SceneNode, space: number, fillTo: number, align: LayoutInfo['align']): Measured {
+  const s = itemSizing(n);
+  const plain = isPlain(n);
+  if (plain) {
+    const b = childBox(n);
+    return { index: -1, node: n, w: b.width, h: b.height, fillW: false, fillH: false, plain };
+  }
+  const w = typeof s.width === 'number' ? s.width : s.width === 'fill' || align === 'stretch' ? fillTo : Math.min(hugWidth(n), space);
+  const h = typeof s.height === 'number' ? s.height : hugHeight(n, w);
+  return { index: -1, node: n, w, h, fillW: s.width === 'fill', fillH: s.height === 'fill', plain };
+}
+
+// ---------- applying ----------
+
+export interface LayoutEnv {
+  /** Rebuilds a component instance at this size (the components step's `buildComponentInto`). */
+  build(node: Draft<GroupNode>, size: { width: number; height?: number }): void;
+  /** True when this plain node (and its subtree) is unchanged since the last layout run: skip it if its size is the same. */
+  fresh(node: SceneNode): boolean;
+  /** True when a component instance's children are up to date (its `component` did not change, not a load). */
+  built(node: SceneNode): boolean;
+  /** True when the layout must not move this child now (it is being dragged). */
+  hold(node: SceneNode): boolean;
+}
+
+const near = (a: number, b: number) => Math.abs(a - b) <= EPS;
+
+/**
+ * Lays out the container `draft` (whose plain snapshot is `node`) in `box` and writes the result.
+ * Returns the container's size.
+ */
+export function applyLayout(draft: Draft<ContainerNode>, node: ContainerNode, box: LayoutBox, env: LayoutEnv): { width: number; height: number } {
+  const plan = planContainer(node, box);
+  if (!box.frame) {
+    const cur = node.layout.size;
+    if (!cur || !near(cur.width, plan.width) || !near(cur.height, plan.height)) draft.layout.size = { width: plan.width, height: plan.height };
+  }
+  for (const it of plan.items) {
+    const child = node.children[it.index];
+    const d = draft.children[it.index] as Draft<SceneNode>;
+    placeChild(d, child, it, env);
+  }
+  return { width: plan.width, height: plan.height };
+}
+
+function placeChild(d: Draft<SceneNode>, child: SceneNode, it: PlanItem, env: LayoutEnv) {
+  if (!env.hold(child)) {
+    if (isPlain(child)) {
+      const b = childBox(child);
+      const dx = it.x - b.x;
+      const dy = it.y - b.y;
+      if (Math.abs(dx) > EPS || Math.abs(dy) > EPS) d.transform = { ...child.transform, x: child.transform.x + dx, y: child.transform.y + dy };
+    } else {
+      const t = child.transform;
+      if (!near(t.x, it.x) || !near(t.y, it.y) || t.rotation !== 0 || t.scaleX !== 1 || t.scaleY !== 1) d.transform = { x: it.x, y: it.y, rotation: 0, scaleX: 1, scaleY: 1 };
+    }
+  }
+  if (child.type !== 'group') return;
+  if (child.component) {
+    const size = child.component.size;
+    if (!size || !near(size.width, it.width) || !near(size.height, it.height) || !env.built(child)) {
+      const hug = hugHeight(child, it.width);
+      env.build(d as Draft<GroupNode>, near(hug, it.height) ? { width: it.width } : { width: it.width, height: it.height });
+    }
+    return;
+  }
+  if (isLayoutContainer(child)) {
+    const size = child.layout.size;
+    if (size && env.fresh(child) && near(size.width, it.width) && near(size.height, it.height)) return;
+    const hug = hugHeight(child, it.width);
+    applyLayout(d as Draft<ContainerNode>, child, near(hug, it.height) ? { width: it.width } : { width: it.width, height: it.height }, env);
+  }
+}
+
+/** Box a container that is not inside a flow (top level, free, in a free frame) is laid out in. */
+export function rootBox(c: ContainerNode): LayoutBox {
+  const s = c.layoutItem ?? {};
+  const width = typeof s.width === 'number' ? s.width : (c.layout.size?.width ?? hugWidth(c));
+  return typeof s.height === 'number' ? { width, height: s.height } : { width };
+}
