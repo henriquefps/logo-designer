@@ -65,6 +65,36 @@ function stale(nodes: readonly SceneNode[], ctx: PipelineContext, path: number[]
   });
 }
 
+/**
+ * Rebuilds an instance that is not placed by a layout (free, or on a screen without a stack). Like in a
+ * stack, one whose definition hugs its width follows its content when its props change (a FAB gets a label:
+ * the pill grows). A width the user set by resizing is respected: it becomes `layoutItem.width` (fixed) and
+ * is no longer re-hugged. Files keep their widths on load.
+ */
+function rebuildFree(node: Draft<ComponentNode>, ctx: PipelineContext) {
+  const def = getComponent(node.component.kind);
+  const prev = ctx.phase === 'load' ? undefined : (ctx.previous(node.id) as ComponentNode | undefined);
+  const was = prev?.component?.size;
+  const now = node.component.size;
+  const w = node.layoutItem?.width;
+  if (def && def.sizing.width === 'hug' && was && now && (w === undefined || w === 'hug')) {
+    if (Math.abs(now.width - was.width) > 0.5) {
+      node.layoutItem = { ...plain(node.layoutItem), width: Math.round(now.width * 100) / 100 }; // the user resized it
+    } else {
+      try {
+        const hug = def.build(resolveProps(def, node.component.props as Record<string, unknown>), { width: now.width }).width;
+        if (hug && Math.abs(hug - now.width) > 0.5) {
+          buildComponentInto(node, { width: Math.ceil(hug) });
+          return;
+        }
+      } catch {
+        /* a broken component keeps its box (buildComponentInto reports it) */
+      }
+    }
+  }
+  buildComponentInto(node);
+}
+
 const step: WireframeStep = {
   id: 'components',
   order: 100,
@@ -80,7 +110,7 @@ const step: WireframeStep = {
         node = list[i];
         list = node.type === 'group' ? node.children : [];
       }
-      if (node) buildComponentInto(node as Draft<ComponentNode>);
+      if (node) rebuildFree(node as Draft<ComponentNode>, ctx);
     }
   },
 };

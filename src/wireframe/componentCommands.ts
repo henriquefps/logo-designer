@@ -7,7 +7,7 @@ import { getComponent } from './library/registry';
 import type { AnyComponentDef, PropSpec } from './library/types';
 import { defaultProps } from './library/types';
 import { ensureIcons } from './iconLoader';
-import { appendPosition, detachInstance, dropPosition, newInstance } from './instances';
+import { appendPosition, defaultPlacement, detachInstance, dropPosition, newInstance } from './instances';
 import { frameOf, frames } from './screens';
 import { placementArea } from './placement';
 import { layoutDropTarget } from './layoutEdit';
@@ -22,6 +22,10 @@ function containerWidth(n: GroupNode): number {
   if (isScreenNode(n)) return n.screen.width;
   return localBounds(n)?.width ?? 0;
 }
+
+/** Height of the bars pinned to the bottom of a screen (bottom navigation). */
+const pinnedHeight = (frame: GroupNode) =>
+  frame.children.reduce((a, c) => a + (c.visible && c.layoutItem?.position === 'pinned-bottom' && c.type === 'group' && c.component?.size ? c.component.size.height : 0), 0);
 
 interface Target {
   parentId: Id | null;
@@ -108,6 +112,16 @@ export async function insertComponent(kind: string, at?: Vec): Promise<Id | null
     } else {
       const area = placementArea();
       node = newInstance(def, { x: area.x + area.width / 2 - def.defaultSize.width / 2, y: area.y + area.height / 2 - def.defaultSize.height / 2 }, undefined, props);
+    }
+  }
+  // Pieces with a default position (bottom navigation pinned, FAB / sheet / dialog / snackbar free) on a screen.
+  const parent = target.parentId ? findNode(doc, target.parentId) : null;
+  if (parent && isScreenNode(parent) && def.placement) {
+    const pl = defaultPlacement(def, props, { width: parent.screen.width, height: parent.screen.height, layout: !!parent.layout, inset: pinnedHeight(parent) });
+    if (pl) {
+      node = newInstance(def, pl.at, pl.width, props);
+      if (pl.layoutItem) node.layoutItem = pl.layoutItem;
+      target = { parentId: parent.id, container: parent };
     }
   }
   const [id] = useDocStore.getState().addNodes([node], { parentId: target.parentId, index: target.index, label: `Add ${def.label.toLowerCase()}` });

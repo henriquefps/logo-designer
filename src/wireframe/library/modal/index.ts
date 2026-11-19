@@ -1,5 +1,5 @@
 // Modal window: a dialog over a web page. Title with a close button, body copy as grey bars and one or two actions.
-// Place it free on the screen (Properties → In stack → Position → Free) and centre it; it is not part of the page flow.
+// Opens free and centred on the screen (`placement`); it is not part of the page flow.
 import { box, buttonBox, polyline, textBars, textBarsHeight, textInBand, truncate, lineHeight } from '../../kit';
 import { WF_RADIUS, WF_SIZE, WF_SPACE } from '../../style';
 import { defineComponent } from '../types';
@@ -21,6 +21,7 @@ export default defineComponent({
   },
   sizing: { width: 480, height: 'hug' },
   defaultSize: { width: 480, height: 232 },
+  placement: { position: 'free', anchor: 'center' },
   build(p, { width }) {
     const titleH = lineHeight('subheading');
     const bodyY = PAD + titleH + WF_SPACE.lg;
