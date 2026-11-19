@@ -52,8 +52,40 @@ export function sizedGroupBox(n: SceneNode): Rect | null {
 
 // ---------- per-node editing traits (generic hooks; notes and component instances opt out) ----------
 
+export type Axis = 'width' | 'height';
+export interface ResizableAxes {
+  width: boolean;
+  height: boolean;
+}
+
+// The wireframe library tells which axes a component kind can be sized in (src/wireframe/library/registry.ts
+// registers this); the model stays free of library imports. Unknown kinds: both.
+let componentAxes: (kind: string) => ResizableAxes | undefined = () => undefined;
+export const setComponentAxesResolver = (f: (kind: string) => ResizableAxes | undefined) => void (componentAxes = f);
+
+/** The axes the user can size a node in: notes none, component instances what their definition declares, everything else both. */
+export function nodeAxes(n: SceneNode): ResizableAxes {
+  if (n.type !== 'group') return { width: true, height: true };
+  if (n.note) return { width: false, height: false };
+  if (n.component) return componentAxes(n.component.kind) ?? { width: true, height: true };
+  return { width: true, height: true };
+}
+
 /** False for nodes whose size is not the user's to change (notes: fixed width, auto height): no resize/rotate handles, no W/H/rotation/flip fields. */
 export const canResizeNode = (n: SceneNode): boolean => !(n.type === 'group' && !!n.note);
+
+/** Axes every node of the selection can be sized in. */
+export function selectionAxes(doc: DesignDocument, ids: readonly string[]): ResizableAxes {
+  const out = { width: true, height: true };
+  for (const id of ids) {
+    const n = findNode(doc, id);
+    if (!n) continue;
+    const a = nodeAxes(n);
+    out.width &&= a.width;
+    out.height &&= a.height;
+  }
+  return out;
+}
 
 /** A stack / grid of a wireframe (a group with `layout` that is neither a screen frame nor an instance). */
 const isStack = (n: SceneNode): boolean => n.type === 'group' && !!n.layout && !n.screen && !n.component;

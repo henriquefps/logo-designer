@@ -1,4 +1,4 @@
-import { apply, localBounds, locate, rectCorners, selectionBounds, worldMatrix, type DesignDocument, type Id, type Vec } from '@/model';
+import { apply, localBounds, locate, rectCorners, selectionAxes, selectionBounds, worldMatrix, type DesignDocument, type Id, type Vec } from '@/model';
 
 /** The box the selection handles are drawn on: oriented for a single node, axis-aligned otherwise. */
 export interface SelectionFrame {
@@ -67,6 +67,16 @@ export const HANDLE_DIRS: Vec[] = [
   { x: -1, y: 1 },
   { x: -1, y: 0 },
 ];
+
+/**
+ * Whether handle i resizes only axes the selection can be sized in: a side handle needs its axis, a corner
+ * both (so a component that follows its content in height keeps just the left and right handles).
+ */
+export function handleAllowed(doc: DesignDocument, ids: readonly Id[], i: number): boolean {
+  const axes = selectionAxes(doc, ids);
+  const d = HANDLE_DIRS[i];
+  return (d.x === 0 || axes.width) && (d.y === 0 || axes.height);
+}
 
 /** World position of handle i (direction-based, so it works for any frame). */
 export function handlePosition(frame: SelectionFrame, i: number): Vec {

@@ -2,7 +2,7 @@ import { CursorIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { setReference } from '@/actions/modules/object';
 import { canResizeSelection, canRotateSelection, hitTestReference, rectFromCorners, nodesInRect, locate, type Id, type Vec } from '@/model';
-import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
+import { getSelectionFrame, handleAllowed, handleCursor, handlePosition, rotationHandlePosition, type SelectionFrame } from '@/canvas/selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
@@ -36,6 +36,7 @@ function hitHandle(ctx: ToolContext, e: ToolPointerEvent): HandleHit {
   const tiny = frame.width / ctx.px() < 16 || frame.height / ctx.px() < 16;
   for (let i = 0; i < 8; i++) {
     if (tiny && i % 2 === 1) continue; // only corners on tiny boxes
+    if (!handleAllowed(ctx.doc(), ids, i)) continue; // an axis the component cannot be sized in
     if (near(handlePosition(frame, i))) return { kind: 'resize', index: i, frame };
   }
   return null;

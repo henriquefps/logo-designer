@@ -24,7 +24,7 @@
 import type { Draft } from 'immer';
 import { boundsIn, fromTransform, type GroupNode, type LayoutInfo, type LayoutItemInfo, type LayoutSize, type SceneNode, type ScreenPlatform } from '@/model';
 import { getComponent } from './library/registry';
-import { resolveProps } from './library/types';
+import { resizableAxes, resolveProps } from './library/types';
 
 export const EPS = 1e-6;
 
@@ -64,11 +64,31 @@ export function itemSizing(n: SceneNode): { width: LayoutSize; height: LayoutSiz
   if (n.type === 'group' && n.component) {
     const def = getComponent(n.component.kind);
     const base: { width: LayoutSize; height: LayoutSize; bleed?: boolean } = def?.sizing ?? { width: 'hug', height: 'hug' };
-    return { width: item.width ?? base.width, height: item.height ?? base.height, position, bleed: item.bleed ?? base.bleed ?? false };
+    // An axis the definition cannot be sized in ignores whatever was set for it (an old file, a pasted size): it follows the content.
+    const axes = def ? resizableAxes(def) : { width: true, height: true };
+    return {
+      width: axes.width ? (item.width ?? base.width) : base.width === 'fill' ? 'hug' : base.width,
+      height: axes.height ? (item.height ?? base.height) : 'hug',
+      position,
+      bleed: item.bleed ?? base.bleed ?? false,
+    };
   }
   if (isLayoutContainer(n)) return { width: item.width ?? 'fill', height: item.height ?? 'hug', position, bleed: item.bleed ?? false };
   return { width: 'hug', height: 'hug', position, bleed: item.bleed ?? false };
 }
+
+/** The axes a child can be sized in: a component's declared ones, everything else both. */
+function childAxes(n: SceneNode): { width: boolean; height: boolean } {
+  const def = n.type === 'group' && n.component ? getComponent(n.component.kind) : undefined;
+  return def ? resizableAxes(def) : { width: true, height: true };
+}
+
+/** Whether the child takes the row's / cell's height (fill, or hug under `stretch`): never for one whose height follows its content. */
+const takesRowHeight = (n: SceneNode, s: { height: LayoutSize }, align: LayoutInfo['align']) =>
+  !isPlain(n) && childAxes(n).height && (s.height === 'fill' || (s.height === 'hug' && align === 'stretch'));
+
+/** Height of a child with a fixed height: a component never gets shorter than its content. */
+const fixedHeight = (n: SceneNode, h: number, w: number) => (n.type === 'group' && n.component ? Math.max(h, hugHeight(n, w)) : h);
 
 /** Plain shapes and groups keep their size: the layout only moves them. */
 const isPlain = (n: SceneNode) => !(n.type === 'group' && (n.component || isLayoutContainer(n)));
@@ -252,8 +272,8 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
     }
     for (const m of ms) {
       const s = itemSizing(m.node);
-      m.h = m.plain ? childBox(m.node).height : typeof s.height === 'number' ? s.height : hugHeight(m.node, m.w);
-      m.fillH = !m.plain && (s.height === 'fill' || (s.height === 'hug' && L.align === 'stretch'));
+      m.h = m.plain ? childBox(m.node).height : typeof s.height === 'number' ? fixedHeight(m.node, s.height, m.w) : hugHeight(m.node, m.w);
+      m.fillH = takesRowHeight(m.node, s, L.align);
     }
     let ih = box.height !== undefined ? Math.max(0, box.height - 2 * p) : Math.max(0, ...ms.map((m) => m.h));
     if (box.height === undefined && box.minHeight !== undefined) ih = Math.max(ih, box.minHeight - 2 * p - pinnedTotal);
@@ -281,7 +301,7 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
       const rowH = Math.max(0, ...row.map((m) => m.h));
       row.forEach((m, col) => {
         const s = itemSizing(m.node);
-        const h = !m.plain && (s.height === 'fill' || (s.height === 'hug' && L.align === 'stretch')) ? rowH : m.h;
+        const h = takesRowHeight(m.node, s, L.align) ? rowH : m.h;
         items.push({ index: m.index, x: p + col * (cellW + g) + crossOffset(L.align, cellW, m.w), y, width: m.w, height: h });
       });
       y += rowH + g;
@@ -323,8 +343,8 @@ function measure(n: SceneNode, space: number, fillTo: number, align: LayoutInfo[
     const b = childBox(n);
     return { index: -1, node: n, w: b.width, h: b.height, fillW: false, fillH: false, plain };
   }
-  const w = typeof s.width === 'number' ? s.width : s.width === 'fill' || align === 'stretch' ? fillTo : Math.min(hugWidth(n), space);
-  const h = typeof s.height === 'number' ? s.height : hugHeight(n, w);
+  const w = typeof s.width === 'number' ? s.width : s.width === 'fill' || (align === 'stretch' && childAxes(n).width) ? fillTo : Math.min(hugWidth(n), space);
+  const h = typeof s.height === 'number' ? fixedHeight(n, s.height, w) : hugHeight(n, w);
   return { index: -1, node: n, w, h, fillW: s.width === 'fill', fillH: s.height === 'fill', plain };
 }
 

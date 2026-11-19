@@ -1,4 +1,5 @@
 import { fromTransform, invert, multiply, rotateAround, scale, toTransform, translate, type Matrix } from './matrix';
+import { nodeAxes } from './screen';
 import type { BezierPoint, SceneNode, Vec } from './types';
 
 const sign = (n: number) => (n < 0 ? -1 : 1);
@@ -65,7 +66,9 @@ export function bakeScale<T extends SceneNode>(node: T): T {
       if (node.component) {
         const size = node.component.size;
         if (!size) return node;
-        node.component = { ...node.component, size: { width: size.width * ax, height: size.height * ay } };
+        // An axis the component cannot be sized in keeps its size (it follows the content).
+        const axes = nodeAxes(node);
+        node.component = { ...node.component, size: { width: axes.width ? size.width * ax : size.width, height: axes.height ? size.height * ay : size.height } };
         node.transform = { ...t, scaleX: 1, scaleY: 1 };
         return node;
       }

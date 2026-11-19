@@ -8,7 +8,7 @@
 // - Resizing a child inside a stack (its `component.size` / `layout.size` changed by the user)
 //   turns that dimension into a fixed size (`layoutItem.width/height = number`).
 import type { Draft } from 'immer';
-import { isScreenNode, platformDef, type ComponentNode, type LayoutItemInfo, type SceneNode, type ScreenNode } from '@/model';
+import { isScreenNode, nodeAxes, platformDef, type ComponentNode, type LayoutItemInfo, type SceneNode, type ScreenNode } from '@/model';
 import { applyLayout, isLayoutContainer, itemSizing, rootBox, type ContainerNode, type LayoutEnv } from '../../layout';
 import { plain, type PipelineContext, type WireframeStep } from '../../types';
 import { buildComponentInto } from '../components';
@@ -44,11 +44,13 @@ function resizedToFixed(nodes: readonly SceneNode[], ctx: PipelineContext, path:
         if (!now || !was) return;
         const item: LayoutItemInfo = { ...c.layoutItem };
         let changed = false;
-        if (Math.abs(now.width - was.width) > 0.5) {
+        // Only axes the component can be sized in become fixed (the others follow the content).
+        const axes = nodeAxes(c);
+        if (axes.width && Math.abs(now.width - was.width) > 0.5) {
           item.width = Math.round(now.width * 100) / 100;
           changed = true;
         }
-        if (Math.abs(now.height - was.height) > 0.5) {
+        if (axes.height && Math.abs(now.height - was.height) > 0.5) {
           item.height = Math.round(now.height * 100) / 100;
           changed = true;
         }

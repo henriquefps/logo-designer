@@ -10,6 +10,7 @@ import {
   canRotateSelection,
   rotationAbout,
   scaleAbout,
+  selectionAxes,
   selectionBounds,
   translation,
 } from "@/model";
@@ -39,6 +40,9 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
   const ids = ctx.ids;
   const topLeft = frame.corners[0];
   const resizable = canResizeSelection(ctx.doc, ids);
+  // Component instances can follow their content on an axis: its field stays visible but read-only, with the reason.
+  const axes = selectionAxes(ctx.doc, ids);
+  const fixedHint = resizable ? [!axes.width && "Width is fixed", !axes.height && "Height follows the content"].filter(Boolean).join(" · ") : "";
   // Component instances resize (rebuild) but never rotate or flip.
   const rotatable = resizable && canRotateSelection(ctx.doc, ids);
 
@@ -81,7 +85,7 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
             ariaLabel="Width"
             value={frame.width}
             min={0.01}
-            disabled={locked}
+            disabled={locked || !axes.width}
             undoLabel="Resize"
             onCommit={(w) => resize(w, null)}
           />
@@ -94,7 +98,7 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
               ariaLabel="Height"
               value={frame.height}
               min={0.01}
-              disabled={locked}
+              disabled={locked || !axes.height}
               undoLabel="Resize"
               onCommit={(h) => resize(null, h)}
             />
@@ -163,6 +167,11 @@ export function TransformSection({ ctx }: { ctx: SelectionContext }) {
           </div>
         )}
       </div>
+      {fixedHint && (
+        <p className="text-muted-foreground text-xs" data-testid="fixed-axes-hint">
+          {fixedHint}
+        </p>
+      )}
       {ctx.nodes.length === 1 && ctx.nodes[0].type === "rect" && (
         <NumberField
           label="R"
