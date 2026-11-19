@@ -262,6 +262,12 @@ describe('default placement on a screen', () => {
     expect(place('snackbar', f).at.y).toBe(844 - 64 - 24 - 48);
     expect(place('bottom-sheet', f).at.y + def('bottom-sheet').build(defaultProps(def('bottom-sheet')), { width: 390 }).height).toBe(844);
   });
+  it('the desktop modal opens free and centred', () => {
+    const m = defaultPlacement(def('modal'), defaultProps(def('modal')), { width: 1440, height: 900, layout: true })!;
+    expect(m.width).toBe(480);
+    expect(m.at.x).toBe(480);
+    expect(m.layoutItem).toEqual({ position: 'free' });
+  });
   it('a narrow screen shrinks the dialog', () => {
     expect(place('dialog', { width: 300, height: 600, layout: true }).width).toBe(252);
   });
@@ -290,5 +296,41 @@ describe('default placement on a screen', () => {
       expect(fabNode.transform).toMatchObject({ x: 390 - 16 - 56, y: 844 - 24 - 56 });
       expect(fabNode.component.size).toEqual({ width: 56, height: 56 });
     });
+  });
+});
+
+describe('free instances that hug their width', () => {
+  beforeEach(() => useDocStore.getState().load(createDocument()));
+  const setup = () => {
+    const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
+    const screen = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
+    useDocStore.getState().load(doc);
+    const fab = newInstance(def('fab'), { x: 318, y: 764 }, 56);
+    fab.layoutItem = { position: 'free' };
+    useDocStore.getState().addNodes([fab], { parentId: screen });
+    return fab.id;
+  };
+  const get = (id: string) => findNode(useDocStore.getState().doc, id) as ComponentNode;
+  const setLabel = (id: string, label: string) =>
+    useDocStore.getState().updateNodes([id], (n) => void (n.type === 'group' && n.component && (n.component.props.label = label)));
+
+  it('grows when a prop needs more room (a label on the FAB)', () => {
+    const id = setup();
+    expect(get(id).component.size).toEqual({ width: 56, height: 56 });
+    setLabel(id, 'New album');
+    const w = get(id).component.size!.width;
+    expect(w).toBeGreaterThan(56);
+    expect(texts(get(id).children)).toEqual(['New album']);
+    setLabel(id, '');
+    expect(get(id).component.size!.width).toBe(56);
+  });
+
+  it('an explicit resize is kept: the width becomes fixed and props no longer re-hug', () => {
+    const id = setup();
+    useDocStore.getState().updateNodes([id], (n) => void (n.type === 'group' && n.component?.size && (n.component.size.width = 200)));
+    expect(get(id).component.size!.width).toBe(200);
+    expect(get(id).layoutItem).toMatchObject({ position: 'free', width: 200 });
+    setLabel(id, 'New album');
+    expect(get(id).component.size!.width).toBe(200);
   });
 });

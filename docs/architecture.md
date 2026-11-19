@@ -506,7 +506,8 @@ row without children.
      (pure, tested) computes position, width and `layoutItem`; `insertComponent` applies it when the target is a
      screen (not a nested stack). It is stored on the instance like any layout choice, so the user changes it in
      Properties → In stack. A screen without a stack layout gets pinned pieces at its bottom, as free content.
-     Free instances keep the width they were inserted with (the layout does not resize them).
+     Free (or unstacked) instances whose definition hugs its width re-hug when their props change (a FAB given a
+     label grows); resizing one by hand fixes its width (`layoutItem.width`) and stops that (components step, `rebuildFree`).
    - `build(props, { width })` returns `{ children, height }` (and `width` when `sizing.width` is `hug`): nodes in
      the instance's local space, origin top-left, `0 ≤ x ≤ width`, `0 ≤ y ≤ height`. Pure and cheap: no stores, no
      randomness, same input → same output. Draw only with the kit and the tokens (no colours of your own).
