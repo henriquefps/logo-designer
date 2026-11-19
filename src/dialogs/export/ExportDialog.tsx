@@ -69,7 +69,8 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const previewUrl = useRef<string | null>(null);
 
   // Defaults each time the dialog opens (state adjusted during render, not in an effect).
-  const [wasOpen, setWasOpen] = useState(open);
+  // Starts closed so the defaults also apply when the dialog mounts already open (first open).
+  const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {

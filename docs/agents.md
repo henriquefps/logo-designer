@@ -35,13 +35,16 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 
 | Command | What it does |
 | --- | --- |
-| `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
+| `designer new [--preset P] [--name N] [-o file]` | empty project. `P`: `app-icon`, `android-adaptive`, `ios`, `favicon-32`, `favicon-16` (sets the `icon` field and a transparent artboard), `wireframe` (an empty [wireframe](#wireframes), no screens yet) or `WIDTHxHEIGHT` (default `1024x1024`, white) |
+| `designer screen <project> [--name N] [--platform phone\|tablet\|desktop] [-o file]` | wireframe projects: adds a screen (default phone), placed right of everything. When a screen called N exists, adds its `--platform` **variant** instead: a copy of its content next to it (one frame per platform; an error when that platform exists). In place unless `-o` |
 | `designer from-svg <file.svg\|-> [-o file] [--name N] [--icon P [--tile #hex] [--colour one\|full] [--glyph #hex]] [--no-fit]` | editable project from an SVG (**with `--icon`, the drawing is fitted to its keyline** so the project opens centred and at the right size; `--no-fit` keeps the raw drawing): `<rect>`/`<circle>`/`<ellipse>` stay shapes, everything else becomes Bézier paths, `<g>` stays groups, gradients, strokes, transforms, `<style>` and `<use>` are resolved. `clip-path` and solid `mask`s become real geometry (see below). Warnings go to stderr |
 | `designer to-svg <project> [-o file]` | clean SVG of the artboard, text outlined with the bundled fonts |
 | `designer to-svg <project> --glyph [--colour one\|full] [-o file]` | glyph fragment for `build-icons.mjs`, byte-identical to the app's File → Export icon → Glyph SVG: the visible tile (icon projects) or the artboard's long side mapped to a 128 box, every paint → `currentColor` keeping its alpha (a **full-colour** icon project, or `--colour full`, keeps the real paints instead: solids, gradients, opacity; pass `--colour full` to `build-icons.mjs` too), references and hidden objects skipped, all group/object transforms baked into plain coordinates (strokes scale with them; so the Android splash drawable always works), no `<svg>` wrapper |
 | `designer icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--colour one\|full] [--glyph <#hex>]` | the whole icon set, same files and numbers as `build-icons.mjs` (ported to `src/icon/`, rendered with resvg): `docs-img/`, `site/`, `android/res/`, `ios/` (`AppIcon.appiconset` Light/Dark/Tinted + iOS 26 `AppIcon.icon`), `review-sheet.png`, `README.txt`, `glyph.svg` and the project. Prints the script's report (`shape tall: glyph 48% x 68% of the tile, ink 11.0%` …). Look at `review-sheet.png`. `--tile <#hex>` sets the tile colour everywhere (tiles, favicons, Android launcher background, iOS Light and `AppIcon.icon` fill, the light variant's glyph, the review sheet) and derives the iOS Dark glyph from it; default: the project's `icon.tile`, else the hfps blue `#2063b0`. Older hfps repos keep their olive tile: `--tile #5b7a3a`. `new --preset app-icon --tile #hex` / `from-svg --icon app-icon --tile #hex` store it in the project |
 | `designer fit <project> [-o file]` | **scale and centre the glyph of an app icon project onto its keyline**: the same transform as the app's *Fit to keyline* (shared code, strokes scale with the glyph), measured like `icons`. In place unless `-o`. Prints before/after (long side as a fraction of T, on keyline yes/no). Error if the project is not an app icon. Run it after manual edits or `knockout`; exports fit automatically, so this only keeps the canvas in line with them. Idempotent |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
+| `designer to-png <wireframe> [--screen N] [--platform P] [--size N] [-o dir\|file.png]` | wireframe projects: **one PNG per screen frame**, `<screen>.<platform>.png` (e.g. `settings.phone.png`) in `-o dir` (default `<project>-screens/`); `--screen` (name or slug) and `--platform` pick frames; `--size` = PNG width (default the frame width, 1×; the height follows the frame). One matching frame and `-o x.png` writes that file |
+| `designer to-svg <wireframe> [--screen N] [--platform P] [-o file]` | one screen frame (white, content clipped; `--platform` when the screen has several) or, without `--screen`, every screen on one canvas |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure. For icon projects, a `note:` (not an error) when the glyph is off its keyline |
 | `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with names, world bounds and ids (`[id]` at the end of each line); for icon projects also `keyline: …, on keyline: yes/no` (`keyline` in `--json`): use them to address objects in `knockout` |
 | `designer knockout <project> --cutter <id\|name>[,…] [--targets <id\|name>,…] [--gap N\|NT] [--outline-only] [-o file]` | **cut the objects behind a shape where it sits, with a small gap**, like the app's Object → Knock out (same code). The cutter stays as it is; each target becomes target − (cutter's silhouette grown by the gap; an unfilled closed shape counts as solid, `--outline-only` cuts only under its strokes), strokes outlined first, as plain editable paths keeping name, opacity and z-order. Targets default to everything drawn below the cutter. Gap in document units, or a tile fraction on icon projects (`0.03T`, the default there; 4 px elsewhere). Names must be unique, else use ids. Prints what was cut to stderr |
@@ -91,6 +94,28 @@ shapes into real geometry, intersecting the content with the clip, respecting `c
 `clipPathUnits` and transforms, strokes outlined first, so a clipped glyph imports looking the same.
 Luminance masks with gradients or greys are imported unmasked with a warning.) Exports never contain
 clip paths, so `--glyph` and `build-icons.mjs` stay byte-compatible.
+
+## Wireframes
+
+Wireframe projects plan an app's UI: screens (phone 390, tablet 820, desktop 1440 wide; the height grows with
+the content) on an infinite canvas ([`wireframe-mode.md`](wireframe-mode.md), file fields in
+[`project-format.md`](project-format.md#wireframe-documents)). Phase 1 of the CLI:
+
+```sh
+bun run designer new --preset wireframe --name "Notes app" -o notes.designer.json
+bun run designer screen notes.designer.json --name Home                        # phone (default)
+bun run designer screen notes.designer.json --name Settings --platform desktop
+bun run designer screen notes.designer.json --name Settings --platform phone   # variant of Settings
+bun run designer validate notes.designer.json      # lists screens and frames: Settings: desktop 1440×900 […], phone 390×844 […]
+bun run designer to-png notes.designer.json        # notes-screens/home.phone.png, settings.desktop.png, settings.phone.png
+bun run designer to-png notes.designer.json --screen settings --platform phone -o settings.png
+```
+
+Content goes inside a frame's `children` in the frame's local space (origin = its top-left). Component
+instances (`component: { kind, props }`) are generated on open; write their props, not their children.
+`validate`, `info` and the renders materialize the file first (screen heights, component children), exactly
+like the app does on open, and print a `warning:` for what was ignored (an unknown component kind loads as a
+plain group). More wireframe commands (components, flows, export for AI) come in phase 3.
 
 ## The workflow
 

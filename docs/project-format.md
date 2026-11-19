@@ -54,6 +54,7 @@ File → Save project file, the `designer` CLI, and read by File → Open projec
 | `artboard` | [Artboard](#artboard) | **required** |
 | `children` | [Node](#nodes)[] | **required**; first child is drawn first (bottom of the stack) |
 | `icon` | [Icon settings](#icon-settings) | optional; marks the project as an app icon / favicon |
+| `wireframe` | [Wireframe](#wireframe-documents) | optional; marks the project as a wireframe (not together with `icon`) |
 
 ### Artboard
 
@@ -108,6 +109,50 @@ for graphics) and warn in `designer icons`, `validate`, `info` and the Icon pane
 `designer new --preset <preset>` and `designer from-svg --icon <preset>` write it with `shape: "auto"`
 (`--tile`, `--colour one|full`, `--glyph <#hex>` add the colour fields).
 
+## Wireframe documents
+
+A top-level `wireframe` field marks a wireframe: screens on an infinite canvas, to plan an app's UI
+(`docs/wireframe-mode.md`). The `artboard` stays in the file (it is required) but is not drawn or used.
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "Notes app",
+  "artboard": { "width": 1024, "height": 1024 },
+  "wireframe": { "screens": [ { "id": "s1", "name": "Settings" } ] },
+  "children": [
+    { "type": "group", "name": "Settings", "transform": { "x": 0, "y": 0 },
+      "screen": { "screenId": "s1", "platform": "phone", "width": 390, "height": 844 },
+      "children": [
+        { "type": "group", "name": "Hero", "transform": { "x": 24, "y": 120 },
+          "component": { "kind": "placeholder", "props": { "label": "Hero image", "height": 220 } },
+          "children": [] }
+      ] },
+    { "type": "group", "name": "Settings", "transform": { "x": 470, "y": 0 },
+      "screen": { "screenId": "s1", "platform": "tablet" }, "children": [] }
+  ]
+}
+```
+
+`wireframe`:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `screens` | `{ id, name }[]` | optional (default `[]`). The logical screens (`Settings`, `Gallery`), in creation order. `id` is required and unique; `name` defaults to `"Screen"`. Kept in sync with the frames when the document opens: a frame with an unknown `screenId` gets a logical screen, a logical screen without frames is removed, every frame takes its logical screen's name |
+
+Wireframe fields of nodes (optional; on a document without `wireframe` they are ignored with a warning):
+
+| Field | On | Notes |
+| --- | --- | --- |
+| `screen` | top-level `group` only | a **screen frame**: `{ screenId, platform, width, height }`. `platform`: `phone` (390 wide, min height 844), `tablet` (820 / 1180) or `desktop` (1440 / 900), default `phone`. `width` defaults to the platform width; `height` is recomputed on open: max(platform minimum, content bottom). `screenId` names the logical screen (a new one when missing). At most one frame per platform per logical screen: a second one becomes its own logical screen "<name> copy". The group's `transform` places the frame's **top-left corner** (frames are never rotated or scaled); children use the frame's local space (origin = top-left). Content is clipped to the frame in exports |
+| `component` | `group` | a **component instance**: `{ kind, props, size? }`. `kind` names a library component (`src/wireframe/library/<kind>`; phase 1 has `placeholder` with props `label`, `height`); `props` its prop values (defaults fill the rest); `size` `{ width, height }` the box it was built for (default: the component's size). The children are **generated** from `kind` + `props` + `size` and rewritten on open, so edit props, not children. An unknown `kind` (a file from a newer version) loads as a plain group with a warning |
+| `layout` | `group` | reserved for stacks and grids (layout workstream): `{ kind: "vstack" \| "hstack" \| "grid", gap?, padding?, align?: "start" \| "center" \| "end" \| "stretch", columns? }` (defaults 0, 0, `stretch`, 2 for a grid). Validated and saved; not applied yet |
+| `layoutItem` | any node | reserved: how the node sits in its parent's layout: `{ width?, height?: "fill" \| "hug" \| number, position?: "flow" \| "pinned-bottom" \| "free" }` |
+
+Errors name the path (`children[0].screen.platform: expected one of "phone", "tablet", "desktop", got "watch"`,
+`children[0].children[1].screen: screen frames must be top-level objects`). `designer new --preset wireframe`
+and `designer screen` write these fields for you (see [`agents.md`](agents.md#wireframes)).
+
 ## Nodes
 
 Every node has these common fields:
@@ -123,6 +168,7 @@ Every node has these common fields:
 | `opacity` | number 0..1 | optional (default `1`) |
 | `blendMode` | string | optional; a CSS `mix-blend-mode` value (`multiply`, `screen`…) |
 | `transform` | [Transform](#transform) | optional (default identity) |
+| `screen`, `component`, `layout`, `layoutItem` | object | optional; [wireframe documents](#wireframe-documents) only |
 
 Painted nodes (`path`, `rect`, `ellipse`, `polygon`, `text`) also have:
 

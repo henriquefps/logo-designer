@@ -188,6 +188,23 @@ plain, structured, no decoration.
 - Unknown component kinds (a file from a newer version) load as plain groups with a warning, never
   fail.
 
+### As built (foundation, workstream 1)
+
+Details the foundation settled, for the next workstreams (code map and APIs: `docs/architecture.md` →
+Wireframe mode):
+
+- A frame is a top-level `group` with `screen: { screenId, platform, width, height }` (the group has no size of
+  its own, so the frame carries it); `height` is written by the pipeline. Instances carry
+  `component: { kind, props, size? }` (`size` = the box they were built for). Children of a layout carry
+  `layoutItem: { width?, height?, position? }` next to the container's `layout`.
+- Adding screens: the **Screen tool (F)** places a frame where you click (platform in the options bar), Object →
+  Add screen ▸ and the Screens section of Properties add one to the right of everything; Object → Duplicate
+  screen as ▸ and the Screen section add variants. Click a frame's name label to grab the whole frame.
+- Objects dropped on a frame become its children; dragged off, they go back to the canvas (or to the frame they
+  land on). A plain duplicate of a frame (⌘D, Alt-drag) becomes a new logical screen "<name> copy".
+- `designer new --preset wireframe` (empty), `designer screen` (add a screen or a variant), `to-png` (one PNG per
+  frame, `<slug>.<platform>.png`, the export package's naming) and `to-svg --screen` exist; see `docs/agents.md`.
+
 ### Mobile layout
 
 Desktop-first, like the rest of Designer. On a phone a wireframe can be viewed, moved around and
