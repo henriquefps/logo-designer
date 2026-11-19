@@ -397,8 +397,9 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
   user changed is not snapped back (it follows the pointer and lands when the gesture settles); a flow child
   whose `component.size` / `layout.size` the user changed (resize handles, W/H fields) gets that dimension fixed
   in `layoutItem`. The components step leaves laid-out instances to this step (one build per change, at the
-  slot's size). Cost: ~2 ms per drag frame for a 100-component screen in a 10-screen document (test in
-  `__tests__/layout.test.ts`).
+  slot's size). Cost: ~1 ms per drag frame (store + pipeline) for a 100-component screen in a 10-screen
+  document (test in `__tests__/layout.test.ts`). `useDocStore.updateNode(s)` / `replaceNodes` find nodes on the
+  plain document and step into the draft by index (`locateDraft`): walking a draft proxies every node it visits.
 - **Editing** (`layoutEdit.ts`, pure, plain doc or draft):
   - `layoutDropTarget(doc, point, { exclude? }) → { containerId, index } | null`: the deepest stack / grid /
     laid-out frame under a document point and the index a drop takes (in `children`, counted without

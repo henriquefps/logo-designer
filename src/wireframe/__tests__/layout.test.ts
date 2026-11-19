@@ -311,13 +311,20 @@ describe('performance', () => {
     }
     const s = useDocStore.getState();
     s.load(doc);
-    const t0 = performance.now();
+    const others = useDocStore.getState().doc.children.filter((_, i) => i !== 3);
     s.beginTransaction('Move');
-    for (let k = 0; k < 30; k++) useDocStore.getState().updateNode('c3-55', { transform: { x: 100 + k, y: 300 + k } });
+    const times: number[] = [];
+    for (let k = 0; k < 40; k++) {
+      const t0 = performance.now();
+      useDocStore.getState().updateNode('c3-55', { transform: { x: 100 + k, y: 300 + k } });
+      times.push(performance.now() - t0);
+    }
     useDocStore.getState().commitTransaction();
-    const perFrame = (performance.now() - t0) / 31;
     expect(pos(useDocStore.getState().doc, 'c3-55')).toEqual([16, pos(useDocStore.getState().doc, 'c3-55')[1]]);
-    // Generous bound for slow CI machines; locally it is well under a millisecond or two.
-    expect(perFrame).toBeLessThan(30);
+    // The other screens were not touched at all (same objects).
+    useDocStore.getState().doc.children.filter((_, i) => i !== 3).forEach((n, i) => expect(n).toBe(others[i]));
+    // Median drag frame (store + pipeline, after warm-up): ~1 ms locally; generous for a loaded machine running the suite in parallel.
+    const median = times.slice(10).sort((a, b) => a - b)[15];
+    expect(median).toBeLessThan(40);
   });
 });
