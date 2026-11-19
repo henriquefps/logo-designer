@@ -41,16 +41,18 @@ export default defineComponent({
     secondary: { type: 'text', label: 'Other action', default: 'Cancel', placeholder: 'None', help: 'Leave empty for a dialog with one action.' },
   },
   sizing: { width: 320, height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 320, height: 200 },
   placement: { position: 'free', anchor: 'center' },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const inner = Math.max(0, width - PAD * 2);
     const lines = p.message ? wrap(p.message, inner, 'body', MAX_LINES) : [];
     const titleH = p.title ? Math.ceil(lineHeight('subheading')) : 0;
     const msgH = lines.length * lineHeight('body');
     const gap1 = titleH && msgH ? WF_SPACE.md : 0;
     const hasActions = !!(p.primary || p.secondary);
-    const h = Math.ceil(PAD + titleH + gap1 + msgH + (hasActions ? WF_SPACE.xl + ACTION_H + WF_SPACE.sm : PAD));
+    // Taller box: the card fills it, the text stays on top and the actions sit on the bottom edge.
+    const h = Math.max(height ?? 0, Math.ceil(PAD + titleH + gap1 + msgH + (hasActions ? WF_SPACE.xl + ACTION_H + WF_SPACE.sm : PAD)));
     const ay = h - WF_SPACE.sm - ACTION_H;
     let x = width - PAD;
     const actions = [p.primary && { label: p.primary, main: true }, p.secondary && { label: p.secondary, main: false }].filter(Boolean) as { label: string; main: boolean }[];

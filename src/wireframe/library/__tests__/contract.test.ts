@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { boundsIn, fromTransform, type Paint, type SceneNode } from '@/model';
 import { WF } from '../../style';
 import { getComponents } from '../registry';
-import { defaultProps, resolveProps, type PropSpec } from '../types';
+import { defaultProps, resizableAxes, resolveProps, type PropSpec } from '../types';
 
 const ALLOWED = new Set<string>((Object.values(WF) as unknown[]).filter((v): v is string => typeof v === 'string' && v.startsWith('#')));
 const colors = (n: SceneNode, out: string[] = []): string[] => {
@@ -96,5 +96,30 @@ describe.each(getComponents().map((d) => [d.kind, d] as const))('component %s', 
       for (const width of [40, def.defaultSize.width, 1440]) expect(() => def.build(props, { width }), `${key} @ ${width}`).not.toThrow();
       expect(typeof def.describe(props)).toBe('string');
     }
+  });
+
+  it('follows the size it is given, or says it cannot (resizable axes)', () => {
+    const axes = resizableAxes(def);
+    expect(typeof axes.width).toBe('boolean');
+    expect(typeof axes.height).toBe('boolean');
+    const props = defaultProps(def);
+    const width = def.defaultSize.width;
+    const base = def.build(props, { width });
+    const taller = def.build(props, { width, height: Math.ceil(base.height) + 120 });
+    if (axes.height) {
+      // Taller box → taller drawing, with everything still inside it.
+      expect(taller.height).toBeGreaterThan(base.height);
+      for (const c of taller.children) {
+        const b = boundsIn(c, fromTransform(c.transform));
+        if (b) expect(b.y + b.height, c.name).toBeLessThanOrEqual(taller.height + 1);
+      }
+      // A box shorter than the content never makes the drawing shorter than the content.
+      expect(def.build(props, { width, height: 1 }).height).toBeGreaterThanOrEqual(Math.min(base.height, 1));
+    } else {
+      // A height that follows the content ignores any height it is given.
+      expect(taller.height).toBe(base.height);
+      expect(strip(taller.children)).toEqual(strip(base.children));
+    }
+    if (!axes.width) expect(strip(def.build(props, { width: width + 100 }).children)).toEqual(strip(base.children));
   });
 });

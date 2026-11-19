@@ -23,8 +23,9 @@ export default defineComponent({
     buttonLabel: { type: 'text', label: 'Button', default: '', placeholder: 'No button', help: 'Leave empty for no button.' },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 220 },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const cx = width / 2;
     const room = Math.max(0, Math.min(width, 320));
     let y = PAD;
@@ -51,7 +52,11 @@ export default defineComponent({
       out.push(createGroup({ name: 'Button', transform: { x: cx - w / 2, y }, children: built.children }));
       y += built.height;
     }
-    return { children: nodes(...out), height: Math.ceil(y + PAD) };
+    const natural = Math.ceil(y + PAD);
+    const h = Math.max(natural, Math.ceil(height ?? 0));
+    // Taller box: the content stays together, centred vertically.
+    const dy = Math.round((h - natural) / 2);
+    return { children: dy > 0 ? [createGroup({ name: 'Content', transform: { x: 0, y: dy }, children: nodes(...out) })] : nodes(...out), height: h };
   },
   describe(p) {
     const parts = ['Empty state'];

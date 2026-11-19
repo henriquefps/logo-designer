@@ -19,14 +19,16 @@ export default defineComponent({
     error: { type: 'text', label: 'Error text', default: 'This field is required', visibleWhen: { state: 'error' } },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 140 },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const state = p.state as FieldState;
     const helper = state === 'error' ? p.error : p.helper;
     const top = labelBlock(p.label);
     const rows = Math.max(2, Math.round(p.rows));
     const lh = lineHeight('body');
-    const h = Math.ceil(rows * lh + FIELD_PAD * 2);
+    // Taller box: the field takes the extra height (the label and helper keep their places).
+    const h = Math.max(Math.ceil(rows * lh + FIELD_PAD * 2), Math.ceil((height ?? 0) - top - helperBlock(helper)));
     const room = width - FIELD_PAD * 2 - (state === 'error' ? 26 : 0);
     const shown = p.value ? wrapLines(p.value, room, 'body', undefined, rows) : wrapLines(p.placeholder, room, 'body', undefined, rows);
     const body = shown.join('\n');

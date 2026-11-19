@@ -21,12 +21,14 @@ export default defineComponent({
     rows: { type: 'list', label: 'Rows', default: ['Copy link', 'Send as message', 'More options'], item: 'Row', min: 1, max: MAX },
   },
   sizing: { width: 'fill', height: 'hug', bleed: true },
+  resizable: { height: true },
   defaultSize: { width: 390, height: TOP + 32 + ROW * 3 + BOTTOM },
   placement: { position: 'free', anchor: 'bottom-edge' },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const rows = p.rows.slice(0, MAX);
     const titleH = p.title ? Math.ceil(lineHeight('subheading')) + WF_SPACE.md : 0;
-    const h = TOP + titleH + rows.length * ROW + BOTTOM;
+    // Taller sheet: the handle, title and rows stay on top.
+    const h = Math.max(TOP + titleH + rows.length * ROW + BOTTOM, Math.ceil(height ?? 0));
     const y0 = TOP + titleH;
     return {
       children: nodes(

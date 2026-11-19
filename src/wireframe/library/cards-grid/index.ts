@@ -25,8 +25,9 @@ export default defineComponent({
     },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 960, height: 520 },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const cols = Math.round(p.columns);
     const rows = Math.round(p.rows);
     const cw = Math.max(0, (width - GAP * (cols - 1)) / cols);
@@ -35,7 +36,8 @@ export default defineComponent({
     const titleH = textBarsHeight(1, 'subheading');
     const copyH = (lines: number) => titleH + WF_SPACE.sm + textBarsHeight(lines, 'label');
     const ch = p.cardStyle === 'image' ? img + PAD + copyH(2) + PAD : p.cardStyle === 'text' ? PAD + copyH(3) + PAD : PAD * 2 + Math.max(SIDE_IMAGE, copyH(3));
-    const cardH = Math.ceil(ch);
+    // Taller grid: the rows share the height; each card's content stays at its top.
+    const cardH = Math.max(Math.ceil(ch), Math.ceil(((height ?? 0) - GAP * (rows - 1)) / rows));
     const children = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {

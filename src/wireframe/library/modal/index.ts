@@ -20,15 +20,18 @@ export default defineComponent({
     close: { type: 'boolean', label: 'Close button', default: true },
   },
   sizing: { width: 480, height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 480, height: 232 },
   placement: { position: 'free', anchor: 'center' },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const titleH = lineHeight('subheading');
     const bodyY = PAD + titleH + WF_SPACE.lg;
     const bodyH = textBarsHeight(p.lines);
     const hasActions = !!(p.primary || p.secondary);
-    const actionsY = bodyY + bodyH + PAD;
-    const h = Math.ceil(hasActions ? actionsY + WF_SIZE.control + PAD : bodyY + bodyH + PAD);
+    const natural = Math.ceil(hasActions ? bodyY + bodyH + PAD + WF_SIZE.control + PAD : bodyY + bodyH + PAD);
+    // Taller window: the title and body stay on top, the actions sit on the bottom edge.
+    const h = Math.max(natural, Math.ceil(height ?? 0));
+    const actionsY = h - PAD - WF_SIZE.control;
     const children = [
       box({ x: 0, y: 0, width, height: h, radius: WF_RADIUS.lg, fill: 'paper', stroke: 'ink', name: 'Window' }),
       textInBand(truncate(p.title, Math.max(0, width - PAD * 2 - (p.close ? 32 : 0)), 'subheading'), { x: PAD, y: PAD, height: titleH, style: 'subheading', name: 'Title' }),

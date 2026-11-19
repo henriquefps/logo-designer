@@ -23,10 +23,13 @@ export default defineComponent({
     rowActions: { type: 'boolean', label: 'Row actions', default: false },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 800, height: HEADER_H + ROW_H * 8 },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const rows = Math.max(1, Math.round(p.rows));
-    const h = HEADER_H + rows * ROW_H;
+    // Taller table: the extra room is empty rows (lines only) below the ones with content.
+    const h = Math.max(HEADER_H + rows * ROW_H, Math.ceil(height ?? 0));
+    const drawn = Math.max(rows, Math.floor((h - HEADER_H) / ROW_H));
     const left = p.selectable ? SIDE : 0;
     const right = p.rowActions ? SIDE : 0;
     const cols = p.columns.length;
@@ -40,9 +43,13 @@ export default defineComponent({
     if (p.selectable) header.push(checkbox({ x: (SIDE - 20) / 2, y: (HEADER_H - 20) / 2, checked: false }));
     p.columns.forEach((c, i) => header.push(textInBand(truncate(c, cw - pad * 2, 'label', 600), { x: left + i * cw + pad, y: 0, height: HEADER_H, style: 'label', weight: 600, name: 'Column' })));
     children.push(part('Header', header));
-    for (let r = 0; r < rows; r++) {
+    for (let r = 0; r < drawn; r++) {
       const y = HEADER_H + r * ROW_H;
       const cells = [divider({ x: 0, y, width })];
+      if (r >= rows) {
+        children.push(part(`Row ${r + 1} (empty)`, cells));
+        continue;
+      }
       if (p.selectable) cells.push(checkbox({ x: (SIDE - 20) / 2, y: y + (ROW_H - 20) / 2, checked: false }));
       p.columns.forEach((_, c) => {
         const w = (cw - pad * 2) * barFraction(r, c);

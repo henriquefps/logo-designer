@@ -17,9 +17,11 @@ export default defineComponent({
     height: { type: 'number', label: 'Height', default: 120, min: 16, max: 4000, step: 8 },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 120 },
-  build(props, { width }) {
-    const h = props.height;
+  build(props, { width, height }) {
+    // A given height (a taller box) wins over the Height prop, which is what it hugs to.
+    const h = height ?? props.height;
     const line = defaultStroke(solid(WF.line), WF.strokeWidth);
     const box = createRect({ name: 'Box', width, height: h, transform: { x: width / 2, y: h / 2 }, fill: solid(WF.fill), stroke: line });
     const cross = createPath({

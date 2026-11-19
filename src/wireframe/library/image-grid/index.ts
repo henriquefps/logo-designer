@@ -14,6 +14,7 @@ export default defineComponent({
     gap: { type: 'number', label: 'Gap', default: 4, min: 0, max: 24, step: 2, unit: 'px' },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 228 },
   build(p, { width, height }) {
     const cols = Math.max(2, Math.min(4, Math.round(p.columns)));
