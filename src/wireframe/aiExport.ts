@@ -8,15 +8,30 @@
 //   screens/<slug>.<platform>.png  one image per frame (notes excluded)
 //   project.designer.json          the editable project
 //
-// Phase 2 extension points: `README_SECTIONS` (flow list + Mermaid diagram) and `SCREEN_SECTIONS`
-// (screen status, incoming/outgoing flow). Add a function there; nothing else changes.
+// Phase 2: screen status (README list, top of each screen file), flows (README "Flow" section with a
+// Mermaid diagram, "→ opens X" under each source element, "Opened from" per screen: ./flowExport.ts).
+// More sections: add a function to `README_SECTIONS` / `SCREEN_SECTIONS`.
 import JSZip from 'jszip';
-import { isComponentNode, isScreenNode, type DesignDocument, type GroupNode, type Id, type LayoutInfo, type SceneNode, type ScreenNode, type ScreenPlatform } from '@/model';
+import {
+  isComponentNode,
+  isScreenNode,
+  type DesignDocument,
+  type GroupNode,
+  type Id,
+  type LayoutInfo,
+  type SceneNode,
+  type ScreenNode,
+  type ScreenPlatform,
+  type ScreenStatus,
+  type WireframeFlow,
+} from '@/model';
 import { serializeProject } from '@/io/projectFile';
 import { getComponent } from './library/registry';
 import { resolveProps } from './library/types';
 import { notesFor, type NoteForExport } from './notes';
-import { screenSlug } from './screens';
+import { logicalScreen, screenSlug } from './screens';
+import { flowOpensLine, flowReadmeSection, flowScreenSection, STATUS_TEXT } from './flowExport';
+import { flowsOf } from './flows';
 
 const PLATFORM_ORDER: ScreenPlatform[] = ['phone', 'tablet', 'desktop'];
 const platformLabel = (p: ScreenPlatform) => p[0].toUpperCase() + p.slice(1);
@@ -38,6 +53,7 @@ export interface AiScreen {
   name: string;
   /** Unique across the project and stable: the slugified name, `-2`, `-3`… on a clash. */
   slug: string;
+  status?: ScreenStatus;
   variants: AiVariant[];
 }
 
@@ -48,10 +64,10 @@ export interface AiContext {
   notes: NoteForExport[];
 }
 
-/** Extra README sections (phase 2: flows). Each returns markdown lines, or nothing. */
-export const README_SECTIONS: ((ctx: AiContext) => string[])[] = [];
-/** Extra sections of one screen's file (phase 2: status, flows in and out). */
-export const SCREEN_SECTIONS: ((ctx: AiContext, screen: AiScreen) => string[])[] = [];
+/** Extra README sections (flows). Each returns markdown lines, or nothing. */
+export const README_SECTIONS: ((ctx: AiContext) => string[])[] = [flowReadmeSection];
+/** Extra sections at the end of one screen's file (where it is opened from). */
+export const SCREEN_SECTIONS: ((ctx: AiContext, screen: AiScreen) => string[])[] = [flowScreenSection];
 
 /** Logical screens with their variants, in the order of `wireframe.screens`, with unique slugs. */
 export function aiScreens(doc: DesignDocument): AiScreen[] {
@@ -69,7 +85,7 @@ export function aiScreens(doc: DesignDocument): AiScreen[] {
       .filter((f) => f.screen.screenId === s.id)
       .sort((a, b) => PLATFORM_ORDER.indexOf(a.screen.platform) - PLATFORM_ORDER.indexOf(b.screen.platform))
       .map((frame) => ({ frame, platform: frame.screen.platform, image: `${slug}.${frame.screen.platform}.png` }));
-    return { id: s.id, name: s.name, slug, variants };
+    return { id: s.id, name: s.name, slug, ...(s.status ? { status: s.status } : {}), variants };
   });
 }
 
@@ -118,9 +134,12 @@ class TreeWriter {
   private readonly alias = new Map<Id, Id>();
 
   private readonly frame: ScreenNode;
+  /** Outgoing flows by source node, written under it ("→ opens Language"). */
+  private readonly flows = new Map<Id, string[]>();
 
-  constructor(frame: ScreenNode, notes: NoteForExport[]) {
+  constructor(frame: ScreenNode, notes: NoteForExport[], flows: { flow: WireframeFlow; target: string }[] = []) {
     this.frame = frame;
+    for (const { flow, target } of flows) this.flows.set(flow.from, [...(this.flows.get(flow.from) ?? []), flowOpensLine(flow, target)]);
     for (const n of notes) {
       if (n.targetId === undefined) continue;
       this.byTarget.set(n.targetId, [...(this.byTarget.get(n.targetId) ?? []), n]);
@@ -152,6 +171,10 @@ class TreeWriter {
 
   private line(depth: number, text: string, ids: readonly Id[]) {
     this.lines.push(`${'  '.repeat(depth)}- ${text}`);
+    for (const id of ids) {
+      for (const l of this.flows.get(id) ?? []) this.lines.push(`${'  '.repeat(depth + 1)}- ${l}`);
+      this.flows.delete(id);
+    }
     for (const n of this.notesOf(ids)) {
       this.used.add(n.noteId);
       this.lines.push(`${'  '.repeat(depth + 1)}- Note: ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`);
@@ -232,10 +255,11 @@ function collectIds(n: GroupNode, out: Id[] = []): Id[] {
 }
 
 /** A variant: heading, frame notes, layout note and the tree. */
-function variantMarkdown(v: AiVariant, notes: NoteForExport[]): string[] {
+function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport[]): string[] {
   const f = v.frame;
   const out = [`## ${platformLabel(v.platform)} (${size(f.screen.width, f.screen.height)})`, '', `Image: \`${v.image}\``, ''];
-  const w = new TreeWriter(f, notes);
+  const flows = flowsOf(doc).map((flow) => ({ flow, target: logicalScreen(doc, flow.to)?.name ?? 'a missing screen' }));
+  const w = new TreeWriter(f, notes, flows);
   const l = f.layout;
   if (!l) out.push('Elements are placed freely (no stack); listed top to bottom.', '');
   else if (l.kind !== 'vstack') out.push(`Layout: ${stackName(l)}.`, '');
@@ -260,7 +284,9 @@ export interface AiMarkdown {
   screens: { slug: string; name: string; markdown: string }[];
 }
 
-const variantSummary = (s: AiScreen) => (s.variants.length ? s.variants.map((v) => `${v.platform} ${size(v.frame.screen.width, v.frame.screen.height)}`).join(', ') : 'no variants yet');
+const variantSummary = (s: AiScreen) =>
+  (s.variants.length ? s.variants.map((v) => `${v.platform} ${size(v.frame.screen.width, v.frame.screen.height)}`).join(', ') : 'no variants yet') +
+  (s.status ? ` — status: ${s.status}` : '');
 
 export function aiMarkdown(doc: DesignDocument): AiMarkdown {
   if (!doc.wireframe) throw new Error('Not a wireframe document.');
@@ -287,6 +313,8 @@ export function aiMarkdown(doc: DesignDocument): AiMarkdown {
     '- "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.',
     '- "Note:" lines are the designer\'s remarks about the element above them.',
     '- `screens/<name>.<platform>.png` is an image of each variant; `project.designer.json` is the editable project.',
+    ...(screens.some((s) => s.status) ? ['- Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.'] : []),
+    ...(flowsOf(doc).length ? ['- "→ opens X" under an element: tapping (or clicking) it opens the screen X. The Flow section below has the whole map.'] : []),
     '',
     ...(free.length ? ['## Notes', '', ...free.map((n) => `- ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`), ''] : []),
     ...README_SECTIONS.flatMap((s) => s(ctx)),
@@ -294,8 +322,9 @@ export function aiMarkdown(doc: DesignDocument): AiMarkdown {
 
   const files = screens.map((s) => {
     const md: string[] = [`# ${s.name}`, ''];
+    if (s.status) md.push(`Status: ${STATUS_TEXT[s.status]}.`, '');
     if (!s.variants.length) md.push('No variants yet.', '');
-    for (const v of s.variants) md.push(...variantMarkdown(v, notes));
+    for (const v of s.variants) md.push(...variantMarkdown(doc, v, notes));
     md.push(...SCREEN_SECTIONS.flatMap((x) => x(ctx, s)));
     return { slug: s.slug, name: s.name, markdown: tidy(md) };
   });

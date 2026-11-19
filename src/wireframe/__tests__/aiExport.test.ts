@@ -4,6 +4,7 @@ import { createDocument, createGroup, createRect, createText, type ComponentNode
 import { aiMarkdown, aiMarkdownCombined, aiScreens, aiZip } from '../aiExport';
 import { materializeDocument } from '../pipeline';
 import { addNote } from '../notes';
+import { addFlow, setScreenStatus } from '../flows';
 import { addScreen, duplicateScreenAs } from '../screens';
 
 const comp = (id: string, kind: string, props: Record<string, unknown>, item?: LayoutItemInfo): ComponentNode => ({
@@ -20,7 +21,10 @@ const stack = (id: string, layout: Partial<LayoutInfo> & Pick<LayoutInfo, 'kind'
   ...(item ? { layoutItem: item } : {}),
 });
 
-/** Two logical screens: Home (phone + desktop; nested stacks, pinned bottom nav, free FAB) and Settings Page (phone). */
+/**
+ * Two logical screens: Home (phone + desktop; nested stacks, pinned bottom nav, free FAB; status changed) and
+ * Settings Page (phone; status new). Flows: Home's "Shopping" row and "Sort" button → Settings Page, its heading → Home.
+ */
 function fixture(): DesignDocument {
   const doc = createDocument({ name: 'Notes App', wireframe: { screens: [] } });
   const home = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
@@ -45,6 +49,12 @@ function fixture(): DesignDocument {
   addNote(out, { target: 'fab', text: 'Creates a new note' });
   addNote(out, { target: home, text: 'Home is the start screen' });
   addNote(out, { text: 'Offline first.\nSync later.' });
+  const [homeId, settingsId] = out.wireframe!.screens.map((x) => x.id);
+  addFlow(out, 'r1', settingsId, 'List settings');
+  addFlow(out, 'b1', settingsId);
+  addFlow(out, 'sh', homeId);
+  setScreenStatus(out, homeId, 'changed');
+  setScreenStatus(out, settingsId, 'new');
   return out;
 }
 
@@ -54,8 +64,8 @@ describe('export for AI: markdown', () => {
 
   it('lists screens with their platforms and the free notes in the README', () => {
     expect(md.readme).toContain('# Notes App');
-    expect(md.readme).toContain('- Home — phone 390×844, desktop 1440×900 — `screens/home.md`');
-    expect(md.readme).toContain('- Settings Page — phone 390×844 — `screens/settings-page.md`');
+    expect(md.readme).toContain('- Home — phone 390×844, desktop 1440×900 — status: changed — `screens/home.md`');
+    expect(md.readme).toContain('- Settings Page — phone 390×844 — status: new — `screens/settings-page.md`');
     expect(md.readme).toMatch(/## Notes\n\n- Offline first\. Sync later\./);
     expect(md.readme).not.toContain('Swipe left');
   });
@@ -79,9 +89,41 @@ describe('export for AI: markdown', () => {
   });
 
   it('puts notes next to the element they are attached to', () => {
-    expect(home).toMatch(/List row "Shopping".*\n {4}- Note: Swipe left to delete/);
+    expect(home).toMatch(/List row "Shopping".*\n(?: {4}- → .*\n)* {4}- Note: Swipe left to delete/);
     expect(home).toMatch(/button "\+".*\n {2}- Note: Creates a new note/);
     expect(home).toContain('Note on the whole screen: Home is the start screen');
+  });
+
+  it('writes the flow: a list and a Mermaid flowchart in the README', () => {
+    expect(md.readme).toContain('## Flow');
+    expect(md.readme).toContain('- Home → Settings Page (from "Shopping" list row) — "List settings"');
+    expect(md.readme).toContain('- Home → Settings Page (from "Sort" button)');
+    expect(md.readme).toContain('- Settings Page → Home (from "Settings" heading)');
+    expect(md.readme).toContain(
+      ['```mermaid', 'flowchart LR', '  s_home["Home"]', '  s_settings_page["Settings Page"]', '  s_home -->|"List settings"| s_settings_page', '  s_home -->|"Sort"| s_settings_page', '  s_settings_page -->|"Settings"| s_home', '```'].join('\n'),
+    );
+  });
+
+  it('writes each screen\'s status and its outgoing flows under their source', () => {
+    expect(home).toMatch(/^# Home\n\nStatus: changed \(/);
+    expect(md.screens[1].markdown).toMatch(/^# Settings Page\n\nStatus: new \(/);
+    expect(home).toMatch(/List row "Shopping".*\n {4}- → opens Settings Page \("List settings"\)\n {4}- Note: Swipe left to delete/);
+    expect(home).toMatch(/Primary button "Sort"\n {4}- → opens Settings Page\n/);
+    // The desktop variant is a copy made before the flows: its rows open nothing.
+    expect(home.split('## Desktop')[1]).not.toContain('→ opens');
+    expect(md.screens[1].markdown).toContain('- Heading "Settings"\n  - → opens Home');
+    expect(md.screens[1].markdown).toContain('## Opened from\n\n- Home ("Shopping" list row) — "List settings"\n- Home ("Sort" button)');
+  });
+
+  it('leaves flow and status out when there are none', () => {
+    const doc = fixture();
+    delete doc.wireframe!.flows;
+    for (const x of doc.wireframe!.screens) delete x.status;
+    const plain = aiMarkdown(doc);
+    expect(plain.readme).not.toContain('## Flow');
+    expect(plain.readme).not.toContain('status');
+    expect(plain.screens[0].markdown).not.toContain('Status:');
+    expect(plain.screens[0].markdown).not.toContain('→ opens');
   });
 
   it('is stable and readable (snapshot)', () => {

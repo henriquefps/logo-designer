@@ -7,8 +7,8 @@ Wireframe of an app, exported for an AI agent. It describes structure and conten
 
 ## Screens
 
-- Home — phone 390×844, desktop 1440×900 — \`screens/home.md\`
-- Settings Page — phone 390×844 — \`screens/settings-page.md\`
+- Home — phone 390×844, desktop 1440×900 — status: changed — \`screens/home.md\`
+- Settings Page — phone 390×844 — status: new — \`screens/settings-page.md\`
 
 ## How to read the screen files
 
@@ -17,15 +17,36 @@ Wireframe of an app, exported for an AI agent. It describes structure and conten
 - "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.
 - "Note:" lines are the designer's remarks about the element above them.
 - \`screens/<name>.<platform>.png\` is an image of each variant; \`project.designer.json\` is the editable project.
+- Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.
+- "→ opens X" under an element: tapping (or clicking) it opens the screen X. The Flow section below has the whole map.
 
 ## Notes
 
 - Offline first. Sync later.
+
+## Flow
+
+What opens what: tapping (or clicking) the element in the first screen opens the second.
+
+- Home → Settings Page (from "Shopping" list row) — "List settings"
+- Home → Settings Page (from "Sort" button)
+- Settings Page → Home (from "Settings" heading)
+
+\`\`\`mermaid
+flowchart LR
+  s_home["Home"]
+  s_settings_page["Settings Page"]
+  s_home -->|"List settings"| s_settings_page
+  s_home -->|"Sort"| s_settings_page
+  s_settings_page -->|"Settings"| s_home
+\`\`\`
 "
 `;
 
 exports[`export for AI: markdown > is stable and readable (snapshot) 2`] = `
 "# Home
+
+Status: changed (a proposed change to a screen the app already has).
 
 ## Phone (390×844)
 
@@ -36,10 +57,12 @@ Note on the whole screen: Home is the start screen
 - Title "My notes"
 - Horizontal stack
   - Primary button "Sort"
+    - → opens Settings Page
   - Primary button "Filter"
 - List row "Wrapped"
 - Vertical stack
   - List row "Shopping", subtitle "3 items", → chevron (opens a screen)
+    - → opens Settings Page ("List settings")
     - Note: Swipe left to delete
   - List row "Ideas", → toggle (on)
 - Grid (3 columns)
@@ -70,16 +93,28 @@ Image: \`home.desktop.png\`
 - Shape (rectangle)
 - List row "Bottom nav", → chevron (opens a screen) — pinned to bottom
 - Primary button "+" — floating, bottom left
+
+## Opened from
+
+- Settings Page ("Settings" heading)
 "
 `;
 
 exports[`export for AI: markdown > is stable and readable (snapshot) 3`] = `
 "# Settings Page
 
+Status: new (a screen the app does not have yet).
+
 ## Phone (390×844)
 
 Image: \`settings-page.phone.png\`
 
 - Heading "Settings"
+  - → opens Home
+
+## Opened from
+
+- Home ("Shopping" list row) — "List settings"
+- Home ("Sort" button)
 "
 `;
