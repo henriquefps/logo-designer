@@ -17,7 +17,10 @@ import {
   type ScreenFrameInfo,
   type Stroke,
   type SubPath,
+  type ScreenStatus,
   type WireframeDocInfo,
+  type WireframeFlow,
+  type WireframeScreen,
 } from '@/model';
 import { getComponent } from '@/wireframe/library/registry';
 import { validateProps } from '@/wireframe/library/types';
@@ -272,8 +275,10 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
   return out;
 }
 
-/** Optional wireframe marker (`wireframe`): logical screens. */
-function wireframeInfo(v: unknown, path: string): { wireframe?: WireframeDocInfo } {
+const SCREEN_STATUS_VALUES = ['current', 'changed', 'new'] as const;
+
+/** Optional wireframe marker (`wireframe`): logical screens (with an optional status) and flows. */
+function wireframeInfo(v: unknown, path: string, warnings: string[]): { wireframe?: WireframeDocInfo } {
   if (v === undefined || v === null) return {};
   const o = obj(v, path);
   const sp = at(path, 'screens');
@@ -285,9 +290,47 @@ function wireframeInfo(v: unknown, path: string): { wireframe?: WireframeDocInfo
     if (!id) fail(at(p, 'id'), 'must not be empty');
     if (seen.has(id)) fail(at(p, 'id'), `duplicate logical screen id "${id}"`);
     seen.add(id);
-    return { id, name: s.name === undefined ? 'Screen' : str(s.name, at(p, 'name')) };
+    const out: WireframeScreen = { id, name: s.name === undefined ? 'Screen' : str(s.name, at(p, 'name')) };
+    if (s.status !== undefined && s.status !== null) {
+      if ((SCREEN_STATUS_VALUES as readonly unknown[]).includes(s.status)) out.status = s.status as ScreenStatus;
+      else warnings.push(`${at(p, 'status')}: ignored, expected one of ${SCREEN_STATUS_VALUES.map((x) => `"${x}"`).join(', ')}, got ${show(s.status)}`);
+    }
+    return out;
   });
-  return { wireframe: { screens } };
+  const info: WireframeDocInfo = { screens };
+  if (o.flows !== undefined && o.flows !== null) {
+    const fp = at(path, 'flows');
+    const flowIds = new Set<string>();
+    const flows = arr(o.flows, fp).map((raw, i) => {
+      const p = at(fp, i);
+      const f = obj(raw, p);
+      let id = typeof f.id === 'string' && f.id ? f.id : newId('f');
+      if (flowIds.has(id)) id = newId('f');
+      flowIds.add(id);
+      const from = str(f.from, at(p, 'from'));
+      const to = str(f.to, at(p, 'to'));
+      const flow: WireframeFlow = { id, from, to };
+      if (f.label !== undefined && f.label !== null && str(f.label, at(p, 'label')).trim()) flow.label = (f.label as string).trim();
+      return flow;
+    });
+    if (flows.length) info.flows = flows;
+  }
+  return { wireframe: info };
+}
+
+/** Drops flows whose source node or target logical screen is not in the file (with a warning each). */
+function checkFlows(wf: WireframeDocInfo, ids: ReadonlySet<string>, warnings: string[]): void {
+  if (!wf.flows) return;
+  const screens = new Set(wf.screens.map((s) => s.id));
+  const keep = wf.flows.filter((f, i) => {
+    const p = `wireframe.flows[${i}]`;
+    if (!ids.has(f.from)) warnings.push(`${p}.from: ignored flow, no node "${f.from}"`);
+    else if (!screens.has(f.to)) warnings.push(`${p}.to: ignored flow, no logical screen "${f.to}"`);
+    else return true;
+    return false;
+  });
+  if (keep.length) wf.flows = keep;
+  else delete wf.flows;
 }
 
 function node(v: unknown, ctx: NodeCtx, depth: number, path: string): SceneNode {
@@ -412,10 +455,13 @@ export function validateDocument(data: unknown, opts: { warnings?: string[] } = 
   if (d.schemaVersion !== 1) throw new Error('This is not a Designer project file ("schemaVersion" must be 1).');
   try {
     const now = Date.now();
-    const wf = wireframeInfo(d.wireframe, 'wireframe');
+    const warnings = opts.warnings ?? [];
+    const wf = wireframeInfo(d.wireframe, 'wireframe', warnings);
     const icon = iconInfo(d.icon, 'icon');
     if (wf.wireframe && icon.icon) fail('wireframe', 'a document is either an app icon ("icon") or a wireframe ("wireframe"), not both');
-    const ctx: NodeCtx = { ids: new Set<string>(), wireframe: !!wf.wireframe, warnings: opts.warnings ?? [] };
+    const ctx: NodeCtx = { ids: new Set<string>(), wireframe: !!wf.wireframe, warnings };
+    const children = d.children.map((c, i) => node(c, ctx, 0, `children[${i}]`));
+    if (wf.wireframe) checkFlows(wf.wireframe, ctx.ids, warnings);
     return {
       schemaVersion: 1,
       id: typeof d.id === 'string' && d.id ? d.id : newId('d'),
@@ -423,7 +469,7 @@ export function validateDocument(data: unknown, opts: { warnings?: string[] } = 
       createdAt: typeof d.createdAt === 'number' ? d.createdAt : now,
       updatedAt: now,
       artboard: artboard(d.artboard),
-      children: d.children.map((c, i) => node(c, ctx, 0, `children[${i}]`)),
+      children,
       ...icon,
       ...wf,
     };

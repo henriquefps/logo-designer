@@ -14,6 +14,7 @@
 //  100  components  rebuilds component instances whose `component` (kind, props, size) changed
 //  500  layout      stacks / grids (../layout.ts): child transforms, container sizes, frame heights
 //  900  screens     logical screens ↔ frames, one frame per platform, frame height = max(min, content)
+//  950  flows       (settle, load) flows whose source element or target screen is gone are removed
 //
 // Pure: no React, no stores; the CLI runs it too (`designer new --preset wireframe`, `screen`, load).
 import { enablePatches, produce, produceWithPatches, type Draft } from 'immer';

@@ -33,6 +33,7 @@ const OPTIONAL: Record<string, string[]> = {
   // Wireframe documents (docs/project-format.md → Wireframe documents).
   WireframeDocInfo: ['screens'],
   WireframeScreen: ['name'],
+  WireframeFlow: ['id'],
   ScreenFrameInfo: ['screenId', 'platform', 'width', 'height'],
   ComponentInfo: ['props'],
   LayoutInfo: ['gap', 'padding', 'align'],

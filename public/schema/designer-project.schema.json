@@ -1096,6 +1096,13 @@
             "$ref": "#/definitions/WireframeScreen"
           },
           "description": "Logical screens, in creation order. Kept in sync with the frames by the wireframe pipeline."
+        },
+        "flows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WireframeFlow"
+          },
+          "description": "Flow arrows (phase 2). Absent = none."
         }
       },
       "description": "Marks a wireframe document: infinite canvas (the artboard is unused), screens, components."
@@ -1108,12 +1115,49 @@
         },
         "name": {
           "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/ScreenStatus",
+          "description": "Unset = not stated. Shown as a badge on the frame label and in the export for AI."
         }
       },
       "required": [
         "id"
       ],
       "description": "A logical screen (`Settings`, `Gallery`): one or more frames, at most one per platform."
+    },
+    "ScreenStatus": {
+      "type": "string",
+      "enum": [
+        "current",
+        "changed",
+        "new"
+      ],
+      "description": "How a logical screen relates to the app that exists today (docs/wireframe-mode.md → Screen status)."
+    },
+    "WireframeFlow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "from": {
+          "$ref": "#/definitions/Id",
+          "description": "The source element (a node inside a frame; a component instance, not one of its generated children)."
+        },
+        "to": {
+          "$ref": "#/definitions/Id",
+          "description": "The target logical screen (`wireframe.screens[].id`)."
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "description": "A flow arrow: tapping `from` (any node inside a screen frame) opens the logical screen `to`. Drawn as a canvas overlay (never in screen exports); removed with its source node or target screen."
     }
   }
 }

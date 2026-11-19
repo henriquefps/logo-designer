@@ -215,16 +215,36 @@ export interface NoteInfo {
   target?: Id;
 }
 
+/** How a logical screen relates to the app that exists today (docs/wireframe-mode.md → Screen status). */
+export type ScreenStatus = 'current' | 'changed' | 'new';
+
 /** A logical screen (`Settings`, `Gallery`): one or more frames, at most one per platform. */
 export interface WireframeScreen {
   id: Id;
   name: string;
+  /** Unset = not stated. Shown as a badge on the frame label and in the export for AI. */
+  status?: ScreenStatus;
+}
+
+/**
+ * A flow arrow: tapping `from` (any node inside a screen frame) opens the logical screen `to`.
+ * Drawn as a canvas overlay (never in screen exports); removed with its source node or target screen.
+ */
+export interface WireframeFlow {
+  id: Id;
+  /** The source element (a node inside a frame; a component instance, not one of its generated children). */
+  from: Id;
+  /** The target logical screen (`wireframe.screens[].id`). */
+  to: Id;
+  label?: string;
 }
 
 /** Marks a wireframe document: infinite canvas (the artboard is unused), screens, components. */
 export interface WireframeDocInfo {
   /** Logical screens, in creation order. Kept in sync with the frames by the wireframe pipeline. */
   screens: WireframeScreen[];
+  /** Flow arrows (phase 2). Absent = none. */
+  flows?: WireframeFlow[];
 }
 
 export interface DesignDocument {
