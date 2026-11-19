@@ -14,6 +14,7 @@ export function GridLayer() {
   const size = useEditorStore((s) => s.gridSize);
   const viewport = useEditorStore((s) => s.viewport);
   const artboard = useDocStore((s) => s.doc.artboard);
+  const infinite = useDocStore((s) => !!s.doc.wireframe);
   const { zoom, pan } = useView();
   if (!show || size <= 0) return null;
   let step = size;
@@ -22,11 +23,11 @@ export function GridLayer() {
     step *= 2;
     skip *= 2;
   }
-  // Visible part of the artboard in document units.
-  const x0 = Math.max(0, -pan.x / zoom);
-  const y0 = Math.max(0, -pan.y / zoom);
-  const x1 = Math.min(artboard.width, (viewport.width - pan.x) / zoom);
-  const y1 = Math.min(artboard.height, (viewport.height - pan.y) / zoom);
+  // Visible part of the artboard (the whole view on a wireframe's infinite canvas) in document units.
+  const x0 = infinite ? -pan.x / zoom : Math.max(0, -pan.x / zoom);
+  const y0 = infinite ? -pan.y / zoom : Math.max(0, -pan.y / zoom);
+  const x1 = infinite ? (viewport.width - pan.x) / zoom : Math.min(artboard.width, (viewport.width - pan.x) / zoom);
+  const y1 = infinite ? (viewport.height - pan.y) / zoom : Math.min(artboard.height, (viewport.height - pan.y) / zoom);
   if (x1 <= x0 || y1 <= y0) return null;
   const sx = (x: number) => Math.round(x * zoom + pan.x) + 0.5;
   const sy = (y: number) => Math.round(y * zoom + pan.y) + 0.5;

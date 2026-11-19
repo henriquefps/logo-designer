@@ -20,6 +20,8 @@ const Nodes = memo(function Nodes({ nodes }: { nodes: ReturnType<typeof useDocSt
 /** The document drawn in world coordinates under the view transform. */
 export function SceneLayer() {
   const artboard = useDocStore((s) => s.doc.artboard);
+  // Wireframe documents have an infinite canvas: no artboard (docs/wireframe-mode.md).
+  const infinite = useDocStore((s) => !!s.doc.wireframe);
   const children = useDocStore((s) => s.doc.children);
   const { zoom, pan } = useView();
   const glyphFilter = useIconGlyphFilter();
@@ -27,7 +29,7 @@ export function SceneLayer() {
   return (
     <>
       <g transform={t}>
-        <ArtboardRenderer artboard={artboard} />
+        {!infinite && <ArtboardRenderer artboard={artboard} />}
         <IconTileLayer />
       </g>
       <GridLayer />
@@ -35,7 +37,7 @@ export function SceneLayer() {
         <g filter={glyphFilter}>
           <Nodes nodes={children} />
         </g>
-        <rect
+        {!infinite && <rect
           width={artboard.width}
           height={artboard.height}
           fill="none"
@@ -43,7 +45,7 @@ export function SceneLayer() {
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
           pointerEvents="none"
-        />
+        />}
       </g>
     </>
   );

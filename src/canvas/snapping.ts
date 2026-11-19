@@ -40,16 +40,20 @@ export interface SnapResult {
 /** Snap distance in screen pixels; divide by zoom for world units. */
 export const SNAP_PX = 6;
 
-export function computeSnapTargets(artboard: Pick<Artboard, 'width' | 'height'>, others: Rect[]): SnapTarget[] {
-  const { width: w, height: h } = artboard;
-  const targets: SnapTarget[] = [
-    { axis: 'x', position: w / 2, source: 'artboard-center' },
-    { axis: 'y', position: h / 2, source: 'artboard-center' },
-    { axis: 'x', position: 0, source: 'artboard-edge' },
-    { axis: 'x', position: w, source: 'artboard-edge' },
-    { axis: 'y', position: 0, source: 'artboard-edge' },
-    { axis: 'y', position: h, source: 'artboard-edge' },
-  ];
+/** `artboard` null = no artboard targets (the infinite canvas of wireframe documents). */
+export function computeSnapTargets(artboard: Pick<Artboard, 'width' | 'height'> | null, others: Rect[]): SnapTarget[] {
+  const targets: SnapTarget[] = [];
+  if (artboard) {
+    const { width: w, height: h } = artboard;
+    targets.push(
+      { axis: 'x', position: w / 2, source: 'artboard-center' },
+      { axis: 'y', position: h / 2, source: 'artboard-center' },
+      { axis: 'x', position: 0, source: 'artboard-edge' },
+      { axis: 'x', position: w, source: 'artboard-edge' },
+      { axis: 'y', position: 0, source: 'artboard-edge' },
+      { axis: 'y', position: h, source: 'artboard-edge' },
+    );
+  }
   for (const r of others) {
     targets.push(
       { axis: 'x', position: r.x + r.width / 2, source: 'object-center' },

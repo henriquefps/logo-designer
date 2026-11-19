@@ -53,6 +53,8 @@ export interface Tool {
   hint?: string;
   /** Hidden tools are registered (shortcut works) but not shown in the toolbar. */
   hidden?: boolean;
+  /** Only offered for documents where this returns true (toolbar, shortcut). Default: always. */
+  when?: (doc: DesignDocument) => boolean;
 
   onActivate?: (ctx: ToolContext) => void;
   onDeactivate?: (ctx: ToolContext) => void;

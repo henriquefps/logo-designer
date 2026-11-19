@@ -1,13 +1,14 @@
 import { ImageSquareIcon, MagnetIcon, RulerIcon, GridFourIcon } from '@phosphor-icons/react';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
+import { fitTarget } from '@/wireframe/view';
 import type { Action } from '../types';
 
 const ed = () => useEditorStore.getState();
 
+/** Fits the artboard (the content, on a wireframe's infinite canvas). */
 export function fitArtboard() {
-  const { width, height } = useDocStore.getState().doc.artboard;
-  ed().fitRect({ x: 0, y: 0, width, height });
+  ed().fitRect(fitTarget(useDocStore.getState().doc));
 }
 
 const ZOOM_STEPS = [0.05, 0.1, 0.25, 0.33, 0.5, 0.67, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64];
@@ -33,7 +34,17 @@ const actions: Action[] = [
     shortcut: 'mod+-',
     run: () => ed().setZoom(nextZoom(ed().zoom, -1)),
   },
-  { id: 'view.fit', label: 'Fit artboard', menu: 'view', group: 'zoom', order: 2, shortcut: 'mod+0', run: fitArtboard },
+  {
+    id: 'view.fit',
+    get label() {
+      return useDocStore.getState().doc.wireframe ? 'Fit to content' : 'Fit artboard';
+    },
+    menu: 'view',
+    group: 'zoom',
+    order: 2,
+    shortcut: 'mod+0',
+    run: fitArtboard,
+  },
   { id: 'view.actual', label: 'Actual size (100%)', menu: 'view', group: 'zoom', order: 3, shortcut: 'mod+1', run: () => ed().setZoom(1) },
   {
     id: 'view.snapping',

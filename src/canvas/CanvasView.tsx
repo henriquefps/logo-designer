@@ -15,6 +15,8 @@ import { Rulers } from './overlays/Rulers';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { useContextMenu } from './contextMenuStore';
 import { KnockoutPanel } from '@/vector/KnockoutPanel';
+import { fitTarget } from '@/wireframe/view';
+import { ScreenLabels } from '@/wireframe/canvas/ScreenLabels';
 
 type PanDrag = { pointerId: number; start: Vec; pan: Vec };
 type Pinch = { dist: number; mid: Vec; zoom: number; pan: Vec };
@@ -50,8 +52,7 @@ export function CanvasView() {
       ed().setViewport({ width, height });
       if (!fitted && width > 0 && height > 0) {
         fitted = true;
-        const ab = useDocStore.getState().doc.artboard;
-        ed().fitRect({ x: 0, y: 0, width: ab.width, height: ab.height });
+        ed().fitRect(fitTarget(useDocStore.getState().doc));
       }
     });
     ro.observe(el);
@@ -235,6 +236,7 @@ export function CanvasView() {
         </svg>
         <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
           <IconKeylinesOverlay />
+          <ScreenLabels />
           <HoverOverlay />
           <SelectionOverlay />
           <GuidesOverlay />

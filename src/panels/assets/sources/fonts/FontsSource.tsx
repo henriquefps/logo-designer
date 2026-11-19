@@ -31,6 +31,7 @@ import { FontFamilyPicker, FontPreviewName } from '@/fonts/ui/FontFamilyPicker';
 import { nearestWeight, weightLabel } from '@/fonts/weights';
 import { pickFiles } from '@/io/download';
 import { useDocStore } from '@/store/useDocStore';
+import { placementArea } from '@/wireframe/placement';
 import { useEditorStore } from '@/store/useEditorStore';
 
 const ACCEPT = '.ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2';
@@ -54,9 +55,9 @@ function applyFamily(family: FontFamilyInfo) {
     );
     return;
   }
-  const ab = ds.doc.artboard;
-  const c = rectCenter({ x: 0, y: 0, width: ab.width, height: ab.height });
-  const fontSize = Math.round(Math.min(ab.width, ab.height) / 10);
+  const ab = placementArea();
+  const c = rectCenter(ab);
+  const fontSize = ds.doc.wireframe ? 24 : Math.round(Math.min(ab.width, ab.height) / 10);
   const node = createText({
     text: family.family,
     fontFamily: family.family,
