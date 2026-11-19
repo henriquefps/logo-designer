@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify, type ParseArgsConfig } from 'node:util';
-import { createDocument, findNode, skippedReferenceNodes, skippedReferenceNotice, worldBounds, type DesignDocument, type Rect, type SceneNode } from '@/model';
+import { createDocument, findNode, skippedReferenceNodes, skippedReferenceNotice, worldBounds, type DesignDocument, type Rect, type SceneNode, type ScreenNode } from '@/model';
 import { applyKnockout, gapUnit, knockout, targetsBelow } from '@/vector/knockout';
 import { loadPaper } from '@/vector/paperOps';
 import { serializeProject, validateDocument } from '@/io/projectFile';
@@ -19,6 +19,7 @@ import { BRAND, GLYPH_DEFAULT, normalizeTile } from '@/icon/rules';
 import { contrastWarnings } from '@/icon/colour';
 import type { IconColourMode } from '@/model';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
+import { aiPackageFiles, aiProjectSlug, aiZip } from '@/wireframe/aiExport';
 import { materializeDocument } from '@/wireframe/pipeline';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 
@@ -69,6 +70,11 @@ Usage: designer <command> [options]
                                               writes that file
   to-svg <wireframe> [--screen N] [--platform P] [-o file]
                                               one screen frame (clipped, white) or, without --screen, every screen
+  export-ai <wireframe> [-o out.zip | --dir folder]
+                                              the Export for AI package: README.md, screens/<slug>.md (component
+                                              tree of every variant, notes), screens/<slug>.<platform>.png and
+                                              project.designer.json. Default: <project>-for-ai.zip next to the
+                                              project; --dir writes the files into a folder instead
   icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--colour one|full] [--glyph <#hex>] [--android <res>] [--ios <dir>] [--site <dir>]
                                               whole app icon set, same files and numbers as build-icons.mjs
                                               (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt);
@@ -130,6 +136,7 @@ const COMMON: ParseArgsConfig['options'] = {
   gap: { type: 'string' },
   'outline-only': { type: 'boolean' },
   screen: { type: 'string' },
+  dir: { type: 'string' },
   platform: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
@@ -681,6 +688,32 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
         const out = output ?? path.replace(/(\.designer)?\.(json|svg)$/i, '') + `-${Math.round(size)}.png`;
         await emit(new Uint8Array(png), out, io, 'PNG');
+        return 0;
+      }
+      case 'export-ai': {
+        const path = requireArg(pos, 'project file');
+        const { doc } = await loadDoc(path, io);
+        if (!doc.wireframe) throw new Error(`${path} is not a wireframe project (create one with \`designer new --preset wireframe\`)`);
+        const dir = str(values, 'dir');
+        if (dir && output) throw new UsageError('use either -o out.zip or --dir folder');
+        warnSkippedReferences(doc, io);
+        const { Resvg } = await import('@resvg/resvg-js');
+        const renderPng = async (f: ScreenNode) => {
+          const { svg } = await exportSvg(doc, { scope: 'screen', screenId: f.id });
+          return new Uint8Array(new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(f.screen.width) }, font: { loadSystemFonts: false } }).render().asPng());
+        };
+        const cwd = io.cwd ?? process.cwd();
+        if (dir) {
+          const files = await aiPackageFiles(doc, renderPng);
+          for (const [rel, data] of Object.entries(files)) {
+            await mkdir(dirname(resolve(cwd, dir, rel)), { recursive: true });
+            await writeFile(resolve(cwd, dir, rel), data);
+          }
+          io.err(`Wrote ${Object.keys(files).length} files to ${dir}`);
+        } else {
+          const out = output ?? (path === '-' ? `${aiProjectSlug(doc)}-for-ai.zip` : path.replace(/(\.designer)?\.json$/i, '') + '-for-ai.zip');
+          await emit(await aiZip(doc, renderPng), out, io, 'Export for AI package');
+        }
         return 0;
       }
       case 'icons': {

@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`export for AI: markdown > is stable and readable (snapshot) 1`] = `
+"# Notes App
+
+Wireframe of an app, exported for an AI agent. It describes structure and content, not visual design: the wireframes are low fidelity (black, white and greys); build the real UI with the target stack and its own design system.
+
+## Screens
+
+- Home — phone 390×844, desktop 1440×900 — \`screens/home.md\`
+- Settings Page — phone 390×844 — \`screens/settings-page.md\`
+
+## How to read the screen files
+
+- Each screen file has one section per variant (platform and width). A variant is a full layout for that device class, not a responsive rule.
+- Components are indented lists, top to bottom, as laid out. Children are indented under their container.
+- "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.
+- "Note:" lines are the designer's remarks about the element above them.
+- \`screens/<name>.<platform>.png\` is an image of each variant; \`project.designer.json\` is the editable project.
+
+## Notes
+
+- Offline first. Sync later.
+"
+`;
+
+exports[`export for AI: markdown > is stable and readable (snapshot) 2`] = `
+"# Home
+
+## Phone (390×844)
+
+Image: \`home.phone.png\`
+
+Note on the whole screen: Home is the start screen
+
+- Title "My notes"
+- Horizontal stack
+  - Primary button "Sort"
+  - Primary button "Filter"
+- List row "Wrapped"
+- Vertical stack
+  - List row "Shopping", subtitle "3 items", → chevron (opens a screen)
+    - Note: Swipe left to delete
+  - List row "Ideas", → toggle (on)
+- Grid (3 columns)
+  - Primary button "A"
+  - Primary button "B"
+- Text "Hello"
+- Shape (rectangle)
+- List row "Bottom nav", → chevron (opens a screen) — pinned to bottom
+- Primary button "+" — floating, bottom right
+  - Note: Creates a new note
+
+## Desktop (1440×900)
+
+Image: \`home.desktop.png\`
+
+- Title "My notes"
+- Horizontal stack
+  - Primary button "Sort"
+  - Primary button "Filter"
+- List row "Wrapped"
+- Vertical stack
+  - List row "Shopping", subtitle "3 items", → chevron (opens a screen)
+  - List row "Ideas", → toggle (on)
+- Grid (3 columns)
+  - Primary button "A"
+  - Primary button "B"
+- Text "Hello"
+- Shape (rectangle)
+- List row "Bottom nav", → chevron (opens a screen) — pinned to bottom
+- Primary button "+" — floating, bottom left
+"
+`;
+
+exports[`export for AI: markdown > is stable and readable (snapshot) 3`] = `
+"# Settings Page
+
+## Phone (390×844)
+
+Image: \`settings-page.phone.png\`
+
+- Heading "Settings"
+"
+`;

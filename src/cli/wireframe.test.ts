@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import JSZip from 'jszip';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
@@ -79,6 +80,21 @@ describe('designer CLI: wireframes', () => {
     const svg = await cli('to-svg', 'w.designer.json', '--screen', 'Home');
     expect(svg.out).toMatch(/viewBox="0 0 390 844"/);
     expect((await cli('to-svg', 'w.designer.json', '--screen', 'Settings')).err).toMatch(/2 frames match; add --platform/);
+  });
+
+  it('export-ai writes the package as a zip or into a folder', async () => {
+    const zipRun = await cli('export-ai', 'w.designer.json', '-o', 'pkg.zip');
+    expect(zipRun.code).toBe(0);
+    const zip = await JSZip.loadAsync(readFileSync(join(dir, 'pkg.zip')));
+    const names = Object.keys(zip.files).filter((p) => !p.endsWith('/'));
+    expect(names).toContain('notes/README.md');
+    expect(names).toContain('notes/project.designer.json');
+    expect(names.some((p) => /^notes\/screens\/.+\.md$/.test(p))).toBe(true);
+    expect(names.some((p) => /^notes\/screens\/home\.phone\.png$/.test(p))).toBe(true);
+    expect((await cli('export-ai', 'w.designer.json', '--dir', 'pkgdir')).err).toMatch(/Wrote \d+ files to pkgdir/);
+    expect(readFileSync(join(dir, 'pkgdir/README.md'), 'utf8')).toMatch(/^# /);
+    expect(readFileSync(join(dir, 'pkgdir/screens/home.phone.png')).subarray(1, 4).toString()).toBe('PNG');
+    expect((await cli('export-ai', 'w.designer.json', '-o', 'a.zip', '--dir', 'b')).code).toBe(2);
   });
 
   it('the bin expands import.meta.glob under Bun (registries work in the CLI)', () => {
