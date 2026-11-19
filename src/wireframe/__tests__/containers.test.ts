@@ -14,6 +14,7 @@ import { layoutDropTarget, unwrapLayout } from '../layoutEdit';
 import { materializeDocument, runWireframePipeline } from '../pipeline';
 import { copyPrefix, repeatChildren } from '../repeat';
 import { addScreen } from '../screens';
+import { addFlow, flowsOf, flowSource } from '../flows';
 import { WF_CONTAINER } from '../style';
 
 const s = () => useDocStore.getState();
@@ -301,6 +302,21 @@ describe('repeat', () => {
     expect(md).toMatch(/List of 6 × \(Card container \(outlined\)\), each:\n {2}- Image/);
     expect(md).toContain('- Horizontal list of 4 × (Subheading "Tag")');
     expect(md.match(/Title/g)).toHaveLength(1);
+  });
+
+  it('a flow from inside the template is not copied; copies are never flow sources', () => {
+    const base = listDoc(3);
+    const doc = structuredClone(base);
+    addScreen(doc, { platform: 'phone', name: 'Detail', x: 600, y: 0 });
+    const detail = doc.wireframe!.screens.find((x) => x.name === 'Detail')!.id;
+    expect(addFlow(doc, 't-title', detail)).toBeTruthy();
+    s().load(materializeDocument(doc));
+    setRepeat(['list'], 5);
+    expect(flowsOf(s().doc).map((f) => f.from)).toEqual(['t-title']);
+    expect(flowSource(s().doc, `${copyPrefix('t', 2)}t-title`)).toBeNull();
+    expect(flowSource(s().doc, 't-title')).toBe('t-title');
+    const md = aiMarkdown(s().doc).screens.find((x) => x.name === 'Home')!.markdown;
+    expect(md.match(/→ opens/g)).toHaveLength(1);
   });
 
   it('stays fast: 10 screens × 100 components with repeated lists', () => {
