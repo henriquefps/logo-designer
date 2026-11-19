@@ -370,7 +370,8 @@ reparented them), **`components`** (100: rebuilds instances whose `component` ch
 get stable ids `<instance id>~<index>`; instances placed by a stack are left to the layout step), **`layout`** (500:
 stacks and grids, below), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
 screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
-renames its logical screen, empty logical screens are removed; frame normalisation and height).
+renames its logical screen, empty logical screens are removed; frame normalisation and height), **`flows`** (950,
+settle and load: flows whose source element or target logical screen is gone are removed).
 
 Rules for steps: compare with `ctx.previous()` and skip what did not change (the `change` phase runs on every
 pointer move); never assign an equal value (it still creates patches); read `ctx.input` or `plain(draft)` to
@@ -444,6 +445,31 @@ export includes the notes. `notesFor(doc)` → `{ noteId, text, targetId?, scree
 export (`screenId` = logical screen of the frame containing the target). App: Note tool **K** (click a node =
 attached note next to it, empty canvas or Shift = free note), Object menu / context menu **Add note** on a selected
 node, `note` Properties section (text, Attached to, Detach); commands in `wireframe/noteCommands.ts`.
+
+### Flows and screen status (`src/wireframe/flows.ts`)
+
+`wireframe.flows: { id, from, to, label? }[]` (absent = none): `from` is an element inside a frame (a component
+instance, never one of its generated children: `flowSource` resolves them), `to` a logical screen. `wireframe.screens[].status`
+is `'current' | 'changed' | 'new'` (unset = not stated). Pure API (plain doc or draft), for the app, the export and
+present mode:
+
+| Function | What |
+| --- | --- |
+| `flowsFrom(doc, nodeId)`, `flowsTo(doc, screenId)`, `flowsOf(doc)` | lookups (present mode: an element's hotspots) |
+| `flowTarget(doc, flow, fromFrame?)` | the frame to show: the target's variant with `fromFrame`'s platform (default: the source's frame), else its first |
+| `addFlow` (an existing from→to pair is reused), `removeFlow`, `setFlowLabel`, `setScreenStatus`, `screenStatus` | edits |
+| `canFlowFrom`, `flowSource`, `flowSourceLabel` (label / title / text / message prop, a text's content, else the node name) | sources |
+| `newScreenFromFlow(doc, fromId, at)` | the drop menu's **New screen**: same platform, top-left at `at`, named after the source, linked |
+| `pruneFlows(doc)` | drops flows whose source node or target screen is gone: the **`flows`** step (950, settle + load) runs it, so a delete and its flows are one undo step |
+| `flowCurve(doc, flow)`, `curveBetween`, `flowAt(doc, p, tol)`, `frameAt` | arrow geometry (cubic from the element's right/left edge to the target frame's nearest edge) and picking |
+
+`duplicateScreenAs` copies the flows of the copied elements. App: `flowCommands.ts` (`useFlowStore`: the selected arrow,
+the drag, the drop menu; commands with undo labels), `flowDrag.ts` (the select tool's handle hit, the drag gesture,
+arrow picking; Escape cancels through the tool's `onCancel`), `canvas/FlowArrows.tsx` (overlay, in no export),
+`canvas/SelectWireframeOverlay.tsx` (handle + drag preview), `canvas/FlowMenus.tsx` (drop menu, the selected arrow's
+label editor; Delete / Backspace delete it), Properties `sections/flows` (outgoing flows, remove, "Link to screen…") and
+the Screen section's Status; the badge is drawn by `ScreenLabels`. Export: `flowExport.ts` (README "Flow" list + Mermaid,
+"→ opens X" under the source, "Opened from" per screen; status in the README list and each screen file).
 
 ### Components (`src/wireframe/library/`)
 
@@ -595,11 +621,11 @@ export default defineComponent({
 
 Pure module: `aiMarkdown(doc)` (README + one markdown per logical screen), `aiMarkdownCombined(doc)` (the
 clipboard text), `aiPackageFiles` / `aiZip(doc, renderPng)` (the package; the caller supplies the PNG
-renderer: `renderExport` in the app, resvg in the CLI's `export-ai`). Component lines are each definition's
+renderer: `renderExport` in the app, resvg in the CLI's `export-ai`). Flows and status: `flowExport.ts` (see Flows above). Component lines are each definition's
 `describe()`, so new components need nothing here. Stacks are named only when they hold more than one child;
 `layoutItem.position` becomes "pinned to bottom" / "floating, bottom right"; notes (`notesFor`) are written under
 the element they are attached to (generated children resolve to their instance). Slugs come from the logical
-screen names, `-2`, `-3` on a clash. Phase 2 hooks: `README_SECTIONS` (flows) and `SCREEN_SECTIONS` (status).
+screen names, `-2`, `-3` on a clash. More sections: `README_SECTIONS` / `SCREEN_SECTIONS`.
 UI: File → Export for AI… and Copy for AI (`src/io/aiExportActions.ts`), wireframe documents only.
 
 ### App

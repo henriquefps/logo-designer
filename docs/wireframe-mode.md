@@ -371,6 +371,21 @@ says "List of 6 × (Card container: …)". Turning repeat off keeps only the tem
   screen removes its flows (inside the same undo step).
 - Properties of a selected element show its outgoing flows ("→ Language"), with remove.
 
+#### As built (flows and status)
+
+- Code map: `docs/architecture.md` → Flows and screen status. Screenshot: `docs/screenshots/wireframe-flows.png`.
+- The handle shows for one selected element inside a screen (select tool); releasing on the source's own screen (or
+  a click on the handle) links nothing. A second link between the same element and screen reuses the flow. Drop on
+  empty canvas → **New screen** puts the frame's top-left at the drop point and selects it. Arrows start at the
+  element's right (or left) edge and end on the target frame's nearest side, with the label on a pill at the middle;
+  clicking an arrow selects it (label field and delete under it; Delete / Backspace delete, Escape deselects).
+- Properties → Flows lists "→ Screen" rows (click selects the arrow, × removes) and a **Link to screen…** select
+  (works without dragging, e.g. on a phone).
+- Flows die with their source element or target logical screen (the `flows` step, same undo step); one variant
+  deleted is not enough. Duplicate as… gives the copied elements the same flows. Files: unknown `from` / `to` are
+  dropped with a warning.
+- Status badge: right end of the frame's name strip (Current outlined, Changed filled, New dashed).
+
 ### Present mode
 
 View → Present (and a button in the status bar): shows one frame at a time, fitted, on a dark
