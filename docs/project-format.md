@@ -119,17 +119,25 @@ A top-level `wireframe` field marks a wireframe: screens on an infinite canvas, 
   "schemaVersion": 1,
   "name": "Notes app",
   "artboard": { "width": 1024, "height": 1024 },
-  "wireframe": { "screens": [ { "id": "s1", "name": "Settings" } ] },
+  "wireframe": {
+    "screens": [ { "id": "s1", "name": "Settings", "status": "changed" }, { "id": "s2", "name": "Language" } ],
+    "flows": [ { "id": "f1", "from": "row-language", "to": "s2", "label": "tap" } ]
+  },
   "children": [
     { "type": "group", "name": "Settings", "transform": { "x": 0, "y": 0 },
       "screen": { "screenId": "s1", "platform": "phone", "width": 390, "height": 844 },
       "children": [
         { "type": "group", "name": "Hero", "transform": { "x": 24, "y": 120 },
           "component": { "kind": "placeholder", "props": { "label": "Hero image", "height": 220 } },
+          "children": [] },
+        { "id": "row-language", "type": "group", "name": "Language row", "transform": { "x": 0, "y": 360 },
+          "component": { "kind": "list-row", "props": { "title": "Language", "trailing": "value", "value": "English" } },
           "children": [] }
       ] },
     { "type": "group", "name": "Settings", "transform": { "x": 470, "y": 0 },
-      "screen": { "screenId": "s1", "platform": "tablet" }, "children": [] }
+      "screen": { "screenId": "s1", "platform": "tablet" }, "children": [] },
+    { "type": "group", "name": "Language", "transform": { "x": 1370, "y": 0 },
+      "screen": { "screenId": "s2", "platform": "phone" }, "children": [] }
   ]
 }
 ```
@@ -138,7 +146,8 @@ A top-level `wireframe` field marks a wireframe: screens on an infinite canvas, 
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `screens` | `{ id, name }[]` | optional (default `[]`). The logical screens (`Settings`, `Gallery`), in creation order. `id` is required and unique; `name` defaults to `"Screen"`. Kept in sync with the frames when the document opens: a frame with an unknown `screenId` gets a logical screen, a logical screen without frames is removed, every frame takes its logical screen's name |
+| `screens` | `{ id, name, status? }[]` | optional (default `[]`). The logical screens (`Settings`, `Gallery`), in creation order. `id` is required and unique; `name` defaults to `"Screen"`. `status`: `"current"` (the screen as the app has it today), `"changed"` (a proposed change to an existing screen) or `"new"`; omit when not stated (an unknown value is ignored with a warning). Kept in sync with the frames when the document opens: a frame with an unknown `screenId` gets a logical screen, a logical screen without frames is removed, every frame takes its logical screen's name |
+| `flows` | `{ id, from, to, label? }[]` | optional. Flow arrows: tapping the node `from` (an element inside a screen frame; for a component, the instance's id) opens the logical screen `to` (`screens[].id`, not a frame: the app points the arrow at the variant with the source's platform, else the first). `label` is an optional short text on the arrow. `id` defaults to a new one. A flow whose `from` node or `to` screen is not in the file is dropped with a warning; deleting the element or the screen in the app removes its flows. The arrows are drawn by the app, never part of a screen export |
 
 Wireframe fields of nodes (optional; on a document without `wireframe` they are ignored with a warning):
 

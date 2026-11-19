@@ -155,11 +155,22 @@ export function duplicateScreenAs(doc: DocLike, frameId: Id, platform: ScreenPla
   const height = Math.max(def.minHeight, source.screen.height);
   const pos = variantPosition(doc, source, def.width, height);
   const copy = structuredClone(plain(source)) as ScreenNode;
+  const ids = new Map<Id, Id>();
   const renew = (n: { id: Id; children?: unknown }) => {
-    n.id = newId();
+    const id = newId();
+    ids.set(n.id, id);
+    n.id = id;
     if (Array.isArray(n.children)) (n.children as { id: Id }[]).forEach(renew);
   };
   renew(copy);
+  // The copies open the same screens as their originals (flows point at logical screens).
+  const flows = doc.wireframe?.flows;
+  if (flows) {
+    for (const f of [...flows]) {
+      const from = ids.get(f.from);
+      if (from && from !== copy.id) flows.push({ id: newId('f'), from, to: f.to, ...(f.label ? { label: f.label } : {}) });
+    }
+  }
   copy.transform = { ...copy.transform, x: pos.x, y: pos.y, rotation: 0, scaleX: 1, scaleY: 1 };
   copy.screen = { ...copy.screen, platform, width: def.width, height: def.minHeight };
   // A stack with the source platform's default spacing gets the target platform's.
