@@ -1,5 +1,6 @@
 import { apply, IDENTITY, multiply, fromTransform, type Matrix } from './matrix';
 import { cubicExtrema, cubicAt, nodeSubpaths } from './path';
+import { sizedGroupBox } from './screen';
 import { locate } from './tree';
 import type { DesignDocument, Id, Rect, SceneNode, SubPath, TextNode, Vec } from './types';
 
@@ -97,6 +98,8 @@ export function localBounds(node: SceneNode): Rect | null {
     case 'text':
       return textLocalBounds(node);
     case 'group':
+      // A screen frame's box is the frame (its content is clipped to it).
+      if (node.screen) return sizedGroupBox(node);
       return unionRects(node.children.filter((c) => c.visible).map((c) => boundsIn(c, fromTransform(c.transform))));
     default: {
       const sp = nodeSubpaths(node);
@@ -108,6 +111,8 @@ export function localBounds(node: SceneNode): Rect | null {
 /** Axis-aligned box of the node after applying matrix `m` to its local geometry. */
 export function boundsIn(node: SceneNode, m: Matrix): Rect | null {
   if (node.type === 'group') {
+    const box = sizedGroupBox(node);
+    if (box) return rectFromPoints(rectCorners(box).map((p) => apply(m, p)));
     return unionRects(node.children.filter((c) => c.visible).map((c) => boundsIn(c, multiply(m, fromTransform(c.transform)))));
   }
   if (node.type === 'path' || node.type === 'polygon' || node.type === 'ellipse' || (node.type === 'rect' && node.radius > 0)) {

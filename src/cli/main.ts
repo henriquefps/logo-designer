@@ -19,6 +19,8 @@ import { BRAND, GLYPH_DEFAULT, normalizeTile } from '@/icon/rules';
 import { contrastWarnings } from '@/icon/colour';
 import type { IconColourMode } from '@/model';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
+import { materializeDocument } from '@/wireframe/pipeline';
+import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -40,8 +42,12 @@ export const USAGE = `designer — Designer projects from the command line (http
 Usage: designer <command> [options]
 
   new [-o file] [--preset P] [--name N] [--tile #hex] [--colour one|full] [--glyph #hex]
-                                              empty project (P: ${ICON_PRESETS.join(' | ')} | WxH); --tile / --colour /
-                                              --glyph are stored in an app icon project (see from-svg)
+                                              empty project (P: ${ICON_PRESETS.join(' | ')} | ${WIREFRAME_PRESET} | WxH);
+                                              --tile / --colour / --glyph are stored in an app icon project (see from-svg)
+  screen <project> [--name N] [--platform phone|tablet|desktop] [-o file]
+                                              wireframe projects: add a screen (default phone; right of everything).
+                                              When a screen called N exists, adds its --platform variant instead (a copy
+                                              of its content placed next to it; one frame per platform). In place unless -o
   from-svg <file.svg|-> [-o file] [--name N] [--icon P [--tile #hex] [--colour one|full] [--glyph #hex]] [--no-fit]
                                               editable project from an SVG (shapes, paths, groups, gradients);
                                               with --icon the drawing is fitted to the keyline (--no-fit keeps it raw).
@@ -56,6 +62,13 @@ Usage: designer <command> [options]
                                               fragment for scripts/build-icons.mjs (a full-colour icon project, or
                                               --colour full, keeps the real paints instead of currentColor)
   to-png <project> --size N [-o file]         PNG N px wide (resvg)
+  to-png <wireframe> [--screen N] [--platform P] [--size N] [-o dir|file.png]
+                                              wireframe projects: one PNG per screen frame (<screen>.<platform>.png in
+                                              -o dir, default <project>-screens/); --screen / --platform pick frames;
+                                              --size = PNG width (default: the frame width, 1×); one frame + -o x.png
+                                              writes that file
+  to-svg <wireframe> [--screen N] [--platform P] [-o file]
+                                              one screen frame (clipped, white) or, without --screen, every screen
   icons <project> -o <dir> [--small <project>] [--shape S] [--tile <#hex>] [--colour one|full] [--glyph <#hex>] [--android <res>] [--ios <dir>] [--site <dir>]
                                               whole app icon set, same files and numbers as build-icons.mjs
                                               (docs-img/, site/, android/res/, ios/, review-sheet.png, README.txt);
@@ -116,6 +129,8 @@ const COMMON: ParseArgsConfig['options'] = {
   targets: { type: 'string' },
   gap: { type: 'string' },
   'outline-only': { type: 'boolean' },
+  screen: { type: 'string' },
+  platform: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -160,11 +175,11 @@ export function wrapGlyphFragment(text: string): { text: string; wrapped: boolea
 }
 
 /** Reads a project file (or SVG, converted) into a validated document (with its `icon` field). */
-async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; icon: IconSettings | null; svg: boolean }> {
+async function loadDoc(path: string, io: CliIO, report = true): Promise<{ doc: DesignDocument; icon: IconSettings | null; svg: boolean; warnings: string[] }> {
   const text = await readInput(path, io);
   if (isSvgText(text)) {
     await ensureSvgGeometry(text);
-    return { doc: svgToDocument(text, nameFromPath(path)).doc, icon: null, svg: true };
+    return { doc: svgToDocument(text, nameFromPath(path)).doc, icon: null, svg: true, warnings: [] };
   }
   let data: unknown;
   try {
@@ -172,8 +187,12 @@ async function loadDoc(path: string, io: CliIO): Promise<{ doc: DesignDocument; 
   } catch (e) {
     throw new Error(`${path}: not valid JSON (${e instanceof Error ? e.message : e})`, { cause: e });
   }
-  const doc = validateDocument(data);
-  return { doc, icon: doc.icon ?? null, svg: false };
+  const warnings: string[] = [];
+  let doc = validateDocument(data, { warnings });
+  if (report) for (const w of warnings) io.err(`warning: ${w}`);
+  // Wireframes: bring generated content (components, screen heights) up to date, like the app does on open.
+  if (doc.wireframe) doc = structuredClone(materializeDocument(doc));
+  return { doc, icon: doc.icon ?? null, svg: false, warnings };
 }
 
 const requireArg = (pos: string[], what: string) => {
@@ -268,6 +287,8 @@ function describe(n: SceneNode): string {
     case 'image':
       return `${n.width}×${n.height}`;
     case 'group':
+      if (n.screen) return `screen ${n.screen.platform} ${fmt(n.screen.width)}×${fmt(n.screen.height)}, ${n.children.length} children`;
+      if (n.component) return `component ${n.component.kind} ${JSON.stringify(n.component.props).slice(0, 60)}`;
       return `${n.children.length} children`;
   }
 }
@@ -517,6 +538,31 @@ async function githubRawUrl(path: string, io: CliIO): Promise<string> {
   return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${ref.split('/').map(encodeURIComponent).join('/')}/${rel.split('/').map(encodeURIComponent).join('/')}`;
 }
 
+// ---------- wireframes ----------
+
+/** `to-png` of a wireframe project: one PNG per screen frame (see USAGE). */
+async function wireframePng(path: string, doc: DesignDocument, values: Values, output: string | undefined, io: CliIO): Promise<number> {
+  const frames = framesFor(doc, str(values, 'screen'), parsePlatform(str(values, 'platform')));
+  const sizeArg = str(values, 'size');
+  const size = sizeArg === undefined ? undefined : Number(sizeArg);
+  if (size !== undefined && !(size > 0 && size <= 16384)) throw new UsageError('--size must be 1..16384 px');
+  warnSkippedReferences(doc, io);
+  const { Resvg } = await import('@resvg/resvg-js');
+  const cwd = io.cwd ?? process.cwd();
+  const single = frames.length === 1 && !!output && /\.png$/i.test(output);
+  const dir = single ? null : (output ?? path.replace(/(\.designer)?\.json$/i, '') + '-screens');
+  if (dir) await mkdir(resolve(cwd, dir), { recursive: true });
+  for (const f of frames) {
+    const { svg } = await exportSvg(doc, { scope: 'screen', screenId: f.id });
+    const width = Math.round(size ?? f.screen.width);
+    const png = new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
+    const target = single ? output! : join(dir!, screenFile(f, 'png'));
+    await writeFile(resolve(cwd, target), new Uint8Array(png));
+    io.err(`Wrote ${f.name} (${f.screen.platform}, ${width} px wide) to ${target}`);
+  }
+  return 0;
+}
+
 // ---------- main ----------
 
 /** Runs one CLI invocation; returns the exit code. */
@@ -545,6 +591,12 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   try {
     switch (cmd) {
       case 'new': {
+        if (str(values, 'preset') === WIREFRAME_PRESET) {
+          if (str(values, 'tile') || str(values, 'colour') || str(values, 'glyph-colour')) throw new UsageError('--tile / --colour / --glyph are app icon settings');
+          const doc = newWireframeProject(str(values, 'name') ?? (output ? nameFromPath(output) : 'Wireframe'));
+          await emit(serializeProject(doc), output, io, 'wireframe project (add screens with `designer screen`)');
+          return 0;
+        }
         const p = parsePreset(str(values, 'preset') ?? '1024x1024');
         const doc = createDocument({
           name: str(values, 'name') ?? (output ? nameFromPath(output) : 'Untitled'),
@@ -580,6 +632,14 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         await emit(serializeWithIcon(out, icon), output, io, `project (${doc.artboard.width}×${doc.artboard.height}, ${doc.children.length} top-level objects${note})`);
         return 0;
       }
+      case 'screen': {
+        const path = requireArg(pos, 'project file');
+        const { doc } = await loadDoc(path, io);
+        const r = addScreenToProject(doc, { name: str(values, 'name'), platform: parsePlatform(str(values, 'platform')) });
+        io.err(r.summary);
+        await emit(serializeProject(r.doc), output ?? (path === '-' ? undefined : path), io, 'project');
+        return 0;
+      }
       case 'fit': {
         const path = requireArg(pos, 'project file');
         const { doc, icon, svg } = await loadDoc(path, io);
@@ -595,12 +655,23 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         warnSkippedReferences(doc, io);
         const colour = colourArg(values);
         if (colour && !values.glyph) throw new UsageError('--colour applies to --glyph (the 128 fragment); a plain SVG always keeps its paints');
-        const svg = values.glyph ? await exportGlyph(doc, colour) : (await exportSvg(doc)).svg;
+        let svg: string;
+        if (doc.wireframe && !values.glyph) {
+          const name = str(values, 'screen');
+          const platform = parsePlatform(str(values, 'platform'));
+          if (name || platform) {
+            const fs = framesFor(doc, name, platform);
+            if (fs.length > 1) throw new UsageError(`${fs.length} frames match; add --platform (${fs.map((f) => f.screen.platform).join(', ')})`);
+            svg = (await exportSvg(doc, { scope: 'screen', screenId: fs[0].id })).svg;
+          } else svg = (await exportSvg(doc)).svg;
+        } else svg = values.glyph ? await exportGlyph(doc, colour) : (await exportSvg(doc)).svg;
         await emit(svg, output, io, values.glyph ? 'glyph' : 'SVG');
         return 0;
       }
       case 'to-png': {
         const path = requireArg(pos, 'project file');
+        const { doc: probe } = await loadDoc(path, io, false);
+        if (probe.wireframe) return await wireframePng(path, probe, values, output, io);
         const size = Number(str(values, 'size'));
         if (!(size > 0 && size <= 16384)) throw new UsageError('--size N is required (1..16384 px)');
         const { doc } = await loadDoc(path, io);
@@ -659,12 +730,17 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         let failed = 0;
         for (const path of pos) {
           try {
-            const { doc, svg } = await loadDoc(path, io);
+            const { doc, svg, warnings } = await loadDoc(path, io, false);
             if (svg) throw new Error('this is an SVG, not a project (use `designer from-svg`)');
             let count = 0;
             const walk = (ns: SceneNode[]) => ns.forEach((c) => (count++, c.type === 'group' && walk(c.children)));
             walk(doc.children);
-            io.out(`ok   ${path}: “${doc.name}”, ${doc.artboard.width}×${doc.artboard.height}, ${count} objects`);
+            if (doc.wireframe) {
+              const frames = doc.children.filter((c) => c.type === 'group' && c.screen).length;
+              io.out(`ok   ${path}: “${doc.name}”, wireframe, ${doc.wireframe.screens.length} screens (${frames} frames), ${count} objects`);
+              for (const l of describeScreens(doc)) io.out(`     ${l}`);
+            } else io.out(`ok   ${path}: “${doc.name}”, ${doc.artboard.width}×${doc.artboard.height}, ${count} objects`);
+            for (const w of warnings) io.out(`     warning: ${w}`);
             const colour = await colourSummary(doc);
             if (colour) {
               io.out(`     icon colour: ${colour.line}`);
@@ -685,13 +761,16 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const keyline = await keylineOf(doc).catch(() => null);
         const colour = await colourSummary(doc);
         if (values.json) {
-          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, ...(colour ? { colour: colour.line, contrastWarnings: colour.warnings } : {}), ...(keyline ? { keyline } : {}), contentBounds: r.content, nodes: r.nodes }, null, 2));
+          io.out(JSON.stringify({ name: doc.name, artboard: doc.artboard, icon, ...(doc.wireframe ? { wireframe: doc.wireframe } : {}), ...(colour ? { colour: colour.line, contrastWarnings: colour.warnings } : {}), ...(keyline ? { keyline } : {}), contentBounds: r.content, nodes: r.nodes }, null, 2));
           return 0;
         }
         const bg = doc.artboard.background.kind === 'none' ? 'transparent' : doc.artboard.background.kind === 'solid' ? doc.artboard.background.color : doc.artboard.background.kind;
         io.out(
           [
-            `“${doc.name}” — artboard ${doc.artboard.width}×${doc.artboard.height}, background ${bg}${icon ? `, icon ${icon.preset}/${icon.shape}` : ''}`,
+            doc.wireframe
+              ? `“${doc.name}” — wireframe, ${doc.wireframe.screens.length} screens`
+              : `“${doc.name}” — artboard ${doc.artboard.width}×${doc.artboard.height}, background ${bg}${icon ? `, icon ${icon.preset}/${icon.shape}` : ''}`,
+            ...(doc.wireframe ? describeScreens(doc).map((l) => `screen ${l}`) : []),
             `content bounds: ${fmtRect(r.content)}`,
             ...(keyline ? [`keyline: ${describeKeyline(keyline)}${keyline.onKeyline ? '' : ' — run `designer fit`'}`] : []),
             ...(colour ? [`colour: ${colour.line}`, ...colour.warnings.map((w) => `note: ${w}`)] : []),

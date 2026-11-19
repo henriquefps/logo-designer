@@ -4,6 +4,7 @@ import type { Vec } from '@/model/types';
 import { bundledSvg } from './catalog';
 import { fetchIconifySvg, splitId } from './iconify';
 import { svgToNodes } from './svgToNodes';
+import { placementArea } from '@/wireframe/placement';
 import { useIconOptions, useIconPrefs } from './stores';
 
 export interface IconRef {
@@ -28,12 +29,12 @@ export const DEFAULT_ICON_RATIO = 0.25;
 export async function insertIcon(ref: IconRef, at?: Vec): Promise<boolean> {
   const o = useIconOptions.getState();
   const doc = useDocStore.getState().doc;
-  const size = o.size ?? Math.round(Math.min(doc.artboard.width, doc.artboard.height) * DEFAULT_ICON_RATIO);
+  const area = placementArea();
+  const size = o.size ?? (doc.wireframe ? 24 : Math.round(Math.min(area.width, area.height) * DEFAULT_ICON_RATIO));
   const svg = ref.source === 'iconify' ? await fetchIconifySvg(ref.id) : await bundledSvg(ref.id);
   const node = svgToNodes(svg, { color: o.color, size, strokeWidth: o.strokeWidth, name: displayName(ref) });
   if (!node) return false;
-  const current = useDocStore.getState().doc.artboard;
-  const p = at ?? { x: current.width / 2, y: current.height / 2 };
+  const p = at ?? { x: area.x + area.width / 2, y: area.y + area.height / 2 };
   node.transform = { ...node.transform, x: p.x, y: p.y };
   const [id] = useDocStore.getState().addNodes([node], { label: `Add icon ${node.name}` });
   useEditorStore.getState().setSelection([id]);

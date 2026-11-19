@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { useShallow } from 'zustand/react/shallow';
 
 /** View grid and rulers (saved per browser, not in the document). */
-function GridSection() {
+export function GridSection() {
   const { showGrid, snapToGrid, gridSize, showRulers, setViewPrefs } = useEditorStore(
     useShallow((s) => ({ showGrid: s.showGrid, snapToGrid: s.snapToGrid, gridSize: s.gridSize, showRulers: s.showRulers, setViewPrefs: s.setViewPrefs })),
   );

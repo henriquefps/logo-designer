@@ -1,14 +1,15 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import { DotsThreeIcon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Kbd } from '@/components/ui/kbd';
 import { cn } from '@/lib/utils';
-import { getTools } from '@/tools/registry';
+import { toolsFor } from '@/tools/registry';
 import { switchTool } from '@/tools/context';
 import type { Tool } from '@/tools/types';
 import { useEditorStore } from '@/store/useEditorStore';
+import { useDocStore } from '@/store/useDocStore';
 
 /** Tools always visible in the phone strip; the rest live in the "More tools" menu. */
 const PRIMARY_MOBILE = ['select', 'direct', 'pen', 'rectangle', 'ellipse', 'text'];
@@ -40,7 +41,9 @@ function ToolButton({ t, active, side }: { t: Tool; active: boolean; side: 'righ
 /** Tool buttons from the tool registry, grouped. Vertical on desktop, a compact strip on phones. */
 export function ToolBar({ orientation = 'vertical' }: { orientation?: 'vertical' | 'horizontal' }) {
   const active = useEditorStore((s) => s.tool);
-  const tools = getTools().filter((t) => !t.hidden);
+  // Re-render when the document kind changes (Tool.when), not on every edit.
+  const kind = useDocStore((s) => (s.doc.wireframe ? 'wireframe' : s.doc.icon ? 'icon' : 'drawing'));
+  const tools = useMemo(() => (kind ? toolsFor(useDocStore.getState().doc) : []).filter((t) => !t.hidden), [kind]);
   const vertical = orientation === 'vertical';
 
   if (!vertical) {

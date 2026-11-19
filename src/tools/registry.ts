@@ -1,3 +1,4 @@
+import type { DesignDocument } from '@/model';
 import type { Tool } from './types';
 
 // Every tool lives in its own folder `src/tools/<id>/index.ts` with a default export of type Tool.
@@ -15,5 +16,7 @@ const byId = new Map(tools.map((t) => [t.id, t]));
 
 export const getTools = (): Tool[] => tools;
 export const getTool = (id: string): Tool | undefined => byId.get(id);
-export const toolForShortcut = (key: string): Tool | undefined =>
-  tools.find((t) => t.shortcut && t.shortcut.toLowerCase() === key.toLowerCase());
+/** Tools offered for this document (`Tool.when`). */
+export const toolsFor = (doc: DesignDocument): Tool[] => tools.filter((t) => !t.when || t.when(doc));
+export const toolForShortcut = (key: string, doc?: DesignDocument): Tool | undefined =>
+  (doc ? toolsFor(doc) : tools).find((t) => t.shortcut && t.shortcut.toLowerCase() === key.toLowerCase());

@@ -54,6 +54,22 @@ export function bakeScale<T extends SceneNode>(node: T): T {
       node.fontSize *= ax;
       node.letterSpacing *= ax;
       break;
+    case 'group':
+      // Sized groups of wireframe documents absorb the scale into their box; their children stay
+      // put (a screen's content is not stretched; a component is rebuilt at the new size).
+      if (node.screen) {
+        node.screen = { ...node.screen, width: node.screen.width * ax, height: node.screen.height * ay };
+        node.transform = { ...t, scaleX: 1, scaleY: 1 };
+        return node;
+      }
+      if (node.component) {
+        const size = node.component.size;
+        if (!size) return node;
+        node.component = { ...node.component, size: { width: size.width * ax, height: size.height * ay } };
+        node.transform = { ...t, scaleX: 1, scaleY: 1 };
+        return node;
+      }
+      return node;
     default:
       return node;
   }

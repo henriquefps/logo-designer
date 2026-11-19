@@ -21,9 +21,14 @@ import { copyText, downloadExport, renderExport, type ExportFormat, type ExportS
 import { getExporters } from '@/io/exporters/registry';
 import { formatBytes, rasterSize } from '@/io/rasterExport';
 import { exportArea } from '@/io/svgExport';
-import { skippedReferenceNodes, skippedReferenceNotice } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { platformDef, screenNodes, skippedReferenceNodes, skippedReferenceNotice, type ScreenNode } from '@/model';
+import { frameOf } from '@/wireframe/screens';
 import { useEditorStore } from '@/store/useEditorStore';
+
+/** `settings.phone`: the file name of a screen export (same as the AI export package). */
+const screenFileName = (f: ScreenNode) => `${safeFileName(f.name)}.${f.screen.platform}`;
 
 const BUILT_IN: { id: ExportFormat; label: string }[] = [
   { id: 'svg', label: 'SVG' },
@@ -49,7 +54,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const selection = useEditorStore((s) => s.selection);
   const extra = getExporters().filter((e) => !e.when || e.when(doc));
   const [format, setFormat] = useState<string>('svg');
-  const [scope, setScope] = useState<'artboard' | 'selection'>('artboard');
+  const [scope, setScope] = useState<'artboard' | 'selection' | 'screen'>('artboard');
+  const [screenId, setScreenId] = useState<string>('');
+  const frames = useMemo(() => screenNodes(doc), [doc]);
   const [scaleChoice, setScaleChoice] = useState<(typeof SCALES)[number]>('2');
   const [customWidth, setCustomWidth] = useState(1024);
   const [quality, setQuality] = useState(0.9);
@@ -62,19 +69,30 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const previewUrl = useRef<string | null>(null);
 
   // Defaults each time the dialog opens (state adjusted during render, not in an effect).
-  const [wasOpen, setWasOpen] = useState(open);
+  // Starts closed so the defaults also apply when the dialog mounts already open (first open).
+  const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
       setFilename(safeFileName(doc.name));
       setScope(selection.length ? 'selection' : 'artboard');
+      if (doc.wireframe) {
+        // Wireframes export one screen by default: the selected one (or the one holding the selection).
+        const frame = selection.map((id) => frameOf(doc, id)).find(Boolean) ?? frames[0];
+        if (frame) {
+          setScreenId(frame.id);
+          setScope(selection.length === 1 && selection[0] !== frame.id ? 'selection' : 'screen');
+          setFilename(screenFileName(frame));
+        }
+      }
     } else setPreview(null);
   }
 
   const builtIn = BUILT_IN.some((f) => f.id === format);
   const customExporter = builtIn ? null : extra.find((e) => e.id === format) ?? null;
   const raster = format === 'png' || format === 'jpg';
-  const effectiveScope = scope === 'selection' && selection.length === 0 ? 'artboard' : scope;
+  const screenExists = frames.some((f) => f.id === screenId);
+  const effectiveScope = (scope === 'selection' && selection.length === 0) || (scope === 'screen' && !screenExists) ? 'artboard' : scope;
 
   const settings = useMemo<ExportSettings | null>(
     () =>
@@ -83,6 +101,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             format: format as ExportFormat,
             scope: effectiveScope,
             selection,
+            screenId,
             padding,
             background,
             scale: scaleChoice === 'custom' ? 1 : Number(scaleChoice),
@@ -90,13 +109,13 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             quality,
           }
         : null,
-    [builtIn, format, effectiveScope, selection, padding, background, scaleChoice, customWidth, quality],
+    [builtIn, format, effectiveScope, selection, screenId, padding, background, scaleChoice, customWidth, quality],
   );
 
-  const area = useMemo(() => exportArea(doc, { scope: effectiveScope, selection, padding }), [doc, effectiveScope, selection, padding]);
+  const area = useMemo(() => exportArea(doc, { scope: effectiveScope, selection, screenId, padding }), [doc, effectiveScope, selection, screenId, padding]);
   const referenceNotice = useMemo(
-    () => skippedReferenceNotice(skippedReferenceNodes(doc, effectiveScope === 'selection' ? selection : undefined)),
-    [doc, effectiveScope, selection],
+    () => skippedReferenceNotice(skippedReferenceNodes(doc, effectiveScope === 'selection' ? selection : effectiveScope === 'screen' ? [screenId] : undefined)),
+    [doc, effectiveScope, selection, screenId],
   );
   const pixelSize = area && raster ? rasterSize(area, { scale: settings?.scale, width: settings?.customWidth }) : null;
 
@@ -135,7 +154,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       if (settings) {
         await downloadExport(doc, settings, filename || doc.name);
       } else if (customExporter) {
-        await customExporter.run({ doc, selection, scope: effectiveScope });
+        await customExporter.run(
+          effectiveScope === 'screen' ? { doc, selection: [screenId], scope: 'selection' } : { doc, selection, scope: effectiveScope },
+        );
       }
       onOpenChange(false);
     } catch (e) {
@@ -162,7 +183,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       <ResponsiveDialogContent className="sm:max-w-xl">
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Export</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>Download the artboard or the selection as an image file.</ResponsiveDialogDescription>
+          <ResponsiveDialogDescription>
+            {doc.wireframe ? 'Download a screen, the selection or every screen as an image file.' : 'Download the artboard or the selection as an image file.'}
+          </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         <ResponsiveDialogBody className="flex flex-col gap-4">
           <div
@@ -208,14 +231,43 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
           <Field label="Area">
             <ToggleGroup type="single" variant="outline" value={effectiveScope} onValueChange={(v) => v && setScope(v as typeof scope)} aria-label="Area">
+              {doc.wireframe && (
+                <ToggleGroupItem value="screen" disabled={frames.length === 0} className="px-3">
+                  Screen
+                </ToggleGroupItem>
+              )}
               <ToggleGroupItem value="artboard" className="px-3">
-                Artboard
+                {doc.wireframe ? 'All' : 'Artboard'}
               </ToggleGroupItem>
               <ToggleGroupItem value="selection" disabled={selection.length === 0} className="px-3">
                 Selection
               </ToggleGroupItem>
             </ToggleGroup>
           </Field>
+
+          {effectiveScope === 'screen' && (
+            <Field label="Screen">
+              <Select
+                value={screenId}
+                onValueChange={(id) => {
+                  setScreenId(id);
+                  const f = frames.find((x) => x.id === id);
+                  if (f) setFilename(screenFileName(f));
+                }}
+              >
+                <SelectTrigger size="sm" className="min-w-0 flex-1" aria-label="Screen">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {frames.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name} · {platformDef(f.screen.platform).label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
 
           {effectiveScope === 'selection' ? (
             <Field label="Padding" htmlFor="export-padding">
@@ -230,7 +282,8 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               <span className="text-sm text-muted-foreground">px</span>
             </Field>
           ) : (
-            builtIn && (
+            builtIn &&
+            !doc.wireframe && (
               <Field label="Background" htmlFor="export-bg">
                 <Switch id="export-bg" checked={background} onCheckedChange={setBackground} disabled={doc.artboard.background.kind === 'none'} />
                 <span className="text-sm text-muted-foreground">

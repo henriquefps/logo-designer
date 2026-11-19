@@ -68,7 +68,7 @@ export function AlignButtons({ ids, compact = false }: { ids: Id[]; compact?: bo
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="selection">Align to selection</SelectItem>
-          <SelectItem value="artboard">Align to artboard</SelectItem>
+          <SelectItem value="artboard">{doc().wireframe ? 'Align to screen' : 'Align to artboard'}</SelectItem>
         </SelectContent>
       </Select>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { actionForEvent } from '@/actions/registry';
 import { getTool, toolForShortcut } from '@/tools/registry';
+import { useDocStore } from '@/store/useDocStore';
 import { switchTool, toolContext } from '@/tools/context';
 import { useEditorStore } from '@/store/useEditorStore';
 
@@ -38,7 +39,7 @@ export function useKeyboard() {
         return;
       }
       if (editable || inOverlay || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = toolForShortcut(e.key);
+      const t = toolForShortcut(e.key, useDocStore.getState().doc);
       if (t) {
         e.preventDefault();
         switchTool(t.id);

@@ -1,6 +1,7 @@
 import {
   applyWorldMatrix,
   findNode,
+  isScreenNode,
   parentWorldMatrix,
   rotationAbout,
   scaleAbout,
@@ -36,14 +37,18 @@ function applyMatrix(ctx: ToolContext, snap: Snapshot, m: Matrix) {
   ctx.docStore().replaceNodes(snap.nodes.map(({ node, parent }) => applyWorldMatrix(node, parent, m)));
 }
 
-/** Snap targets: artboard + every visible root-level node that isn't being transformed. */
+/**
+ * Snap targets: artboard + every visible root-level node that isn't being transformed. Wireframe
+ * documents have no artboard; their screen frames and the objects on them are targets instead.
+ */
 export function snapTargetsExcluding(doc: DesignDocument, ids: Id[]): SnapTarget[] {
   const exclude = new Set(ids);
-  const rects = doc.children
+  const nodes = doc.wireframe ? doc.children.flatMap((n) => (isScreenNode(n) ? [n, ...n.children] : [n])) : doc.children;
+  const rects = nodes
     .filter((n) => n.visible && !n.reference && !exclude.has(n.id))
     .map((n) => worldBounds(doc, n.id))
     .filter((r): r is NonNullable<typeof r> => !!r);
-  return computeSnapTargets(doc.artboard, rects);
+  return computeSnapTargets(doc.wireframe ? null : doc.artboard, rects);
 }
 
 export interface Gesture {

@@ -1,4 +1,6 @@
 import { hitTest } from '@/model';
+import { screenLabelAt } from '@/wireframe/screens';
+import { LABEL_STRIP_PX } from '@/wireframe/canvas/labels';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { getTool } from './registry';
@@ -8,7 +10,8 @@ export const HIT_TOLERANCE_PX = 4;
 
 export function switchTool(id: string) {
   const ed = useEditorStore.getState();
-  if (ed.tool === id || !getTool(id)) return;
+  const tool = getTool(id);
+  if (ed.tool === id || !tool || (tool.when && !tool.when(useDocStore.getState().doc))) return;
   const prev = getTool(ed.tool);
   prev?.onCancel?.(toolContext);
   prev?.onDeactivate?.(toolContext);
@@ -23,10 +26,14 @@ export const toolContext: ToolContext = {
   docStore: () => useDocStore.getState(),
   editor: () => useEditorStore.getState(),
   px: () => 1 / useEditorStore.getState().zoom,
-  hitTest: (point, opts) =>
-    hitTest(useDocStore.getState().doc, point, {
-      deep: opts?.deep,
-      tolerance: (opts?.tolerancePx ?? HIT_TOLERANCE_PX) / useEditorStore.getState().zoom,
-    }),
+  hitTest: (point, opts) => {
+    const doc = useDocStore.getState().doc;
+    const zoom = useEditorStore.getState().zoom;
+    // A screen's name label (wireframe documents) picks the frame, like Figma: the way to grab a
+    // screen whose content covers it.
+    const label = doc.wireframe ? screenLabelAt(doc, point, LABEL_STRIP_PX / zoom) : null;
+    if (label) return label;
+    return hitTest(doc, point, { deep: opts?.deep, tolerance: (opts?.tolerancePx ?? HIT_TOLERANCE_PX) / zoom });
+  },
   setTool: switchTool,
 };

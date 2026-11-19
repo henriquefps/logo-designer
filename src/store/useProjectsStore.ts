@@ -15,6 +15,7 @@ import {
 import { recordDeletion } from '@/sync/state';
 import { useDocStore } from './useDocStore';
 import { useEditorStore } from './useEditorStore';
+import { fitTarget } from '@/wireframe/view';
 
 export const AUTOSAVE_DELAY = 600;
 
@@ -58,9 +59,8 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     useEditorStore.getState().setSelection([]);
     setActiveProjectId(doc.id);
     set({ activeId: doc.id });
-    // Fit the artboard once the canvas knows its size.
-    const { width, height } = doc.artboard;
-    useEditorStore.getState().fitRect({ x: 0, y: 0, width, height });
+    // Fit the artboard (a wireframe's content) once the canvas knows its size.
+    useEditorStore.getState().fitRect(fitTarget(useDocStore.getState().doc));
   };
 
   const save = async () => {

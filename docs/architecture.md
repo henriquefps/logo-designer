@@ -93,6 +93,9 @@ src/
   dialogs/cli/          "CLI & agents" dialog (Help menu; terminal button in the desktop top bar)
   app/TopBarButtons.tsx the top-bar Sync button (states from sync/view.ts) and CLI button
   pages/SyncSetup.tsx   the /sync guide (download, run, connect, tunnel); Root.tsx picks it by pathname
+  wireframe/            wireframe documents (docs/wireframe-mode.md; section "Wireframe mode" below): pipeline.ts
+                        (materialization), steps/<id>/ (pipeline steps), screens.ts (frames, variants), library/
+                        (component contract + registry + <kind>/), commands.ts (app), view.ts, placement.ts, canvas/
   dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools, sync, fonts, theme) for browser QA scripts
 ```
 
@@ -299,3 +302,111 @@ other documents.
 - UI: Properties section `icon` (nothing selected), dialog `exportIcon` (File → Export icon…),
   exporter `app-icon` in the Export dialog (`Exporter.when` hides it for other documents), actions
   in `actions/modules/icon.ts`.
+
+## Wireframe mode (`src/wireframe/`)
+
+Contract: `docs/wireframe-mode.md`. `DesignDocument.wireframe?: { screens: { id, name }[] }` marks a
+wireframe document (New document → Wireframe, `designer new --preset wireframe`). Nothing changes for
+other documents: every wireframe code path starts with a `doc.wireframe` check, and the fields below are
+dropped (with a warning) when a non-wireframe file carries them.
+
+### Model
+
+- **Screen frame**: a top-level `group` with `screen: { screenId, platform, width, height }`. Its local
+  origin is the frame's top-left corner; the frame spans `0..width × 0..height`. `height` is materialized
+  (max of the platform minimum and the content). Platforms and sizes: `SCREEN_PLATFORMS` in
+  `src/model/screen.ts` (phone 390/844, tablet 820/1180, desktop 1440/900). Frames are translation-only
+  (the pipeline folds scale into the width and drops rotation).
+- **Logical screen**: `doc.wireframe.screens[]`; frames point at one with `screen.screenId`, at most one frame
+  per platform. "Duplicate as …" (`duplicateScreenAs`) adds a variant next to the source.
+- **Component instance**: a `group` with `component: { kind, props, size? }`; its children are generated.
+- **Layout (reserved)**: `layout: { kind: 'vstack' | 'hstack' | 'grid', gap, padding, align, columns? }` on a
+  container, `layoutItem: { width?, height?: 'fill' | 'hug' | number, position?: 'flow' | 'pinned-bottom' | 'free' }`
+  on a child. Validated and saved; nothing reads them yet.
+- Model support: `bounds.ts` (a frame's bounds are the frame), `hitTest.ts` (a frame is a scope: a click picks
+  its direct child, or the frame on empty space; content outside the frame is clipped; component instances are
+  leaves, so their generated children are never picked one by one), `transformOps.bakeScale` (frames and
+  instances absorb a resize into `screen.width/height` / `component.size`; their children are not stretched).
+
+### The materialization pipeline (`src/wireframe/pipeline.ts`)
+
+Everything generated (component children, layout positions, screen heights) is stored in the document, so
+rendering, bounds, hit testing, export and the CLI need no special cases. `useDocStore` runs
+`runWireframePipeline(next, before, phase)` after every change to a wireframe document and appends the
+steps' patches to the change's undo entry (one undo step):
+
+| Phase | When | `before` |
+| --- | --- | --- |
+| `change` | every `apply`, including each frame of a gesture (inside a transaction) | the doc before this frame |
+| `settle` | a change becomes an undo step: `apply` outside a transaction, `commitTransaction` | the doc before the whole change/gesture |
+| `load` | `useDocStore.load`, the CLI (`materializeDocument(doc)`) | `null` (everything counts as changed) |
+
+A step is `src/wireframe/steps/<id>/index.ts` → `export default` a `WireframeStep` (discovered, no shared list):
+
+```ts
+interface WireframeStep {
+  id: string;
+  order: number;                          // lower runs first
+  phases?: readonly PipelinePhase[];      // default: all three
+  run(draft: Draft<DesignDocument>, ctx: PipelineContext): void;   // mutate the draft; must be idempotent
+}
+interface PipelineContext {
+  phase: PipelinePhase;
+  before: DesignDocument | null;
+  input: DesignDocument;                  // the plain doc this run started from (cheap to walk)
+  previous(id): SceneNode | null;         // the node before the change (null = new / load)
+  differs(value, prev): boolean;          // draft-aware identity check (immer structural sharing)
+}
+```
+
+Built-in steps, in order: **`adopt`** (50, settle only: an object whose centre ends up on a frame becomes its
+child, a child dragged off goes back to the canvas or onto the frame it was dropped on; world position kept;
+only for objects whose transform changed or that are new at the top level, never when the change itself
+reparented them), **`components`** (100: rebuilds instances whose `component` changed, or all on load; children
+get stable ids `<instance id>~<index>`), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
+screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
+renames its logical screen, empty logical screens are removed; frame normalisation and height).
+
+Rules for steps: compare with `ctx.previous()` and skip what did not change (the `change` phase runs on every
+pointer move); never assign an equal value (it still creates patches); read `ctx.input` or `plain(draft)` to
+traverse, write through the draft. The pipeline is pure (no React, no stores): the CLI imports it.
+
+### Seams for the next workstreams
+
+- **Layout** (stacks, grid, sizing, pinned/free): add `src/wireframe/steps/layout/index.ts` (order **500**,
+  between components and screens) whose `run` calls a pure `layout(frameOrContainer, …)` from
+  `src/wireframe/layout.ts`. It writes child transforms and container sizes into the draft. For a frame with a
+  `layout`, the layout step owns `screen.height` (write the content height); the screens step then only enforces
+  the platform minimum (`screenHeight` in `screens.ts`). To size a component instance and get its hug height,
+  call `buildComponentInto(draftInstance, { width })` from `steps/components/index.ts` (returns the height).
+  The `layout` / `layoutItem` types and their validation are in place (`LayoutInfo`, `LayoutItemInfo` in
+  `src/model/types.ts`, `layoutInfo` / `layoutItemInfo` in `src/io/projectFile.ts`); extend them there.
+- **Component system**: one folder per kind, `src/wireframe/library/<kind>/index.ts` →
+  `export default defineComponent({ kind, label, platforms, category, props, sizing, defaultSize, build, describe })`
+  (`library/types.ts`: `PropSpec` types text, multiline, number, boolean, choice, icon, list; `PropsOf<S>` types
+  `build`'s props; `resolveProps(def, raw)` fills defaults). `library/registry.ts` exposes `getComponents()`,
+  `getComponent(kind)`, `isComponentKind(kind)` (the importer uses it: unknown kinds load as plain groups with a
+  warning). `build(props, { width, height? })` returns `{ children, height }` in the instance's local space
+  (origin top-left); keep it pure and cheap, and take colours, font and stroke from `src/wireframe/style.ts`.
+  `placeholder/` is the stand-in that proves the contract (a grey box with an X; its `label` prop rebuilds the
+  children): keep, restyle or replace it. Insert an instance with
+  `useDocStore.getState().addNodes([{ ...createGroup({ name, transform }), component: { kind, props } }], { parentId })`;
+  the pipeline builds it. Still to build: the library panel (an asset source `wireframe`), the generated
+  properties section (a `src/panels/properties/sections/component/`), Detach (drop `component`, keep children).
+- `import.meta.glob` in the CLI: Bun does not expand it, so `bin/designer.ts` installs `src/cli/globPlugin.ts`
+  first, which rewrites the eager form in files named `registry.ts`. Keep new registries in a `registry.ts` file.
+
+### App
+
+- Canvas: no artboard, grid over the whole view (`GridLayer`), Fit (⌘0) fits the content
+  (`wireframe/view.ts → fitTarget`), snapping targets are the frames and the objects on them. Frames render
+  in `canvas/renderers/NodeRenderer` via `wireframe/canvas/ScreenFrameRenderer` (white, content clipped,
+  1 px border on top); names are screen-space UI (`wireframe/canvas/ScreenLabels`, in the overlay) and the
+  label strip is clickable (`tools/context.ts` → `screenLabelAt`): the way to grab a frame whose content
+  covers it. New content (paste, import, icons, fonts) goes to the selected screen or the visible area
+  (`wireframe/placement.ts`); Align "to screen" aligns to the object's frame.
+- Screen tool **F** (`tools/screen/`, `Tool.when` shows it only in wireframes): click places a frame of the
+  platform chosen in the options bar. Object → Add screen ▸ / Duplicate screen as ▸ (`actions/modules/wireframe.ts`,
+  hidden in other documents). Properties: `wireframe` section (nothing selected: logical screens, add buttons, grid)
+  and `screen` section (name, platform, width, height, Duplicate as). Export dialog: Area = Screen (default) / All /
+  Selection; `exportSvg({ scope: 'screen', screenId })` writes the frame (white paper, content clipped, no border).

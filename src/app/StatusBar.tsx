@@ -41,13 +41,15 @@ export function StatusBar() {
         : `${selection.length} objects`;
   return (
     <div className="flex h-8 items-center gap-4 px-3 text-xs text-muted-foreground tabular-nums">
-      <button type="button" className="rounded-sm px-1 hover:text-foreground" onClick={() => runAction('view.fit')} title="Fit artboard">
+      <button type="button" className="rounded-sm px-1 hover:text-foreground" onClick={() => runAction('view.fit')} title={doc.wireframe ? 'Fit to content' : 'Fit artboard'}>
         {Math.round(zoom * 100)}%
       </button>
       <span className="w-28">{pointer ? `X ${fmt(pointer.x)}  Y ${fmt(pointer.y)}` : ''}</span>
       <span className="min-w-0 flex-1 truncate">{selLabel}</span>
       <span>
-        {doc.artboard.width} × {doc.artboard.height}
+        {doc.wireframe
+          ? `${doc.wireframe.screens.length} ${doc.wireframe.screens.length === 1 ? 'screen' : 'screens'}`
+          : `${doc.artboard.width} × ${doc.artboard.height}`}
       </span>
       <SaveIndicator />
     </div>

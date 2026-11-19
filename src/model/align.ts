@@ -1,6 +1,20 @@
 import { selectionBounds, worldBounds } from './bounds';
-import { topmostIds } from './tree';
+import { isScreenNode } from './screen';
+import { locate, topmostIds } from './tree';
 import type { DesignDocument, Id, Rect, Vec } from './types';
+
+/**
+ * The "artboard" to align to: the artboard, or in wireframe documents (no artboard) the screen
+ * frame the first object is on (else the selection bounds).
+ */
+function alignArea(doc: DesignDocument, ids: Id[]): Rect | null {
+  if (!doc.wireframe) return { x: 0, y: 0, width: doc.artboard.width, height: doc.artboard.height };
+  for (const id of ids) {
+    const top = locate(doc, id)?.ancestors[0];
+    if (top && isScreenNode(top)) return { x: top.transform.x, y: top.transform.y, width: top.screen.width, height: top.screen.height };
+  }
+  return selectionBounds(doc, ids);
+}
 
 export type AlignMode = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom';
 export type DistributeMode = 'horizontal' | 'vertical';
@@ -12,8 +26,7 @@ export type DistributeMode = 'horizontal' | 'vertical';
 export function alignDeltas(doc: DesignDocument, ids: Id[], mode: AlignMode, toArtboard = false): Map<Id, Vec> {
   const nodes = topmostIds(doc, ids);
   const out = new Map<Id, Vec>();
-  const target: Rect | null =
-    toArtboard || nodes.length < 2 ? { x: 0, y: 0, width: doc.artboard.width, height: doc.artboard.height } : selectionBounds(doc, nodes);
+  const target: Rect | null = toArtboard || nodes.length < 2 ? alignArea(doc, nodes) : selectionBounds(doc, nodes);
   if (!target) return out;
   for (const id of nodes) {
     const b = worldBounds(doc, id);
@@ -42,8 +55,9 @@ export function distributeDeltas(doc: DesignDocument, ids: Id[], mode: Distribut
   const pos = (r: Rect) => (h ? r.x : r.y);
   const size = (r: Rect) => (h ? r.width : r.height);
   items.sort((a, b) => pos(a.b) - pos(b.b));
-  const start = toArtboard ? 0 : pos(items[0].b);
-  const end = toArtboard ? (h ? doc.artboard.width : doc.artboard.height) : pos(items.at(-1)!.b) + size(items.at(-1)!.b);
+  const area = toArtboard ? alignArea(doc, items.map((x) => x.id)) : null;
+  const start = area ? pos(area) : pos(items[0].b);
+  const end = area ? pos(area) + size(area) : pos(items.at(-1)!.b) + size(items.at(-1)!.b);
   const total = items.reduce((s, x) => s + size(x.b), 0);
   const gap = (end - start - total) / (items.length - 1);
   let cursor = start;

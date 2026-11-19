@@ -21,6 +21,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { loadImage } from './rasterExport';
 import { ensureSvgGeometry, parseSvg } from './svgImport';
+import { placementArea } from '@/wireframe/placement';
 import { svgToDocument } from './svgDocument';
 
 export const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp';
@@ -36,12 +37,12 @@ export const isImageFile = (f: File) => /^image\/(png|jpeg|webp)$/.test(f.type) 
  * center), scaled down to fit the artboard when larger. Several nodes are wrapped in a group.
  */
 export function placeNodes(nodes: SceneNode[], name: string, at?: Vec): SceneNode[] {
-  const { doc } = useDocStore.getState();
   const b = unionRects(nodes.map((n) => boundsIn(n, fromTransform(n.transform))));
   if (!b) return [];
-  const { width: aw, height: ah } = doc.artboard;
+  const area = placementArea();
+  const { width: aw, height: ah } = area;
   const k = Math.min(1, (aw * 0.9) / Math.max(b.width, 1e-6), (ah * 0.9) / Math.max(b.height, 1e-6));
-  const target = at ?? { x: aw / 2, y: ah / 2 };
+  const target = at ?? rectCenter(area);
   const c = rectCenter(b);
   const m = multiply(translate(target.x, target.y), multiply(scale(k), translate(-c.x, -c.y)));
   // A single node absorbs the scale (bakeScale); several are wrapped in a group.
@@ -147,7 +148,8 @@ export async function openSvgFileAsDocument(file: File) {
 export async function placeReferenceImage(file: File) {
   try {
     const { href, width, height } = await imageFileToDataUrl(file);
-    const { width: aw, height: ah } = useDocStore.getState().doc.artboard;
+    const area = placementArea();
+    const { width: aw, height: ah } = area;
     const k = Math.min(aw / width, ah / height);
     const node = createImage({
       name: `Reference – ${file.name}`,
@@ -157,7 +159,7 @@ export async function placeReferenceImage(file: File) {
       opacity: 0.5,
       locked: true,
       reference: true,
-      transform: { x: aw / 2, y: ah / 2 },
+      transform: rectCenter(area),
     });
     useDocStore.getState().addNodes([node], { index: 0, label: 'Place reference image' });
     useEditorStore.getState().clearSelection();
