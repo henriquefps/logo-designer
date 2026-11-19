@@ -26,7 +26,7 @@ const step: WireframeStep = {
     }
     const candidates: { node: SceneNode; parent: ScreenNode | null }[] = [];
     const consider = (node: SceneNode, parent: ScreenNode | null) => {
-      if (isScreenNode(node) || node.locked) return;
+      if (isScreenNode(node) || node.note || node.locked) return; // notes stay on the canvas
       const prev = ctx.previous(node.id);
       if (!prev) {
         if (parent === null && !prevParent.has(node.id)) candidates.push({ node, parent });

@@ -396,6 +396,18 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
 - `import.meta.glob` in the CLI: Bun does not expand it, so `bin/designer.ts` installs `src/cli/globPlugin.ts`
   first, which rewrites the eager form in files named `registry.ts`. Keep new registries in a `registry.ts` file.
 
+### Notes (`src/wireframe/notes.ts`)
+
+A note is a top-level `group` with `note: { text, target? }`; the `notes` step (order 150) generates its children
+(a sticky rect and the wrapped text, ids `<note id>~0/1`; accent colours `WF.note*` in `style.ts`), keeps it
+unscaled/unrotated and, on settle/load, clears a `target` whose node is gone. `adopt` skips notes, so they stay
+on the canvas over screens. The connector line is an overlay (`wireframe/canvas/NoteConnectors`, from
+`connectorOf`), so it follows both ends and is in no export; screen exports only write the frame, whole-canvas
+export includes the notes. `notesFor(doc)` → `{ noteId, text, targetId?, screenId?, frameId? }[]` is for the AI
+export (`screenId` = logical screen of the frame containing the target). App: Note tool **K** (click a node =
+attached note next to it, empty canvas or Shift = free note), Object menu / context menu **Add note** on a selected
+node, `note` Properties section (text, Attached to, Detach); commands in `wireframe/noteCommands.ts`.
+
 ### App
 
 - Canvas: no artboard, grid over the whole view (`GridLayer`), Fit (⌘0) fits the content

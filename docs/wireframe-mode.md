@@ -205,6 +205,10 @@ Wireframe mode):
 - `designer new --preset wireframe` (empty), `designer screen` (add a screen or a variant), `to-png` (one PNG per
   frame, `<slug>.<platform>.png`, the export package's naming) and `to-svg --screen` exist; see `docs/agents.md`.
 
+- Notes (workstream 4): a top-level `group` with `note: { text, target? }`, generated children, kept out of
+  screens by `adopt`; connector = canvas overlay; Note tool **K**; `notesFor(doc)` (`src/wireframe/notes.ts`) for
+  the AI export. See architecture.md → Notes.
+
 ### Mobile layout
 
 Desktop-first, like the rest of Designer. On a phone a wireframe can be viewed, moved around and

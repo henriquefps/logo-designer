@@ -13,6 +13,7 @@ import {
   type NodeBase,
   type Paint,
   type SceneNode,
+  type NoteInfo,
   type ScreenFrameInfo,
   type Stroke,
   type SubPath,
@@ -171,6 +172,17 @@ function componentInfo(v: unknown, path: string): ComponentInfo {
   return out;
 }
 
+function noteInfo(v: unknown, path: string): NoteInfo {
+  const o = obj(v, path);
+  const out: NoteInfo = { text: o.text === undefined ? '' : str(o.text, at(path, 'text')) };
+  if (o.target !== undefined && o.target !== null) {
+    const target = str(o.target, at(path, 'target'));
+    if (!target) fail(at(path, 'target'), 'must not be empty (omit it for a free note)');
+    out.target = target;
+  }
+  return out;
+}
+
 const LAYOUT_KINDS = ['vstack', 'hstack', 'grid'] as const;
 const LAYOUT_ALIGN = ['start', 'center', 'end', 'stretch'] as const;
 
@@ -208,7 +220,7 @@ function layoutItemInfo(v: unknown, path: string): LayoutItemInfo {
   return out;
 }
 
-const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem'] as const;
+const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem', 'note'] as const;
 
 /** The optional wireframe fields of a node (only on wireframe documents; elsewhere dropped with a warning). */
 function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx: NodeCtx): Partial<Pick<NodeBase, (typeof WIREFRAME_FIELDS)[number]>> {
@@ -234,6 +246,13 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
   if (o.layout !== undefined && o.layout !== null) {
     if (type !== 'group') fail(at(path, 'layout'), `only a group can lay out children (this is a ${type})`);
     out.layout = layoutInfo(o.layout, at(path, 'layout'));
+  }
+  if (o.note !== undefined && o.note !== null) {
+    const np = at(path, 'note');
+    if (type !== 'group') fail(np, `only a group can be a note (this is a ${type})`);
+    if (depth > 0) fail(np, 'notes must be top-level objects (in the document\'s "children")');
+    if (out.screen || out.component) fail(np, 'a note cannot also be a screen frame or a component');
+    out.note = noteInfo(o.note, np);
   }
   if (o.layoutItem !== undefined && o.layoutItem !== null) out.layoutItem = layoutItemInfo(o.layoutItem, at(path, 'layoutItem'));
   return out;

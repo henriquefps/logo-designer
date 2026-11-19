@@ -16,6 +16,7 @@ import { CanvasContextMenu } from './CanvasContextMenu';
 import { useContextMenu } from './contextMenuStore';
 import { KnockoutPanel } from '@/vector/KnockoutPanel';
 import { fitTarget } from '@/wireframe/view';
+import { NoteConnectors } from '@/wireframe/canvas/NoteConnectors';
 import { ScreenLabels } from '@/wireframe/canvas/ScreenLabels';
 
 type PanDrag = { pointerId: number; start: Vec; pan: Vec };
@@ -237,6 +238,7 @@ export function CanvasView() {
         <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden="true">
           <IconKeylinesOverlay />
           <ScreenLabels />
+          <NoteConnectors />
           <HoverOverlay />
           <SelectionOverlay />
           <GuidesOverlay />
