@@ -22,6 +22,8 @@ import {
   type WireframeDocInfo,
   type WireframeFlow,
   type WireframeScreen,
+  type WireframeSymbol,
+  type GroupNode,
 } from '@/model';
 import { getComponent } from '@/wireframe/library/registry';
 import { validateProps } from '@/wireframe/library/types';
@@ -142,6 +144,8 @@ interface NodeCtx {
   /** The document is a wireframe: `screen` / `component` / `layout` / `layoutItem` are kept. */
   wireframe: boolean;
   warnings: string[];
+  /** Ids of the document's shared components (`wireframe.symbols`): an instance of another one loads as a plain group. */
+  symbols?: ReadonlySet<string>;
 }
 
 const nonNegative = (v: unknown, fallback: number, path: string) => (v === undefined ? fallback : Math.max(0, finite(v, path)));
@@ -262,7 +266,7 @@ function layoutItemInfo(v: unknown, path: string): LayoutItemInfo {
   return out;
 }
 
-const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem', 'note', 'repeatCopy'] as const;
+const WIREFRAME_FIELDS = ['screen', 'component', 'layout', 'layoutItem', 'note', 'repeatCopy', 'symbol'] as const;
 
 /** The optional wireframe fields of a node (only on wireframe documents; elsewhere dropped with a warning). */
 function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx: NodeCtx): Partial<Pick<NodeBase, (typeof WIREFRAME_FIELDS)[number]>> {
@@ -308,7 +312,55 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
     if (depth === 0) ctx.warnings.push(`${at(path, 'repeatCopy')}: ignored, a repeat copy must be inside the container that repeats it`);
     else out.repeatCopy = info;
   }
+  if (o.symbol !== undefined && o.symbol !== null) {
+    // Shared component instance (docs/wireframe-mode.md → Shared components). Never a failure: a reference
+    // that cannot be honoured loads the content as a plain group.
+    const sp = at(path, 'symbol');
+    const ref = obj(o.symbol, sp);
+    const id = typeof ref.id === 'string' ? ref.id : '';
+    if (type !== 'group') ctx.warnings.push(`${sp}: ignored, only a group can be a shared component instance (this is a ${type})`);
+    else if (out.screen || out.component || out.note) ctx.warnings.push(`${sp}: ignored, a screen frame, component or note cannot also be a shared component`);
+    else if (!id || !ctx.symbols?.has(id)) ctx.warnings.push(`${at(sp, 'id')}: unknown shared component ${show(ref.id)}; loaded as a plain group`);
+    else out.symbol = { id };
+  }
   return out;
+}
+
+/** Shared components (`wireframe.symbols`): masters with their content, validated like nodes in their own id space. */
+function symbolsInfo(v: unknown, warnings: string[]): WireframeSymbol[] {
+  if (v === undefined || v === null) return [];
+  const path = 'wireframe.symbols';
+  const list = arr(v, path);
+  const ids = new Set<string>();
+  const raw = list.map((r, i) => {
+    const p = at(path, i);
+    const o = obj(r, p);
+    const id = str(o.id, at(p, 'id'));
+    if (!id) fail(at(p, 'id'), 'must not be empty');
+    if (ids.has(id)) fail(at(p, 'id'), `duplicate shared component id "${id}"`);
+    ids.add(id);
+    return { o, p, id };
+  });
+  return raw.map(({ o, p, id }) => {
+    const name = o.name === undefined ? 'Component' : str(o.name, at(p, 'name')).trim() || 'Component';
+    const ctx: NodeCtx = { ids: new Set<string>(), wireframe: true, warnings, symbols: ids };
+    const content = node(o.content, ctx, 1, at(p, 'content'));
+    if (content.type !== 'group') fail(at(at(p, 'content'), 'type'), `the content of a shared component must be a group (this is a ${content.type})`);
+    // A master never points at itself.
+    const clean = (n: SceneNode): SceneNode => {
+      if (n.type !== 'group') return n;
+      if (n.symbol?.id === id) {
+        warnings.push(`${at(p, 'content')}: a nested instance of "${name}" inside itself was loaded as a plain group`);
+        const copy = { ...n, children: n.children.map(clean) };
+        delete copy.symbol;
+        return copy;
+      }
+      return { ...n, children: n.children.map(clean) };
+    };
+    const group = clean(content) as GroupNode;
+    delete group.symbol;
+    return { id, name, content: { ...group, id, name } };
+  });
 }
 
 const SCREEN_STATUS_VALUES = ['current', 'changed', 'new'] as const;
@@ -495,7 +547,9 @@ export function validateDocument(data: unknown, opts: { warnings?: string[] } = 
     const wf = wireframeInfo(d.wireframe, 'wireframe', warnings);
     const icon = iconInfo(d.icon, 'icon');
     if (wf.wireframe && icon.icon) fail('wireframe', 'a document is either an app icon ("icon") or a wireframe ("wireframe"), not both');
-    const ctx: NodeCtx = { ids: new Set<string>(), wireframe: !!wf.wireframe, warnings };
+    const symbols = wf.wireframe ? symbolsInfo((d.wireframe as Obj).symbols, warnings) : [];
+    if (wf.wireframe && symbols.length) wf.wireframe.symbols = symbols;
+    const ctx: NodeCtx = { ids: new Set<string>(), wireframe: !!wf.wireframe, warnings, symbols: new Set(symbols.map((x) => x.id)) };
     const children = d.children.map((c, i) => node(c, ctx, 0, `children[${i}]`));
     if (wf.wireframe) checkFlows(wf.wireframe, ctx.ids, warnings);
     return {

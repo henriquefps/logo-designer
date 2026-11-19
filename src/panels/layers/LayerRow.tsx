@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon, ImageSquareIcon, PuzzlePieceIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, LockSimpleOpenIcon, ImageSquareIcon, PuzzlePieceIcon, DiamondsFourIcon } from '@phosphor-icons/react';
 import type { SceneNode } from '@/model';
 import { cn } from '@/lib/utils';
 import { NODE_ICONS } from './nodeIcons';
@@ -33,7 +33,8 @@ interface LayerRowProps {
 export function LayerRow(p: LayerRowProps) {
   const { node, depth, selected } = p;
   const [editing, setEditing] = useState(false);
-  const Icon = p.instance ? PuzzlePieceIcon : NODE_ICONS[node.type];
+  // Shared component instances (wireframes) get their own icon; their content is listed and editable.
+  const Icon = p.instance ? PuzzlePieceIcon : node.type === 'group' && node.symbol ? DiamondsFourIcon : NODE_ICONS[node.type];
   const isGroup = node.type === 'group' && !p.instance && !p.copyLabel;
 
   const position = (e: React.DragEvent): DropPosition => {

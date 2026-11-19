@@ -34,6 +34,7 @@ const OPTIONAL: Record<string, string[]> = {
   WireframeDocInfo: ['screens'],
   WireframeScreen: ['name'],
   WireframeFlow: ['id'],
+  WireframeSymbol: ['name'],
   ScreenFrameInfo: ['screenId', 'platform', 'width', 'height'],
   ComponentInfo: ['props'],
   LayoutInfo: ['gap', 'padding', 'align'],

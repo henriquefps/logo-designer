@@ -241,6 +241,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -508,6 +512,18 @@
       ],
       "description": "Marks a generated repeat copy (see `LayoutInfo.repeat`)."
     },
+    "SymbolRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "description": "Points an instance at its shared component (`wireframe.symbols[].id`)."
+    },
     "PathNode": {
       "type": "object",
       "properties": {
@@ -582,6 +598,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -767,6 +787,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -843,6 +867,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -922,6 +950,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -1025,6 +1057,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -1098,6 +1134,10 @@
         "repeatCopy": {
           "$ref": "#/definitions/RepeatCopyInfo",
           "description": "Wireframe documents only: this node is a generated copy of the first child of its parent's `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only."
+        },
+        "symbol": {
+          "$ref": "#/definitions/SymbolRef",
+          "description": "Wireframe documents only: this group is an instance of a shared component (a master in `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any instance updates the master and every other instance (src/wireframe/symbols.ts)."
         }
       },
       "required": [
@@ -1188,6 +1228,13 @@
             "$ref": "#/definitions/WireframeFlow"
           },
           "description": "Flow arrows (phase 2). Absent = none."
+        },
+        "symbols": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WireframeSymbol"
+          },
+          "description": "Shared components (masters), phase 2. Absent = none."
         }
       },
       "description": "Marks a wireframe document: infinite canvas (the artboard is unused), screens, components."
@@ -1243,6 +1290,27 @@
         "to"
       ],
       "description": "A flow arrow: tapping `from` (any node inside a screen frame) opens the logical screen `to`. Drawn as a canvas overlay (never in screen exports); removed with its source node or target screen."
+    },
+    "WireframeSymbol": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Shown in the library (\"My components\") and in the export for AI (\"Shared: Trip card\")."
+        },
+        "content": {
+          "$ref": "#/definitions/GroupNode",
+          "description": "The master: a group in the master's own id space (instance nodes carry `<instance id>~s~<id>`). Its `layout` (minus `size`) and `children` are shared; `layout.size` and `layoutItem` are only the defaults a new instance starts with. Nested instances are stored without children."
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ],
+      "description": "A shared component (user component, phase 2): a piece the user built from a group or container, used on several screens. The master lives here, not on the canvas; instances are groups with `symbol: { id }` whose children are materialized copies of `content.children`."
     }
   }
 }

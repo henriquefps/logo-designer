@@ -62,6 +62,12 @@ export interface NodeBase {
    * `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only.
    */
   repeatCopy?: RepeatCopyInfo;
+  /**
+   * Wireframe documents only: this group is an instance of a shared component (a master in
+   * `wireframe.symbols`). Its content is a linked copy of the master's: editing it inside any
+   * instance updates the master and every other instance (src/wireframe/symbols.ts).
+   */
+  symbol?: SymbolRef;
 }
 
 export type PointType = 'corner' | 'smooth' | 'symmetric';
@@ -266,12 +272,36 @@ export interface WireframeFlow {
   label?: string;
 }
 
+/** Points an instance at its shared component (`wireframe.symbols[].id`). */
+export interface SymbolRef {
+  id: Id;
+}
+
+/**
+ * A shared component (user component, phase 2): a piece the user built from a group or container,
+ * used on several screens. The master lives here, not on the canvas; instances are groups with
+ * `symbol: { id }` whose children are materialized copies of `content.children`.
+ */
+export interface WireframeSymbol {
+  id: Id;
+  /** Shown in the library ("My components") and in the export for AI ("Shared: Trip card"). */
+  name: string;
+  /**
+   * The master: a group in the master's own id space (instance nodes carry `<instance id>~s~<id>`).
+   * Its `layout` (minus `size`) and `children` are shared; `layout.size` and `layoutItem` are only
+   * the defaults a new instance starts with. Nested instances are stored without children.
+   */
+  content: GroupNode;
+}
+
 /** Marks a wireframe document: infinite canvas (the artboard is unused), screens, components. */
 export interface WireframeDocInfo {
   /** Logical screens, in creation order. Kept in sync with the frames by the wireframe pipeline. */
   screens: WireframeScreen[];
   /** Flow arrows (phase 2). Absent = none. */
   flows?: WireframeFlow[];
+  /** Shared components (masters), phase 2. Absent = none. */
+  symbols?: WireframeSymbol[];
 }
 
 export interface DesignDocument {
