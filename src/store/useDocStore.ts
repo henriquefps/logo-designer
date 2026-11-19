@@ -95,6 +95,43 @@ export interface DocState {
   getParent: (id: Id) => GroupNode | null;
 }
 
+/** Index path of a node in a plain document (null = missing). Cheap, unlike walking an immer draft. */
+function indexPath(nodes: readonly SceneNode[], id: Id): number[] | null {
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (n.id === id) return [i];
+    if (n.type === 'group') {
+      const sub = indexPath(n.children, id);
+      if (sub) return [i, ...sub];
+    }
+  }
+  return null;
+}
+
+/**
+ * The draft node with `id` and where it sits: found on the plain `base` document, then reached in the
+ * draft by index (walking a draft creates a proxy for every node it visits, which costs milliseconds per
+ * drag frame in a large wireframe). Falls back to a draft walk when the recipe already moved things.
+ */
+function locateDraft(d: Draft<DesignDocument>, base: DesignDocument, id: Id): { node: Draft<SceneNode>; list: Draft<SceneNode>[]; index: number } | null {
+  const path = indexPath(base.children, id);
+  if (path) {
+    let list = d.children as Draft<SceneNode>[];
+    for (let k = 0; k < path.length; k++) {
+      const node = list[path[k]];
+      if (!node) break;
+      if (k === path.length - 1) {
+        if (node.id === id) return { node, list, index: path[k] };
+        break;
+      }
+      if (node.type !== 'group') break;
+      list = node.children as Draft<SceneNode>[];
+    }
+  }
+  const loc = locate(d as DesignDocument, id);
+  return loc ? { node: loc.node as Draft<SceneNode>, list: loc.parent.children as Draft<SceneNode>[], index: loc.index } : null;
+}
+
 function trim(stack: HistoryEntry[]) {
   return stack.length > HISTORY_LIMIT ? stack.slice(stack.length - HISTORY_LIMIT) : stack;
 }
@@ -232,9 +269,10 @@ export const useDocStore = create<DocState>()((set, get) => {
     },
 
     updateNode: (id, patch, opts) => {
+      const base = get().doc;
       apply(
         (d) => {
-          const node = findNode(d as DesignDocument, id) as Draft<SceneNode> | null;
+          const node = locateDraft(d, base, id)?.node;
           if (!node) return;
           const { transform, ...rest } = patch;
           Object.assign(node, rest);
@@ -245,10 +283,11 @@ export const useDocStore = create<DocState>()((set, get) => {
     },
 
     updateNodes: (ids, recipe, opts) => {
+      const base = get().doc;
       apply(
         (d) => {
           for (const id of ids) {
-            const node = findNode(d as DesignDocument, id) as Draft<SceneNode> | null;
+            const node = locateDraft(d, base, id)?.node;
             if (node) recipe(node);
           }
         },
@@ -257,11 +296,12 @@ export const useDocStore = create<DocState>()((set, get) => {
     },
 
     replaceNodes: (nodes, opts) => {
+      const base = get().doc;
       apply(
         (d) => {
           for (const n of nodes) {
-            const loc = locate(d as DesignDocument, n.id);
-            if (loc) (loc.parent.children as SceneNode[])[loc.index] = n;
+            const loc = locateDraft(d, base, n.id);
+            if (loc) (loc.list as SceneNode[])[loc.index] = n;
           }
         },
         { label: opts?.label ?? 'Transform' },

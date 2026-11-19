@@ -203,6 +203,10 @@ function layoutInfo(v: unknown, path: string): LayoutInfo {
     if (!Number.isInteger(c) || c < 1) fail(at(path, 'columns'), `expected a whole number ≥ 1, got ${show(o.columns)}`);
     out.columns = c;
   }
+  if (o.size !== undefined && o.size !== null) {
+    const so = obj(o.size, at(path, 'size'));
+    out.size = { width: nonNegative(so.width, 0, at(at(path, 'size'), 'width')), height: nonNegative(so.height, 0, at(at(path, 'size'), 'height')) };
+  }
   return out;
 }
 
@@ -218,6 +222,10 @@ function layoutItemInfo(v: unknown, path: string): LayoutItemInfo {
   if (o.width !== undefined) out.width = layoutSize(o.width, at(path, 'width'));
   if (o.height !== undefined) out.height = layoutSize(o.height, at(path, 'height'));
   if (o.position !== undefined) out.position = oneOf(o.position, ['flow', 'pinned-bottom', 'free'] as const, 'flow', at(path, 'position'));
+  if (o.bleed !== undefined) {
+    if (typeof o.bleed !== 'boolean') fail(at(path, 'bleed'), `expected true or false, got ${show(o.bleed)}`);
+    out.bleed = o.bleed as boolean;
+  }
   return out;
 }
 

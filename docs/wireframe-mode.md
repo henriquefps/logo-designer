@@ -219,13 +219,33 @@ Wireframe mode):
   outside the app show a placeholder square until the app loads the icon.
 - Bad prop values in a file fall back to the default with a warning; a number out of range is clamped.
 - Library: Assets → Components (wireframes only). Click appends to the selected screen (or the selected stack, or
-  after the selected object in a stack); drag drops at the point (placed freely in the frame under the pointer
-  until the layout workstream's drop target exists). Starter kinds: `heading`, `button`, `list-row`; the
+  after the selected object in a stack); drag drops at the point (into the stack under the pointer, at that
+  point, with the insertion line; freely on a screen without a layout). Starter kinds: `heading`, `button`, `list-row`; the
   foundation's `placeholder` is hidden from the library (older files still load and render it). Fields that don't
   apply are hidden (`visibleWhen`: a list row's Icon only for a leading icon, Value only for a value, On only for a
   toggle or checkbox). Instances are not styled, rotated or flipped by the user; resizing rebuilds them.
 - Instances are one object everywhere (canvas click in their whole box, Cmd-click, Layers). Object → Detach
   component (⌥⌘B) or the Detach button in Properties turns one into a plain group.
+
+### As built (layout, workstream 2)
+
+- Screens are vertical stacks by default: phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align
+  start. A frame without `layout` (older files, "Make the content free") keeps free content. Object → Vertical
+  stack / Horizontal stack / Grid wraps the selection (on a free screen: makes its content a stack); Remove stack
+  unwraps.
+- Containers are groups with `layout` (and a materialized `layout.size`, their box). Defaults for a new one:
+  vstack gap 12, hstack gap 8 align center, grid gap 12 align stretch 2 columns; no padding. In a stack a
+  container fills the width and hugs its height.
+- Plain shapes inside a stack keep their size (only components and containers are sized); pinned-bottom children
+  span the full frame width, edge to edge (bars), and only apply to direct children of a screen (elsewhere they
+  are flow); free children don't count for the screen height.
+- Modifier to take a child out of every stack: **⌘ / Ctrl** while dropping (Alt is duplicate-drag). Resizing a
+  child inside a stack makes that dimension fixed.
+- Edge to edge: `layoutItem.bleed` (default from the component's `sizing.bleed`; list rows have it) makes a flow
+  child ignore the stack's cross-axis padding, so bars and rows span a padded screen. Properties → In stack → Edge
+  to edge.
+- Stacks are not painted, rotated or flipped by the user (like instances); children in a stack's flow are not
+  rotated either (free children can be).
 
 ### Mobile layout
 

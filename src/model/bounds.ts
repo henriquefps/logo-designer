@@ -98,8 +98,9 @@ export function localBounds(node: SceneNode): Rect | null {
     case 'text':
       return textLocalBounds(node);
     case 'group':
-      // A screen frame's box is the frame (its content is clipped to it); an instance's, its built size.
-      if (node.screen || node.component?.size) return sizedGroupBox(node);
+      // A screen frame's box is the frame (its content is clipped to it); an instance's, its built size;
+      // a laid-out container's, its box with the padding (an empty stack still has a box).
+      if (node.screen || node.component?.size || node.layout?.size) return sizedGroupBox(node);
       return unionRects(node.children.filter((c) => c.visible).map((c) => boundsIn(c, fromTransform(c.transform))));
     default: {
       const sp = nodeSubpaths(node);

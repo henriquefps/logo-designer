@@ -1,6 +1,6 @@
 // The wireframe component library (docs/wireframe-mode.md → Library): components by category, the
 // selected screen's platform first, a search box. Click inserts into the selected screen/stack; drag
-// drops at a point on the canvas.
+// drops at a point on the canvas (into the stack under it, at that point, with the insertion line).
 import { useEffect, useMemo, useState } from 'react';
 import { CaretDownIcon, CaretRightIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Section } from '@/panels/shared/Section';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { insertComponent } from '@/wireframe/componentCommands';
+import { showDropLine } from '@/wireframe/layoutDrag';
 import { ensureIcons } from '@/wireframe/iconLoader';
 import { getComponents } from '@/wireframe/library/registry';
 import { defaultProps, type AnyComponentDef, type PropSpec } from '@/wireframe/library/types';
@@ -82,11 +83,16 @@ function useCanvasDrop() {
     const canvasOf = (e: DragEvent) => ((e.target as Element | null)?.closest?.('[data-slot="canvas"]') as HTMLElement | null) ?? null;
     const isComponent = (e: DragEvent) => !!e.dataTransfer?.types.includes(COMPONENT_DRAG_MIME);
     const onOver = (e: DragEvent) => {
-      if (!isComponent(e) || !canvasOf(e)) return;
+      const canvas = canvasOf(e);
+      if (!isComponent(e) || !canvas) return void showDropLine(null);
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      const r = canvas.getBoundingClientRect();
+      showDropLine(useEditorStore.getState().screenToDoc({ x: e.clientX - r.left, y: e.clientY - r.top }));
     };
+    const onEnd = () => showDropLine(null);
     const onDrop = (e: DragEvent) => {
+      showDropLine(null);
       const canvas = canvasOf(e);
       if (!canvas || !isComponent(e)) return;
       e.preventDefault();
@@ -97,9 +103,12 @@ function useCanvasDrop() {
     };
     document.addEventListener('dragover', onOver);
     document.addEventListener('drop', onDrop);
+    document.addEventListener('dragend', onEnd);
     return () => {
       document.removeEventListener('dragover', onOver);
       document.removeEventListener('drop', onDrop);
+      document.removeEventListener('dragend', onEnd);
+      onEnd();
     };
   }, []);
 }

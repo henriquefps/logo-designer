@@ -13,7 +13,8 @@ const def = (kind: string) => getComponent(kind)!;
 
 function loadWireframe(platform: 'phone' | 'desktop' = 'phone'): string {
   const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
-  const id = addScreen(doc, { platform, name: 'Home', x: 0, y: 0 });
+  // Free content (no stack): these tests place instances by hand. Stacks: layout.test.ts.
+  const id = addScreen(doc, { platform, name: 'Home', x: 0, y: 0, layout: null });
   s().load(doc);
   return id;
 }

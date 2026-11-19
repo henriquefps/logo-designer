@@ -228,11 +228,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -353,12 +353,28 @@
         "columns": {
           "type": "number",
           "description": "Grid only: number of columns."
+        },
+        "size": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "description": "The container's box (local origin = top-left), written by the layout step. Screen frames keep theirs in `screen` instead. Omitted = not laid out yet (the layout step measures the content)."
         }
       },
       "required": [
         "kind"
       ],
-      "description": "Container layout (reserved: the layout step fills in the behaviour)."
+      "description": "Container layout (src/wireframe/layout.ts). The container's local origin is its top-left corner."
     },
     "LayoutKind": {
       "type": "string",
@@ -394,9 +410,13 @@
             "free"
           ],
           "description": "`flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack."
+        },
+        "bleed": {
+          "type": "boolean",
+          "description": "Edge to edge: the child ignores the parent's padding on the cross axis (horizontal padding in a vertical stack, vertical in a horizontal one; no effect in a grid). Default: the component's `sizing.bleed`."
         }
       },
-      "description": "A child's sizing inside a layout container (reserved for the layout step)."
+      "description": "A child's sizing inside a layout container. Missing fields take the defaults (component `sizing`, containers fill × hug)."
     },
     "LayoutSize": {
       "anyOf": [
@@ -488,11 +508,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -669,11 +689,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -741,11 +761,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -816,11 +836,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -915,11 +935,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",
@@ -984,11 +1004,11 @@
         },
         "layout": {
           "$ref": "#/definitions/LayoutInfo",
-          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+          "description": "Wireframe documents only: this group lays out its children (stack / grid, src/wireframe/layout.ts)."
         },
         "layoutItem": {
           "$ref": "#/definitions/LayoutItemInfo",
-          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`."
         },
         "note": {
           "$ref": "#/definitions/NoteInfo",

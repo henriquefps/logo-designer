@@ -94,7 +94,8 @@ src/
   app/TopBarButtons.tsx the top-bar Sync button (states from sync/view.ts) and CLI button
   pages/SyncSetup.tsx   the /sync guide (download, run, connect, tunnel); Root.tsx picks it by pathname
   wireframe/            wireframe documents (docs/wireframe-mode.md; section "Wireframe mode" below): pipeline.ts
-                        (materialization), steps/<id>/ (pipeline steps), screens.ts (frames, variants), library/
+                        (materialization), steps/<id>/ (pipeline steps), screens.ts (frames, variants), layout.ts + layoutEdit.ts +
+                        layoutDrag.ts (stacks and grids), library/
                         (component contract + registry + <kind>/), commands.ts (app), view.ts, placement.ts, canvas/
   dev/debugHandle.ts    dev-only window.__designer (stores, model, actions, tools, sync, fonts, theme) for browser QA scripts
 ```
@@ -320,13 +321,16 @@ dropped (with a warning) when a non-wireframe file carries them.
 - **Logical screen**: `doc.wireframe.screens[]`; frames point at one with `screen.screenId`, at most one frame
   per platform. "Duplicate as …" (`duplicateScreenAs`) adds a variant next to the source.
 - **Component instance**: a `group` with `component: { kind, props, size? }`; its children are generated.
-- **Layout (reserved)**: `layout: { kind: 'vstack' | 'hstack' | 'grid', gap, padding, align, columns? }` on a
-  container, `layoutItem: { width?, height?: 'fill' | 'hug' | number, position?: 'flow' | 'pinned-bottom' | 'free' }`
-  on a child. Validated and saved; nothing reads them yet.
-- Model support: `bounds.ts` (a frame's bounds are the frame), `hitTest.ts` (a frame is a scope: a click picks
+- **Layout**: `layout: { kind: 'vstack' | 'hstack' | 'grid', gap, padding, align, columns?, size? }` on a
+  container (a group, local origin = top-left, `size` = its materialized box) or on a screen frame (its content
+  is then a stack; new frames get `defaultScreenLayout(platform)`), `layoutItem: { width?, height?: 'fill' | 'hug'
+  | number, position?: 'flow' | 'pinned-bottom' | 'free' }` on a child. See "Stacks and grids" below.
+- Model support: `bounds.ts` (a frame's bounds are the frame; a container with `layout.size` is that box, padding
+  included), `hitTest.ts` (a container is also hit on its empty space; a frame is a scope: a click picks
   its direct child, or the frame on empty space; content outside the frame is clipped; component instances are
-  leaves, so their generated children are never picked one by one), `transformOps.bakeScale` (frames and
-  instances absorb a resize into `screen.width/height` / `component.size`; their children are not stretched).
+  leaves, so their generated children are never picked one by one), `transformOps.bakeScale` (frames,
+  instances and containers absorb a resize into `screen.width/height` / `component.size` / `layout.size`; their
+  children are not stretched).
 
 ### The materialization pipeline (`src/wireframe/pipeline.ts`)
 
@@ -363,7 +367,8 @@ Built-in steps, in order: **`adopt`** (50, settle only: an object whose centre e
 child, a child dragged off goes back to the canvas or onto the frame it was dropped on; world position kept;
 only for objects whose transform changed or that are new at the top level, never when the change itself
 reparented them), **`components`** (100: rebuilds instances whose `component` changed, or all on load; children
-get stable ids `<instance id>~<index>`), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
+get stable ids `<instance id>~<index>`; instances placed by a stack are left to the layout step), **`layout`** (500:
+stacks and grids, below), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
 screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
 renames its logical screen, empty logical screens are removed; frame normalisation and height).
 
@@ -371,16 +376,57 @@ Rules for steps: compare with `ctx.previous()` and skip what did not change (the
 pointer move); never assign an equal value (it still creates patches); read `ctx.input` or `plain(draft)` to
 traverse, write through the draft. The pipeline is pure (no React, no stores): the CLI imports it.
 
+### Stacks and grids (`src/wireframe/layout.ts`, `steps/layout/`, `layoutEdit.ts`, `layoutDrag.ts`)
+
+- **`layout.ts`** is pure and the only place the rules live: `planContainer(node, box)` measures plain nodes
+  and returns each flow child's slot; `applyLayout(draft, node, box, env)` writes it (transforms, `layout.size`,
+  component rebuilds through `env.build` = `buildComponentInto(draft, { width, height? })`), never assigning an
+  equal value. Measurements are memoized in `WeakMap`s keyed by node identity (a component's height by its
+  `component` object and width), so untouched subtrees cost a cache hit. Rules: vstack / hstack / grid; gap,
+  padding (all sides; `bleed` children ignore it on the cross axis: vstack sides, hstack top/bottom, not in grids);
+  align = cross axis (`stretch` makes hugging children fill it); sizes `fill` (main axis:
+  share what is left; a vstack grows fill children from their hug height up to the container's minimum height),
+  `hug` (a component's build height / its definition's default width; a stack's content), a number (fixed,
+  passed to `build` as `height`). Plain shapes and groups keep their size and are only moved (their bounds land
+  on the slot). `pinned-bottom` (direct children of a frame): stacked at the bottom of max(minimum, content),
+  full frame width, no padding. `free` and hidden children are ignored.
+- **The step** (500) lays out every *root* container whose subtree changed (a frame with a layout, or a stack
+  that no parent layout places: on the canvas, in a free frame, `free`): frames get `{ width: screen.width,
+  minHeight: platform minimum, frame: true }` and the step writes `screen.height`; other roots keep their stored
+  width (`rootBox`). It skips untouched subtrees (`ctx.previous(id) === node`) and, inside a laid-out container,
+  children whose size did not change. Two gesture rules: in the `change` phase a flow child whose transform the
+  user changed is not snapped back (it follows the pointer and lands when the gesture settles); a flow child
+  whose `component.size` / `layout.size` the user changed (resize handles, W/H fields) gets that dimension fixed
+  in `layoutItem`. The components step leaves laid-out instances to this step (one build per change, at the
+  slot's size). Cost: ~1 ms per drag frame (store + pipeline) for a 100-component screen in a 10-screen
+  document (test in `__tests__/layout.test.ts`). `useDocStore.updateNode(s)` / `replaceNodes` find nodes on the
+  plain document and step into the draft by index (`locateDraft`): walking a draft proxies every node it visits.
+- **Editing** (`layoutEdit.ts`, pure, plain doc or draft):
+  - `layoutDropTarget(doc, point, { exclude? }) → { containerId, index } | null`: the deepest stack / grid /
+    laid-out frame under a document point and the index a drop takes (in `children`, counted without
+    `exclude`, the nodes being dragged). Instances are never targets; free frames and the canvas give null.
+  - `insertIntoLayout(doc, containerId, node | nodes, index?) → boolean`: splices new nodes in (inside
+    `useDocStore.apply`); the layout step places them. E.g. the library panel on drop:
+    `const t = layoutDropTarget(doc, p); if (t) apply((d) => insertIntoLayout(d, t.containerId, instance, t.index))`.
+  - `moveIntoLayout(doc, ids, target)`, `moveOutOfLayout(doc, ids, point, { free? })`, `dropIndicator(doc,
+    target, exclude)` (the insertion line in document space), `wrapInLayout(doc, ids, kind)` /
+    `unwrapLayout(doc, id)` (Object → Vertical stack / Horizontal stack / Grid / Remove stack;
+    `layoutCommands.ts` wraps them for the app), `layoutParent`, `isLaidOut`.
+- **Dragging** (`layoutDrag.ts`): `startMove` in `tools/select/gestures.ts` calls `startLayoutDrag` (null outside
+  wireframes). While moving it sets the insertion line (`useLayoutDropStore`, drawn by the select tool's
+  `Overlay`, `wireframe/canvas/LayoutDropOverlay.tsx`) and turns snapping off when only stack children are
+  dragged; on drop it moves the nodes into the target inside the gesture's transaction (one undo step). Holding
+  **⌘ / Ctrl** at the drop takes them out of every stack, free on the screen under the pointer (Alt is already
+  duplicate-drag). Dropped where no stack is (canvas, a free frame), a child leaves its stack. Free children move
+  freely; Properties → In stack → Position puts them back in the flow.
+- **Properties**: `sections/layout` (order 6: kind, columns, gap, padding, align, Remove stack; a free frame gets
+  "Use a vertical stack") and `sections/layoutItem` (order 7, "In stack": width / height fill · hug · fixed,
+  position flow · pinned to bottom · free).
+
 ### Seams for the next workstreams
 
-- **Layout** (stacks, grid, sizing, pinned/free): add `src/wireframe/steps/layout/index.ts` (order **500**,
-  between components and screens) whose `run` calls a pure `layout(frameOrContainer, …)` from
-  `src/wireframe/layout.ts`. It writes child transforms and container sizes into the draft. For a frame with a
-  `layout`, the layout step owns `screen.height` (write the content height); the screens step then only enforces
-  the platform minimum (`screenHeight` in `screens.ts`). To size a component instance and get its hug height,
-  call `buildComponentInto(draftInstance, { width })` from `steps/components/index.ts` (returns the height).
-  The `layout` / `layoutItem` types and their validation are in place (`LayoutInfo`, `LayoutItemInfo` in
-  `src/model/types.ts`, `layoutInfo` / `layoutItemInfo` in `src/io/projectFile.ts`); extend them there.
+- **Layout**: built (see "Stacks and grids" above). The library panel drops components with
+  `layoutDropTarget` + `insertIntoLayout`.
 - **Component system**: built; see [Components](#components-srcwireframelibrary) below. The layout step sizes an
   instance with `buildComponentInto(draftInstance, { width })` (returns the hug height); a `hug`-width component
   (`button`) also returns its content width as `BuildResult.width`.
@@ -419,9 +465,10 @@ builds from the library (`build(props, size)`), inside the same undo step as the
 
 UI: the **Components** tab of Assets (`panels/assets/sources/wireframe/`, `AssetSource.when` shows it only in
 wireframes; previews render `build()` with the default props; click = append to the selected screen or stack, drag =
-drop at a point), the **component** Properties section (`panels/properties/sections/component/`, fields generated
+drop at a point: into the stack under it at that index, `layoutDropTarget` + the insertion line `showDropLine`), the **component** Properties section (`panels/properties/sections/component/`, fields generated
 from the specs, the icon field opens the Icons panel as a picker: `IconsPanel({ onPick })`), **Object → Detach
-component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are not user-styled and
+component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances (and stacks / grids, and
+children in a stack's flow for rotation: `isInLayoutFlow`) are not user-styled and
 never rotate or flip (`isUserPaintable` / `canRotateNode` in `model/screen.ts`: no Appearance section, the
 fill/stroke swatches ignore them, no rotate handle, rotation field or flip); resizing changes the width they are
 built for. Instances are leaves everywhere: a click
@@ -444,9 +491,14 @@ row without children.
      component and the values ones they can take (`isPropVisible(spec, props)` in `library/types.ts`).
    - `hidden: true` keeps a component out of the library panel (stand-ins like `placeholder`); its instances still
      load, render and edit.
-   - `sizing` (how it behaves in a stack: `fill` / `hug` / a number) and `defaultSize` (a new instance outside a
-     stack). A `defaultSize.width` of 390 (a phone) means edge to edge (rows, bars); smaller `fill` components get
-     24 px margins when inserted.
+   - `sizing` (how it behaves in a stack: `width` / `height` = `fill` / `hug` / a number, and `bleed`) and
+     `defaultSize` (a new instance outside a stack). **`bleed: true` = edge to edge**: in a stack the instance
+     ignores the stack's cross-axis padding (a screen's 16 px side padding), so set it on everything that spans the
+     screen and pads its own content: list rows, top app bars, bottom navigation, tabs, section headers, headers
+     with navigation, toolbars, footers, dividers that run to the edge. Leave it off for content that sits inside
+     the margins (headings, text, buttons, fields, cards). Instances inherit it; users override it per instance
+     (Properties → In stack → Edge to edge, `layoutItem.bleed`). Outside stacks, a `defaultSize.width` of 390 (a
+     phone) means edge to edge when inserted on a free screen; smaller `fill` components get 24 px margins.
    - `build(props, { width })` returns `{ children, height }` (and `width` when `sizing.width` is `hug`): nodes in
      the instance's local space, origin top-left, `0 ≤ x ≤ width`, `0 ≤ y ≤ height`. Pure and cheap: no stores, no
      randomness, same input → same output. Draw only with the kit and the tokens (no colours of your own).

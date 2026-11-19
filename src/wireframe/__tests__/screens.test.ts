@@ -12,9 +12,9 @@ const frame = (doc: DesignDocument, id: string) => doc.children.find((n) => n.id
 describe('screen height', () => {
   it('is the platform minimum when the screen is empty or short', () => {
     const doc = wireframe();
-    const phone = addScreen(doc, { platform: 'phone', name: 'Home' });
-    const tablet = addScreen(doc, { platform: 'tablet' });
-    const desktop = addScreen(doc, { platform: 'desktop' });
+    const phone = addScreen(doc, { layout: null, platform: 'phone', name: 'Home' });
+    const tablet = addScreen(doc, { layout: null, platform: 'tablet' });
+    const desktop = addScreen(doc, { layout: null, platform: 'desktop' });
     const out = mat(doc);
     expect(frame(out, phone).screen).toMatchObject({ width: 390, height: 844 });
     expect(frame(out, tablet).screen).toMatchObject({ width: 820, height: 1180 });
@@ -26,7 +26,7 @@ describe('screen height', () => {
 
   it('grows with the content (and shrinks back, never below the minimum)', () => {
     const doc = wireframe();
-    const id = addScreen(doc, { platform: 'phone' });
+    const id = addScreen(doc, { layout: null, platform: 'phone' });
     // A 100-tall rect centred at y = 1000 reaches y = 1050.
     frame(doc, id).children.push(createRect({ width: 100, height: 100, transform: { x: 50, y: 1000 } }));
     expect(contentBottom(frame(doc, id))).toBe(1050);
@@ -38,7 +38,7 @@ describe('screen height', () => {
 
   it('nested content counts with its group transform', () => {
     const doc = wireframe();
-    const id = addScreen(doc, { platform: 'phone' });
+    const id = addScreen(doc, { layout: null, platform: 'phone' });
     const g = createGroup({ transform: { x: 0, y: 900 }, children: [createRect({ width: 10, height: 40, transform: { x: 5, y: 20 } })] });
     frame(doc, id).children.push(g);
     expect(screenHeight(frame(doc, id))).toBe(940);
@@ -46,7 +46,7 @@ describe('screen height', () => {
 
   it('a frame with a layout keeps the height the layout step wrote (minimum enforced)', () => {
     const doc = wireframe();
-    const id = addScreen(doc, { platform: 'phone' });
+    const id = addScreen(doc, { layout: null, platform: 'phone' });
     const f = frame(doc, id);
     f.layout = { kind: 'vstack', gap: 0, padding: 16, align: 'stretch' };
     f.screen.height = 1500;
@@ -59,19 +59,19 @@ describe('screen height', () => {
 describe('logical screens and variants', () => {
   it('a logical screen has at most one frame per platform; only one is required', () => {
     const doc = wireframe();
-    const phone = addScreen(doc, { platform: 'phone', name: 'Settings' });
+    const phone = addScreen(doc, { layout: null, platform: 'phone', name: 'Settings' });
     const screenId = frame(doc, phone).screen.screenId;
     expect(doc.wireframe!.screens).toEqual([{ id: screenId, name: 'Settings' }]);
     expect(freePlatforms(doc, screenId)).toEqual(['tablet', 'desktop']);
-    expect(() => addScreen(doc, { platform: 'phone', screenId })).toThrow(/already has a phone frame/);
-    addScreen(doc, { platform: 'desktop', screenId });
+    expect(() => addScreen(doc, { layout: null, platform: 'phone', screenId })).toThrow(/already has a phone frame/);
+    addScreen(doc, { layout: null, platform: 'desktop', screenId });
     expect(variantsOf(doc, screenId).map((f) => f.screen.platform)).toEqual(['phone', 'desktop']);
     expect(freePlatforms(doc, screenId)).toEqual(['tablet']);
   });
 
   it('Duplicate as… copies the content into a variant next to the source, once per platform', () => {
     const doc = wireframe();
-    const phone = addScreen(doc, { platform: 'phone', name: 'Gallery', x: 0, y: 0 });
+    const phone = addScreen(doc, { layout: null, platform: 'phone', name: 'Gallery', x: 0, y: 0 });
     frame(doc, phone).children.push(createRect({ name: 'Card', width: 100, height: 100, transform: { x: 60, y: 60 } }));
     // Something in the way to the right: the variant goes past it.
     doc.children.push(createRect({ width: 200, height: 200, transform: { x: 600, y: 100 } }));
@@ -91,7 +91,7 @@ describe('logical screens and variants', () => {
 
   it('a plain duplicate of a frame (same platform) becomes its own logical screen', () => {
     const doc = wireframe();
-    const a = addScreen(doc, { platform: 'phone', name: 'Home' });
+    const a = addScreen(doc, { layout: null, platform: 'phone', name: 'Home' });
     const copy = structuredClone(frame(doc, a));
     copy.id = 'copy';
     doc.children.push(copy);
@@ -103,7 +103,7 @@ describe('logical screens and variants', () => {
 
   it('frames with unknown screen ids get a logical screen; screens without frames are removed', () => {
     const doc = wireframe();
-    const a = addScreen(doc, { platform: 'phone', name: 'Kept' });
+    const a = addScreen(doc, { layout: null, platform: 'phone', name: 'Kept' });
     doc.wireframe!.screens.push({ id: 'orphan', name: 'Orphan' });
     frame(doc, a).screen.screenId = 'pasted';
     const out = mat(doc);
@@ -112,7 +112,7 @@ describe('logical screens and variants', () => {
 
   it('variants carry the logical name', () => {
     const doc = wireframe();
-    const a = addScreen(doc, { platform: 'phone', name: 'Profile' });
+    const a = addScreen(doc, { layout: null, platform: 'phone', name: 'Profile' });
     const b = duplicateScreenAs(doc, a, 'desktop')!;
     doc.wireframe!.screens[0].name = 'Account';
     const out = mat(doc);
@@ -121,7 +121,7 @@ describe('logical screens and variants', () => {
 
   it('screens are normalized: no rotation, scale folded into the width', () => {
     const doc = wireframe();
-    const a = addScreen(doc, { platform: 'phone' });
+    const a = addScreen(doc, { layout: null, platform: 'phone' });
     frame(doc, a).transform = { x: 10, y: 20, rotation: 30, scaleX: 2, scaleY: 1 };
     const out = frame(mat(doc), a);
     expect(out.transform).toEqual({ x: 10, y: 20, rotation: 0, scaleX: 1, scaleY: 1 });
@@ -130,7 +130,7 @@ describe('logical screens and variants', () => {
 
   it('finds frames by name, slug and platform', () => {
     const doc = wireframe();
-    const a = addScreen(doc, { platform: 'phone', name: 'Sign in / Up' });
+    const a = addScreen(doc, { layout: null, platform: 'phone', name: 'Sign in / Up' });
     duplicateScreenAs(doc, a, 'desktop');
     expect(screenSlug('Sign in / Up')).toBe('sign-in-up');
     expect(screenSlug('Configurações')).toBe('configuracoes');

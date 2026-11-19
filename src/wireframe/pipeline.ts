@@ -12,7 +12,7 @@
 //   50  adopt       (settle only) objects dropped onto a screen become its children, and leave it
 //                   when dragged out
 //  100  components  rebuilds component instances whose `component` (kind, props, size) changed
-//  500  layout      (layout workstream) stacks / grids: writes child transforms and sizes
+//  500  layout      stacks / grids (../layout.ts): child transforms, container sizes, frame heights
 //  900  screens     logical screens ↔ frames, one frame per platform, frame height = max(min, content)
 //
 // Pure: no React, no stores; the CLI runs it too (`designer new --preset wireframe`, `screen`, load).

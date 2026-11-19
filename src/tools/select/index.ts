@@ -6,6 +6,7 @@ import { getSelectionFrame, handleCursor, handlePosition, rotationHandlePosition
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
+import { LayoutDropOverlay } from '@/wireframe/canvas/LayoutDropOverlay';
 import { editPathAt, editSelectedPath } from '@/vector/commands';
 import { editTextOnDoubleClick, isDoubleClick } from '../text/session';
 
@@ -70,6 +71,7 @@ const select: Tool = {
   group: 'select',
   order: 0,
   Options: SelectOptions,
+  Overlay: LayoutDropOverlay,
 
   onPointerDown(e, ctx) {
     if (e.button !== 0) return;

@@ -11,7 +11,7 @@ const node = <T,>(id: string) => findNode(s().doc, id) as T;
 /** A wireframe with one phone screen at the origin; returns the frame id. */
 function loadWireframe(): string {
   const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
-  const id = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
+  const id = addScreen(doc, { layout: null, platform: 'phone', name: 'Home', x: 0, y: 0 });
   s().load(doc);
   return id;
 }
@@ -119,7 +119,7 @@ describe('wireframe pipeline in the doc store', () => {
 
   it('steps see what changed: unchanged instances are not rebuilt', () => {
     const doc: DesignDocument = createDocument({ wireframe: { screens: [] } });
-    const id = addScreen(doc, { platform: 'phone' });
+    const id = addScreen(doc, { layout: null, platform: 'phone' });
     const seen: string[] = [];
     const spy: WireframeStep = {
       id: 'spy',
