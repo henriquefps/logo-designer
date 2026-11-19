@@ -119,7 +119,9 @@ describe('library index', () => {
     expect(mainKinds).toContain('button');
     expect(mainKinds).not.toContain('list-row');
     expect(desktop.others.flatMap((g) => g.items.map((d) => d.kind))).toContain('list-row');
-    expect(libraryFor(getComponents(), 'phone').others).toEqual([]);
+    const phone = libraryFor(getComponents(), 'phone');
+    expect(phone.main.flatMap((g) => g.items.map((d) => d.kind))).toContain('list-row');
+    expect(phone.others.flatMap((g) => g.items.map((d) => d.kind))).toContain('data-table');
     expect(libraryFor(getComponents(), null).others).toEqual([]);
   });
 });

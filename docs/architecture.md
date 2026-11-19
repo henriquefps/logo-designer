@@ -521,6 +521,7 @@ The kit (`src/wireframe/kit.ts`), all coordinates top-left:
 | `icon(name, { x, y, size?, tone? })` | an icon prop's glyph (null for `''`); a dashed placeholder until loaded |
 | `chevron({ x, y, size?, direction? })`, `toggle({ x, y, on? })`, `checkbox({ x, y, checked? })`, `radio({ x, y, selected? })` | controls (`TOGGLE` = 40 × 24) |
 | `nodes(...)` | drops `null` / `false` / `''`, for conditional children |
+| `iconSlot`, `searchBox`, `buttonBox(label, { variant, align })` | web/desktop helpers: grey icon stand-in, search field, a label button (returns `{ node, width }`) |
 
 Sizes to reuse: `WF_SIZE.control` 44 (buttons, fields), `controlSmall` 32, `row` 56 / `rowTall` 72, `icon` 20,
 `avatar` 40; spacing `WF_SPACE` 4 / 8 / 12 / 16 / 24.

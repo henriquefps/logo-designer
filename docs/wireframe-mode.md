@@ -227,6 +227,20 @@ Wireframe mode):
 - Instances are one object everywhere (canvas click in their whole box, Cmd-click, Layers). Object → Detach
   component (⌥⌘B) or the Detach button in Properties turns one into a plain group.
 
+### As built (library: web and desktop, workstream 5c)
+
+Kinds (`src/wireframe/library/<kind>`): `web-header` (Header with navigation: logo, links + selected position,
+optional search / actions / avatar; bleed), `sidebar-nav` (width 240, height fill; items with `#` entries as section
+labels, selected = position among items, optional icon slots, optional title), `breadcrumbs`, `data-table`
+(columns, rows, checkbox column, row actions; real header labels, grey-bar cells), `modal` (width 480, 1–2 actions,
+close button; set Position → Free to float it), `form-columns` (1–3 columns of label + input), `pagination`
+(pages, current, align), `toolbar` (action labels, optional icons / title / search; bleed), `footer` (headings,
+links per column, logo, legal row; bleed), `cards-grid` (columns, rows, card style image / text / horizontal).
+Categories Navigation, Data, Overlays, Forms, Layout. A desktop screen with a sidebar: the screen frame is a
+vstack with padding 0, holding the header and an hstack (`align: stretch`) of `sidebar-nav` (fill height) and a
+content vstack (`fill` × `fill`, padding 24); see `library/__tests__/desktopScreen.ts` and
+`docs/screenshots/wireframe-library-desktop.png`. Kit additions: `iconSlot`, `searchBox`, `buttonBox`.
+
 ### As built (layout, workstream 2)
 
 - Screens are vertical stacks by default: phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align

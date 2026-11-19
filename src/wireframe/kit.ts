@@ -261,3 +261,46 @@ export function radio(o: { x: number; y: number; selected?: boolean; size?: numb
 
 /** Keeps only nodes (drops the nulls `icon('')` returns). */
 export const nodes = (...list: (SceneNode | null | undefined | false | '')[]): SceneNode[] => list.filter((n): n is SceneNode => !!n);
+
+// ---------- web / desktop helpers ----------
+
+/** A grey rounded square standing in for an icon (sidebar items, toolbar actions: "an icon goes here"). */
+export function iconSlot(o: { x: number; y: number; size?: number; tone?: 'fill' | 'line' }): SceneNode {
+  const s = o.size ?? 18;
+  return box({ x: o.x, y: o.y, width: s, height: s, radius: WF_RADIUS.sm, fill: o.tone ?? 'fill', stroke: 'none', name: 'Icon' });
+}
+
+/** A search field: rounded box, a magnifier on the left and the word "Search" as its placeholder. */
+export function searchBox(o: { x: number; y: number; width: number; height?: number; placeholder?: string }): SceneNode {
+  const h = o.height ?? WF_SIZE.controlSmall;
+  const s = 14;
+  const gx = o.x + 12;
+  const gy = o.y + (h - s) / 2;
+  const r = s * 0.36;
+  const kids = [
+    box({ x: o.x, y: o.y, width: o.width, height: h, radius: WF_RADIUS.md, fill: 'paper', stroke: 'line', name: 'Field' }),
+    createEllipse({ name: 'Lens', rx: r, ry: r, transform: { x: gx + r, y: gy + r }, fill: none(), stroke: line('inkMuted', 1.5) }),
+    polyline([{ x: gx + r * 1.7, y: gy + r * 1.7 }, { x: gx + s, y: gy + s }], { stroke: 'inkMuted', width: 1.5, name: 'Handle' }),
+  ];
+  const label = truncate(o.placeholder ?? 'Search', Math.max(0, o.width - 12 - s - 8 - 12), 'label', 400);
+  if (label) kids.push(textInBand(label, { x: o.x + 12 + s + 8, y: o.y, height: h, style: 'label', weight: 400, tone: 'inkMuted', name: 'Placeholder' }));
+  return part('Search', kids);
+}
+
+/**
+ * A button drawn from a label: `primary` filled, `secondary` outlined. `x` is the left edge, or the right
+ * edge with `align: 'right'`. Returns the node and the width it took.
+ */
+export function buttonBox(label: string, o: { x: number; y: number; height?: number; variant?: 'primary' | 'secondary'; align?: 'left' | 'right'; minWidth?: number }): { node: SceneNode; width: number } {
+  const h = o.height ?? WF_SIZE.controlSmall;
+  const primary = o.variant === 'primary';
+  const w = Math.max(o.minWidth ?? 0, Math.ceil(textWidth(label, 'label', 600) + 32));
+  const x = o.align === 'right' ? o.x - w : o.x;
+  return {
+    width: w,
+    node: part('Button', [
+      box({ x, y: o.y, width: w, height: h, radius: WF_RADIUS.md, fill: primary ? 'ink' : 'paper', stroke: primary ? 'none' : 'inkMuted', name: 'Background' }),
+      textInBand(label, { x: x + w / 2, y: o.y, height: h, align: 'center', style: 'label', weight: 600, tone: primary ? 'paper' : 'ink', name: 'Label' }),
+    ]),
+  };
+}
