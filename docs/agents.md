@@ -99,7 +99,9 @@ clip paths, so `--glyph` and `build-icons.mjs` stay byte-compatible.
 
 Wireframe projects plan an app's UI: screens (phone 390, tablet 820, desktop 1440 wide; the height grows with
 the content) on an infinite canvas ([`wireframe-mode.md`](wireframe-mode.md), file fields in
-[`project-format.md`](project-format.md#wireframe-documents)). Phase 1 of the CLI:
+[`project-format.md`](project-format.md#wireframe-documents)). A new screen's content is a vertical stack
+(`layout`): add children in reading order and the layout places them when the file is opened or validated.
+Phase 1 of the CLI:
 
 ```sh
 bun run designer new --preset wireframe --name "Notes app" -o notes.designer.json

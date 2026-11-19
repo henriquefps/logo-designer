@@ -25,6 +25,8 @@ const setLine = (line: { a: Vec; b: Vec } | null) => {
 };
 
 export interface LayoutDrag {
+  /** The stack places what is dragged: the move gesture skips snapping (and its guides). */
+  placed: boolean;
   move(point: Vec, mod: boolean): void;
   /** Applies the drop to the open transaction (call before committing it). */
   drop(): void;
@@ -63,6 +65,7 @@ export function startLayoutDrag(store: () => DocState, ids: readonly Id[]): Layo
   const others = movers.filter((id) => !laid.includes(id));
   let last: { point: Vec; mod: boolean } | null = null;
   return {
+    placed: laid.length === movers.length,
     move(point, mod) {
       last = { point, mod };
       if (mod) return setLine(null);

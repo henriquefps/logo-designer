@@ -10,9 +10,9 @@ export function LayoutDropOverlay() {
   const b = toScreen(line.b);
   return (
     <g pointerEvents="none">
-      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="stroke-primary" strokeWidth={2} strokeLinecap="round" />
-      <circle cx={a.x} cy={a.y} r={3} className="fill-primary" />
-      <circle cx={b.x} cy={b.y} r={3} className="fill-primary" />
+      <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="stroke-primary" strokeWidth={3} strokeLinecap="round" />
+      <circle cx={a.x} cy={a.y} r={4} className="fill-primary" />
+      <circle cx={b.x} cy={b.y} r={4} className="fill-primary" />
     </g>
   );
 }

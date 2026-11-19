@@ -227,6 +227,23 @@ Wireframe mode):
 - Instances are one object everywhere (canvas click in their whole box, Cmd-click, Layers). Object → Detach
   component (⌥⌘B) or the Detach button in Properties turns one into a plain group.
 
+### As built (layout, workstream 2)
+
+- Screens are vertical stacks by default: phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align
+  start. A frame without `layout` (older files, "Make the content free") keeps free content. Object → Vertical
+  stack / Horizontal stack / Grid wraps the selection (on a free screen: makes its content a stack); Remove stack
+  unwraps.
+- Containers are groups with `layout` (and a materialized `layout.size`, their box). Defaults for a new one:
+  vstack gap 12, hstack gap 8 align center, grid gap 12 align stretch 2 columns; no padding. In a stack a
+  container fills the width and hugs its height.
+- Plain shapes inside a stack keep their size (only components and containers are sized); pinned-bottom children
+  span the full frame width, edge to edge (bars), and only apply to direct children of a screen (elsewhere they
+  are flow); free children don't count for the screen height.
+- Modifier to take a child out of every stack: **⌘ / Ctrl** while dropping (Alt is duplicate-drag). Resizing a
+  child inside a stack makes that dimension fixed.
+- Open: a full-bleed option for flow children (a top app bar edge to edge in a padded screen); today use padding 0
+  on the screen and a padded inner stack, or build the bar's inset into the component.
+
 ### Mobile layout
 
 Desktop-first, like the rest of Designer. On a phone a wireframe can be viewed, moved around and

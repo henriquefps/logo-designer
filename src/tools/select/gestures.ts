@@ -77,7 +77,7 @@ export function startMove(ctx: ToolContext, start: Vec, ids: Id[], label = 'Move
         else dx = 0;
       }
       const ed = ctx.editor();
-      if (snapEnabled() && startBox && !e.mod) {
+      if (snapEnabled() && startBox && !e.mod && !layout?.placed) {
         const r = snapRect({ ...startBox, x: startBox.x + dx, y: startBox.y + dy }, targets, SNAP_PX * ctx.px());
         if (!e.shift || dx !== 0) dx += r.dx;
         if (!e.shift || dy !== 0) dy += r.dy;
