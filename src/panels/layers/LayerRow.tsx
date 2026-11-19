@@ -11,6 +11,8 @@ interface LayerRowProps {
   depth: number;
   /** A component instance: shown as one item (its generated children are not listed). */
   instance?: boolean;
+  /** A generated repeat copy (wireframes): read-only, shown with this label ("Copy 2"); clicking selects the template. */
+  copyLabel?: string;
   selected: boolean;
   expanded: boolean;
   dimmed: boolean;
@@ -32,7 +34,7 @@ export function LayerRow(p: LayerRowProps) {
   const { node, depth, selected } = p;
   const [editing, setEditing] = useState(false);
   const Icon = p.instance ? PuzzlePieceIcon : NODE_ICONS[node.type];
-  const isGroup = node.type === 'group' && !p.instance;
+  const isGroup = node.type === 'group' && !p.instance && !p.copyLabel;
 
   const position = (e: React.DragEvent): DropPosition => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -47,7 +49,7 @@ export function LayerRow(p: LayerRowProps) {
       aria-selected={selected}
       aria-expanded={isGroup ? p.expanded : undefined}
       aria-level={depth + 1}
-      draggable={!editing}
+      draggable={!editing && !p.copyLabel}
       onDragStart={p.onDragStart}
       onDragOver={(e) => p.onDragOver(e, position(e))}
       onDrop={p.onDrop}
@@ -77,7 +79,11 @@ export function LayerRow(p: LayerRowProps) {
         {p.expanded ? <CaretDownIcon /> : <CaretRightIcon />}
       </button>
       <Icon className="size-4 shrink-0 text-muted-foreground" />
-      {editing ? (
+      {p.copyLabel ? (
+        <span className="min-w-0 flex-1 truncate pl-1 text-muted-foreground italic" title="A copy of the first item (read-only): edit the first item">
+          {p.copyLabel}
+        </span>
+      ) : editing ? (
         <input
           autoFocus
           aria-label="Layer name"
@@ -99,7 +105,7 @@ export function LayerRow(p: LayerRowProps) {
           {node.name}
         </span>
       )}
-      {node.reference ? (
+      {p.copyLabel ? null : node.reference ? (
         // A reference is one state (locked, not selectable, not exported): its control replaces the lock.
         <RowToggle label="Stop using as reference" active onClick={p.onStopReference} icon={<ImageSquareIcon weight="fill" className="text-primary" />} />
       ) : (
@@ -110,12 +116,14 @@ export function LayerRow(p: LayerRowProps) {
           icon={node.locked ? <LockSimpleIcon /> : <LockSimpleOpenIcon />}
         />
       )}
-      <RowToggle
-        label={node.visible ? 'Hide' : 'Show'}
-        active={!node.visible}
-        onClick={p.onToggleVisible}
-        icon={node.visible ? <EyeIcon /> : <EyeSlashIcon />}
-      />
+      {!p.copyLabel && (
+        <RowToggle
+          label={node.visible ? 'Hide' : 'Show'}
+          active={!node.visible}
+          onClick={p.onToggleVisible}
+          icon={node.visible ? <EyeIcon /> : <EyeSlashIcon />}
+        />
+      )}
     </div>
   );
 }

@@ -27,6 +27,7 @@ import {
   worldBounds,
 } from '@/model';
 import { WF } from '@/wireframe/style';
+import { containerBackground } from '@/wireframe/containers';
 import { outlineText } from './outlineText';
 import { transformSubpaths } from './svg/pathData';
 import { isIdentity } from './svg/transformAttr';
@@ -164,6 +165,28 @@ class Writer {
       case 'group': {
         if (node.screen) return this.screen(node as ScreenNode, indent, outline);
         const children = (await Promise.all(node.children.map((c) => this.node(c, indent + '  ', outline)))).filter((c): c is string => !!c);
+        // A styled wireframe stack / grid draws its background (outline / fill) under its children.
+        const bg = containerBackground(node);
+        if (bg) {
+          const inset = bg.stroke ? 0.5 : 0;
+          children.unshift(
+            el(
+              'rect',
+              {
+                x: inset || undefined,
+                y: inset || undefined,
+                width: Math.max(0, bg.width - 2 * inset),
+                height: Math.max(0, bg.height - 2 * inset),
+                rx: bg.radius > 0 ? Math.max(0, bg.radius - inset) : undefined,
+                fill: bg.fill ?? 'none',
+                stroke: bg.stroke ?? undefined,
+                'stroke-width': bg.stroke ? WF.strokeWidth : undefined,
+              },
+              undefined,
+              indent + '  ',
+            ),
+          );
+        }
         if (!children.length) return null;
         return el('g', { transform: transformAttr(t), ...this.common(node) }, children, indent);
       }

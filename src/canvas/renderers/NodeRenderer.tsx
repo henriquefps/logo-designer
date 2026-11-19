@@ -2,6 +2,7 @@ import { memo, type ComponentType } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { toSvgTransform, type NodeType, type SceneNode, type ScreenNode } from '@/model';
 import { ScreenFrameRenderer } from '@/wireframe/canvas/ScreenFrameRenderer';
+import { ContainerRenderer } from '@/wireframe/canvas/ContainerRenderer';
 import { ImageRenderer } from './ImageRenderer';
 import { EllipseRenderer, PathRenderer, PolygonRenderer, RectRenderer } from './shapes';
 import { TextRenderer } from './TextRenderer';
@@ -9,6 +10,8 @@ import { TextRenderer } from './TextRenderer';
 function GroupRenderer({ node }: { node: Extract<SceneNode, { type: 'group' }> }) {
   const children = node.children.map((c) => <NodeRenderer key={c.id} node={c} />);
   if (node.screen) return <ScreenFrameRenderer node={node as ScreenNode}>{children}</ScreenFrameRenderer>;
+  // A wireframe stack / grid: its style (outline / fill) and, when empty, a canvas-only placeholder.
+  if (node.layout && !node.component) return <ContainerRenderer node={node}>{children}</ContainerRenderer>;
   return <>{children}</>;
 }
 

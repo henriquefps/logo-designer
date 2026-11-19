@@ -1,6 +1,8 @@
 // Stacks and grids in wireframe documents (src/wireframe/layoutCommands.ts). Hidden in other documents.
 import { ColumnsIcon, GridFourIcon, RowsIcon, SelectionSlashIcon } from '@phosphor-icons/react';
+import type { LayoutKind } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
+import { canChangeKind, changeKind } from '@/wireframe/containerCommands';
 import { canUnwrapSelection, canWrapSelection, unwrapSelection, wrapSelection } from '@/wireframe/layoutCommands';
 import type { Action } from '../types';
 
@@ -14,6 +16,8 @@ const actions: Action[] = [
     group: 'layout',
     order: 85,
     icon: RowsIcon,
+    // ⌥⇧ + V / H / G: Alt keeps them clear of the tool letters (A, V, H…) in every document.
+    shortcut: 'alt+shift+v',
     get hidden() {
       return notWireframe();
     },
@@ -27,6 +31,7 @@ const actions: Action[] = [
     group: 'layout',
     order: 85.1,
     icon: ColumnsIcon,
+    shortcut: 'alt+shift+h',
     get hidden() {
       return notWireframe();
     },
@@ -40,6 +45,7 @@ const actions: Action[] = [
     group: 'layout',
     order: 85.2,
     icon: GridFourIcon,
+    shortcut: 'alt+shift+g',
     get hidden() {
       return notWireframe();
     },
@@ -59,6 +65,27 @@ const actions: Action[] = [
     enabled: canUnwrapSelection,
     run: unwrapSelection,
   },
+  ...(
+    [
+      ['vstack', 'Change to vertical stack', RowsIcon],
+      ['hstack', 'Change to horizontal stack', ColumnsIcon],
+      ['grid', 'Change to grid', GridFourIcon],
+    ] as const
+  ).map(
+    ([kind, label, icon], i): Action => ({
+      id: `wireframe.layout.changeTo.${kind}`,
+      label,
+      menu: 'object',
+      group: 'layout',
+      order: 85.4 + i / 100,
+      icon,
+      get hidden() {
+        return notWireframe();
+      },
+      enabled: () => canChangeKind(kind as LayoutKind),
+      run: () => changeKind(kind as LayoutKind),
+    }),
+  ),
 ];
 
 export default actions;

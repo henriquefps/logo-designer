@@ -27,7 +27,7 @@ function containerWidth(n: GroupNode): number {
 const pinnedHeight = (frame: GroupNode) =>
   frame.children.reduce((a, c) => a + (c.visible && c.layoutItem?.position === 'pinned-bottom' && c.type === 'group' && c.component?.size ? c.component.size.height : 0), 0);
 
-interface Target {
+export interface Target {
   parentId: Id | null;
   /** Insert index in the parent's children (default: append). */
   index?: number;
@@ -38,7 +38,7 @@ interface Target {
  * Where a click in the library inserts: into the selected container (a frame or a stack), after the
  * selected object inside one, else into the screen of the selection, else the screen in view.
  */
-function clickTarget(doc: DesignDocument): Target {
+export function clickTarget(doc: DesignDocument): Target {
   const sel = useEditorStore.getState().selection;
   if (sel.length === 1) {
     const loc = locate(doc, sel[0]);
@@ -68,7 +68,7 @@ function frameInView(doc: DesignDocument): ScreenNode | null {
 }
 
 /** The topmost frame under a world point. */
-function frameAt(doc: DesignDocument, p: Vec): ScreenNode | null {
+export function frameAt(doc: DesignDocument, p: Vec): ScreenNode | null {
   const list = frames(doc);
   for (let i = list.length - 1; i >= 0; i--) {
     const f = list[i];
