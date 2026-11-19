@@ -47,6 +47,14 @@ export interface NodeBase {
   opacity: number; // 0..1
   blendMode?: string;
   transform: Transform;
+  /** Wireframe documents only: this top-level group is a screen frame (see src/wireframe). */
+  screen?: ScreenFrameInfo;
+  /** Wireframe documents only: this group is a component instance; its children are generated. */
+  component?: ComponentInfo;
+  /** Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step. */
+  layout?: LayoutInfo;
+  /** Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step. */
+  layoutItem?: LayoutItemInfo;
 }
 
 export type PointType = 'corner' | 'smooth' | 'symmetric';
@@ -127,6 +135,75 @@ export interface IconDocInfo {
   glyph?: string;
 }
 
+// ---------- wireframe mode (docs/wireframe-mode.md) ----------
+
+/** Device class of a screen frame. Kept deliberately few: no device list, no orientations. */
+export type ScreenPlatform = 'phone' | 'tablet' | 'desktop';
+
+/**
+ * A screen frame: a top-level group drawn as a device frame (white, thin border, name above).
+ * Local origin = the frame's top-left corner; the frame spans 0..width × 0..height and clips its
+ * children on export. `height` is materialized: max(platform minimum, content).
+ */
+export interface ScreenFrameInfo {
+  /** The logical screen (`DesignDocument.wireframe.screens[].id`) this frame is a variant of. */
+  screenId: Id;
+  platform: ScreenPlatform;
+  /** Frame width (default: the platform width; editable for an odd case). */
+  width: number;
+  /** Frame height, written by the wireframe pipeline: never below the platform minimum. */
+  height: number;
+}
+
+/** A semantic component instance: `build(props, size)` of the library kind generates the group's children. */
+export interface ComponentInfo {
+  /** Library kind, e.g. `list-row` (src/wireframe/library/<kind>/index.ts). */
+  kind: string;
+  /** Prop values (missing props take the definition's defaults). */
+  props: Record<string, unknown>;
+  /** The box the children were built for (local origin = top-left). Omitted = the definition's default size. */
+  size?: { width: number; height: number };
+}
+
+export type LayoutKind = 'vstack' | 'hstack' | 'grid';
+export type LayoutAlign = 'start' | 'center' | 'end' | 'stretch';
+
+/** Container layout (reserved: the layout step fills in the behaviour). */
+export interface LayoutInfo {
+  kind: LayoutKind;
+  /** Space between children. */
+  gap: number;
+  /** Inner padding on every side. */
+  padding: number;
+  /** Cross-axis alignment of the children. */
+  align: LayoutAlign;
+  /** Grid only: number of columns. */
+  columns?: number;
+}
+
+/** `fill` the available space, `hug` the content, or a fixed size. */
+export type LayoutSize = 'fill' | 'hug' | number;
+
+/** A child's sizing inside a layout container (reserved for the layout step). */
+export interface LayoutItemInfo {
+  width?: LayoutSize;
+  height?: LayoutSize;
+  /** `flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack. */
+  position?: 'flow' | 'pinned-bottom' | 'free';
+}
+
+/** A logical screen (`Settings`, `Gallery`): one or more frames, at most one per platform. */
+export interface WireframeScreen {
+  id: Id;
+  name: string;
+}
+
+/** Marks a wireframe document: infinite canvas (the artboard is unused), screens, components. */
+export interface WireframeDocInfo {
+  /** Logical screens, in creation order. Kept in sync with the frames by the wireframe pipeline. */
+  screens: WireframeScreen[];
+}
+
 export interface DesignDocument {
   schemaVersion: 1;
   id: Id;
@@ -137,6 +214,8 @@ export interface DesignDocument {
   children: SceneNode[];
   /** Present only on app icon documents. */
   icon?: IconDocInfo;
+  /** Present only on wireframe documents. */
+  wireframe?: WireframeDocInfo;
 }
 
 export interface Rect {

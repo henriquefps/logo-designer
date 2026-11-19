@@ -1,6 +1,7 @@
 import { boundsIn, localBounds, rectContains, rectsIntersect } from './bounds';
 import { apply, fromTransform, invert, multiply, type Matrix } from './matrix';
 import { flattenSubpaths, nodeSubpaths } from './path';
+import { screenLocalRect, type ScreenNode } from './screen';
 import type { DesignDocument, Id, Rect, SceneNode, Vec } from './types';
 
 export interface HitOptions {
@@ -102,21 +103,35 @@ export function hitTestNode(node: SceneNode, m: Matrix, world: Vec, tolerance = 
  */
 export function hitTest(doc: DesignDocument, world: Vec, opts: HitOptions = {}): Id | null {
   const tolerance = opts.tolerance ?? 0;
-  const search = (nodes: SceneNode[], parentM: Matrix): Id | null => {
+  // `top` is the root-level ancestor of `leaf` within the current scope. Screen frames (wireframe
+  // documents) are scopes: clicking inside one picks its direct child, or the frame itself on empty
+  // space; their content is clipped, so points outside the frame never reach it. Component instances
+  // are leaves: their generated children are never picked one by one.
+  const search = (nodes: SceneNode[], parentM: Matrix): { leaf: Id; top: Id } | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
       if (!n.visible || n.locked || n.reference) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       if (n.type === 'group') {
-        const leaf = search(n.children, m);
-        if (leaf) return opts.deep ? leaf : n.id;
+        if (n.screen) {
+          const p = apply(invert(m), world);
+          if (!rectContains(screenLocalRect(n as ScreenNode), p)) continue;
+          return search(n.children, m) ?? { leaf: n.id, top: n.id };
+        }
+        if (n.component) {
+          if (hitTestNode(n, m, world, tolerance)) return { leaf: n.id, top: n.id };
+          continue;
+        }
+        const r = search(n.children, m);
+        if (r) return { leaf: r.leaf, top: n.id };
       } else if (hitTestNode(n, m, world, tolerance)) {
-        return n.id;
+        return { leaf: n.id, top: n.id };
       }
     }
     return null;
   };
-  return search(doc.children, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  const r = search(doc.children, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+  return r ? (opts.deep ? r.leaf : r.top) : null;
 }
 
 /**
@@ -152,7 +167,7 @@ export function nodesInRect(doc: DesignDocument, rect: Rect, opts: { deep?: bool
     for (const n of nodes) {
       if (!n.visible || n.locked || n.reference) continue;
       const m = multiply(parentM, fromTransform(n.transform));
-      if (opts.deep && n.type === 'group') {
+      if (opts.deep && n.type === 'group' && !n.component) {
         visit(n.children, m);
         continue;
       }
