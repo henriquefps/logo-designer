@@ -116,3 +116,35 @@ describe('hotspots', () => {
     expect(hotspots(doc, { frameId: detail, history: [] })).toEqual([]);
   });
 });
+
+describe('repeat copies', () => {
+  function repeating() {
+    const doc = createDocument({ name: 'App', wireframe: { screens: [] } });
+    const home = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
+    const detail = addScreen(doc, { platform: 'phone', name: 'Detail', x: 600, y: 0 });
+    const list = {
+      ...createGroup({ name: 'list' }),
+      id: 'list',
+      layout: { kind: 'vstack', gap: 8, padding: 0, align: 'stretch', repeat: { count: 3 } },
+      children: [comp('item', 'list-row', { title: 'Item' })],
+    } as unknown as ComponentNode;
+    (doc.children.find((n) => n.id === home) as ScreenNode).children = [list];
+    const ready = structuredClone(materializeDocument(doc));
+    addFlow(ready, 'item', sid(ready, detail));
+    return { doc: materializeDocument(ready), home, detail };
+  }
+
+  it('a hotspot on a copy follows the same flow as the template', () => {
+    const { doc, detail } = repeating();
+    const s = startPresent(doc)!;
+    const spots = hotspots(doc, s);
+    expect(spots).toHaveLength(3);
+    expect(spots.map((h) => h.nodeId).slice(0, 1)).toEqual(['item']);
+    expect(spots.slice(1).every((h) => h.nodeId.startsWith('item~r'))).toBe(true);
+    expect(new Set(spots.map((h) => h.flow.id)).size).toBe(1);
+    const ys = spots.map((h) => h.rect.y);
+    expect(ys).toEqual([...ys].sort((a, b) => a - b));
+    expect(new Set(ys).size).toBe(3);
+    expect(follow(doc, s, spots[2].flow).frameId).toBe(detail);
+  });
+});

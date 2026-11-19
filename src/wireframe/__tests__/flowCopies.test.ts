@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDocument, createGroup, findNode, type ComponentNode, type DesignDocument, type ScreenNode } from '@/model';
+import { createDocument, createGroup, findNode, type ComponentNode, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { copyNodes, pasteNodes } from '@/store/clipboard';
 import { addFlow, flowsFrom, flowsOf } from '../flows';
@@ -89,5 +89,41 @@ describe('copy and paste', () => {
     expect(flowsOf(s().doc)).toHaveLength(1);
     const target = frames(s().doc).find((f) => f.id === pasted[1])!;
     expect(flowsOf(s().doc)[0].to).toBe(target.screen.screenId);
+  });
+});
+
+describe('repeat lists', () => {
+  function repeating() {
+    const doc = createDocument({ name: 'App', wireframe: { screens: [] } });
+    const home = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
+    const next = addScreen(doc, { platform: 'phone', name: 'Next', x: 600, y: 0 });
+    const list = {
+      ...createGroup({ name: 'list' }),
+      id: 'list',
+      layout: { kind: 'vstack', gap: 8, padding: 0, align: 'stretch', repeat: { count: 3 } },
+      children: [comp('item', 'list-row', { title: 'Item' })],
+    } as unknown as ComponentNode;
+    (doc.children.find((n) => n.id === home) as ScreenNode).children = [list];
+    const ready = structuredClone(materializeDocument(doc));
+    addFlow(ready, 'item', sid(ready, next));
+    return materializeDocument(ready);
+  }
+
+  it('duplicating the template copies its flow once (copies carry no flows of their own)', () => {
+    s().load(repeating());
+    const [dupe] = s().duplicate(['item']);
+    expect(flowsOf(s().doc)).toHaveLength(2);
+    expect(flowsFrom(s().doc, dupe)).toHaveLength(1);
+    expect(flowsOf(s().doc).every((f) => !f.from.includes('~r'))).toBe(true);
+  });
+
+  it('duplicating the whole repeating container copies the template flow only', () => {
+    s().load(repeating());
+    const [copy] = s().duplicate(['list']);
+    const copied = findNode(s().doc, copy) as GroupNode;
+    const template = copied.children.find((c) => !c.repeatCopy)!;
+    expect(flowsOf(s().doc)).toHaveLength(2);
+    expect(flowsFrom(s().doc, template.id)).toHaveLength(1);
+    expect(flowsOf(s().doc).every((f) => !f.from.includes('~r'))).toBe(true);
   });
 });

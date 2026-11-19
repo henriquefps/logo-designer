@@ -1,8 +1,9 @@
 // Present mode navigation (docs/wireframe-mode.md → Present mode): a pure state machine over a
 // document. The state is the frame on show and a history stack of frames; every function returns a
 // new state and never touches the document (present mode is read-only).
-import { findNode, locate, worldBounds, type DesignDocument, type Id, type Rect, type ScreenNode, type ScreenPlatform, type WireframeFlow } from '@/model';
+import { findNode, locate, walk, worldBounds, type DesignDocument, type Id, type Rect, type ScreenNode, type ScreenPlatform, type WireframeFlow } from '@/model';
 import { flowTarget, flowsOf } from './flows';
+import { copyPrefix } from './repeat';
 import { frameOf, frameRect, frames, variantsOf } from './screens';
 
 type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
@@ -99,9 +100,24 @@ export function hotspots(doc: DocLike, s: PresentState): Hotspot[] {
   if (!frame) return [];
   const origin = frameRect(frame);
   const byNode = new Map<Id, WireframeFlow[]>();
-  for (const f of flowsOf(doc)) {
-    if (!byNode.has(f.from)) byNode.set(f.from, []);
-    byNode.get(f.from)!.push(f);
+  const add = (id: Id, f: WireframeFlow) => {
+    if (!byNode.has(id)) byNode.set(id, []);
+    byNode.get(id)!.push(f);
+  };
+  const flows = flowsOf(doc);
+  for (const f of flows) add(f.from, f);
+  // A repeat copy is a generated clone of its template (ids = copy prefix + template id): its elements
+  // behave like the template's, flows included (flows never start at a copy).
+  if (flows.length) {
+    walk(frame.children, (n) => {
+      if (!n.repeatCopy) return;
+      const template = findNode(asDoc(doc), n.repeatCopy.template);
+      if (!template) return;
+      const prefix = copyPrefix(n.repeatCopy.template, n.repeatCopy.index);
+      const inside = new Set<Id>();
+      walk([template], (t) => void inside.add(t.id));
+      for (const f of flows) if (inside.has(f.from)) add(prefix + f.from, f);
+    });
   }
   const out: Hotspot[] = [];
   for (const [nodeId, flows] of byNode) {
