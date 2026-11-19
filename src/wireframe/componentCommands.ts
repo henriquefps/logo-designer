@@ -10,6 +10,7 @@ import { ensureIcons } from './iconLoader';
 import { appendPosition, detachInstance, dropPosition, newInstance } from './instances';
 import { frameOf, frames } from './screens';
 import { placementArea } from './placement';
+import { layoutDropTarget } from './layoutEdit';
 
 const iconProps = (def: AnyComponentDef, props: Record<string, unknown>) =>
   Object.entries(def.props as Record<string, PropSpec>)
@@ -84,7 +85,12 @@ export async function insertComponent(kind: string, at?: Vec): Promise<Id | null
   const doc = useDocStore.getState().doc;
   let node: ComponentNode;
   let target: Target;
-  if (at) {
+  const stack = at ? layoutDropTarget(doc, at) : null;
+  if (stack) {
+    // Dropped on a stack: inserted at that point; the layout places and sizes it.
+    node = newInstance(def, { x: 0, y: 0 }, undefined, props);
+    target = { parentId: stack.containerId, index: stack.index, container: null };
+  } else if (at) {
     const frame = frameAt(doc, at);
     if (frame) {
       const pos = dropPosition(def, { x: at.x - frame.transform.x, y: at.y - frame.transform.y }, frame.screen.width);

@@ -463,7 +463,7 @@ builds from the library (`build(props, size)`), inside the same undo step as the
 
 UI: the **Components** tab of Assets (`panels/assets/sources/wireframe/`, `AssetSource.when` shows it only in
 wireframes; previews render `build()` with the default props; click = append to the selected screen or stack, drag =
-drop at a point), the **component** Properties section (`panels/properties/sections/component/`, fields generated
+drop at a point: into the stack under it at that index, `layoutDropTarget` + the insertion line `showDropLine`), the **component** Properties section (`panels/properties/sections/component/`, fields generated
 from the specs, the icon field opens the Icons panel as a picker: `IconsPanel({ onPick })`), **Object → Detach
 component** (⌥⌘B; the instance becomes a plain group of its shapes, same id). Instances are not user-styled and
 never rotate or flip (`isUserPaintable` / `canRotateNode` in `model/screen.ts`: no Appearance section, the

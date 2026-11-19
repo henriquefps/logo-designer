@@ -219,8 +219,8 @@ Wireframe mode):
   outside the app show a placeholder square until the app loads the icon.
 - Bad prop values in a file fall back to the default with a warning; a number out of range is clamped.
 - Library: Assets → Components (wireframes only). Click appends to the selected screen (or the selected stack, or
-  after the selected object in a stack); drag drops at the point (placed freely in the frame under the pointer
-  until the layout workstream's drop target exists). Starter kinds: `heading`, `button`, `list-row`; the
+  after the selected object in a stack); drag drops at the point (into the stack under the pointer, at that
+  point, with the insertion line; freely on a screen without a layout). Starter kinds: `heading`, `button`, `list-row`; the
   foundation's `placeholder` is hidden from the library (older files still load and render it). Fields that don't
   apply are hidden (`visibleWhen`: a list row's Icon only for a leading icon, Value only for a value, On only for a
   toggle or checkbox). Instances are not styled, rotated or flipped by the user; resizing rebuilds them.

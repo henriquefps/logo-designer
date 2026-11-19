@@ -11,7 +11,7 @@
 // - Free children (position: free) move freely; Properties → Position puts them back in the flow.
 import { create } from 'zustand';
 import { isScreenNode, locate, topmostIds, type DesignDocument, type Id, type Vec } from '@/model';
-import type { DocState } from '@/store/useDocStore';
+import { useDocStore, type DocState } from '@/store/useDocStore';
 import { itemSizing } from './layout';
 import { dropIndicator, isLaidOut, layoutDropTarget, layoutParent, moveIntoLayout, moveOutOfLayout } from './layoutEdit';
 
@@ -23,6 +23,14 @@ const setLine = (line: { a: Vec; b: Vec } | null) => {
   if (cur === line || (cur && line && cur.a.x === line.a.x && cur.a.y === line.a.y && cur.b.x === line.b.x && cur.b.y === line.b.y)) return;
   useLayoutDropStore.setState({ line });
 };
+
+/** The insertion line for a drop at `point` (null clears it): library drags onto the canvas. */
+export function showDropLine(point: Vec | null) {
+  if (!point) return setLine(null);
+  const doc = useDocStore.getState().doc;
+  const target = doc.wireframe ? layoutDropTarget(doc, point) : null;
+  setLine(target ? dropIndicator(doc, target) : null);
+}
 
 export interface LayoutDrag {
   /** The stack places what is dragged: the move gesture skips snapping (and its guides). */

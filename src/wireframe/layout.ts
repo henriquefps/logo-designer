@@ -10,7 +10,7 @@
 // Sizes (`layoutItem.width/height`, defaults from the component definition's `sizing`; containers
 // fill × hug; plain shapes and groups always hug their bounds and are only moved):
 //   - a number: fixed;
-//   - `hug`: the content (a component's build height; its definition's default width);
+//   - `hug`: the content (a component's build height; the width its build reports, else its default width);
 //   - `fill`: main axis: shares the space left (vstack: grows from its hug height, only when the
 //     container is taller than its content, e.g. a screen's minimum height); cross axis: the
 //     container's inner size. `align: stretch` makes hugging children fill the cross axis.
@@ -79,6 +79,7 @@ export const childBox = (n: SceneNode) => boundsIn(n, fromTransform(n.transform)
 
 const heightCache = new WeakMap<object, Map<number, number>>();
 const widthCache = new WeakMap<object, number>();
+const hugWidthCache = new WeakMap<object, Map<number, number>>();
 const planCache = new WeakMap<object, Map<string, Plan>>();
 
 function memo<K extends object, V>(cache: WeakMap<K, Map<number | string, V>>, key: K, sub: number | string, f: () => V): V {
@@ -95,7 +96,11 @@ function componentHeight(c: GroupNode & { component: NonNullable<GroupNode['comp
   return memo(heightCache as WeakMap<object, Map<number | string, number>>, info, width, () => {
     const def = getComponent(info.kind);
     if (!def) return info.size?.height ?? childBox(c).height;
-    return def.build(resolveProps(def, info.props as Record<string, unknown>), { width }).height;
+    try {
+      return def.build(resolveProps(def, info.props as Record<string, unknown>), { width }).height;
+    } catch {
+      return info.size?.height ?? def.defaultSize.height; // a broken component keeps its box
+    }
   });
 }
 
@@ -103,8 +108,17 @@ function componentHeight(c: GroupNode & { component: NonNullable<GroupNode['comp
 export function hugWidth(n: SceneNode): number {
   if (isPlain(n)) return childBox(n).width;
   if (n.type === 'group' && n.component) {
-    const def = getComponent(n.component.kind);
-    return def ? def.defaultSize.width : (n.component.size?.width ?? childBox(n).width);
+    const info = n.component;
+    const def = getComponent(info.kind);
+    if (!def) return info.size?.width ?? childBox(n).width;
+    // The width its content needs (a button's label + padding), else its default width.
+    return memo(hugWidthCache as WeakMap<object, Map<number | string, number>>, info, 0, () => {
+      try {
+        return def.build(resolveProps(def, info.props as Record<string, unknown>), { width: def.defaultSize.width }).width ?? def.defaultSize.width;
+      } catch {
+        return def.defaultSize.width;
+      }
+    });
   }
   const c = n as ContainerNode;
   const cached = widthCache.get(c);

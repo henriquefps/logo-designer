@@ -244,3 +244,26 @@ describe('settling', () => {
     expect(getParent(s().doc, 'b')?.id).toBe('F');
   });
 });
+
+describe('real components in a stack', () => {
+  it('a hugging button takes the width its label needs; a list row fills', () => {
+    const btn: ComponentNode = { ...createGroup({ name: 'b' }), id: 'btn', component: { kind: 'button', props: { label: 'OK' } } };
+    const row: ComponentNode = { ...createGroup({ name: 'r' }), id: 'row', component: { kind: 'list-row', props: {} } };
+    const doc = wireframe([], [row, btn]);
+    const b = (findNode(doc, 'btn') as ComponentNode).component.size!;
+    expect(b.width).toBeLessThan(120);
+    expect(b.width).toBeGreaterThan(30);
+    expect((findNode(doc, 'row') as ComponentNode).component.size).toEqual({ width: 358, height: 56 });
+    expect(pos(doc, 'btn')).toEqual([16, 16 + 56 + 12]);
+  });
+});
+
+describe('library drop', () => {
+  it('a component dropped on a stack is inserted at that point', async () => {
+    const { insertComponent } = await import('../componentCommands');
+    s().load(wireframe());
+    const id = await insertComponent('heading', { x: 200, y: 175 });
+    expect(order(s().doc)).toEqual(['a', id, 'b', 'c']);
+    expect(pos(s().doc, id!)).toEqual([16, 128]);
+  });
+});
