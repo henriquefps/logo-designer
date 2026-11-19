@@ -6,7 +6,9 @@ import { getSelectionFrame, handleAllowed, handleCursor, handlePosition, rotatio
 import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
-import { LayoutDropOverlay } from '@/wireframe/canvas/LayoutDropOverlay';
+import { SelectWireframeOverlay } from '@/wireframe/canvas/SelectWireframeOverlay';
+import { hitFlowArrow, hitFlowHandle, startFlowDrag } from '@/wireframe/flowDrag';
+import { removeFlowCommand, selectFlow, useFlowStore } from '@/wireframe/flowCommands';
 import { editPathAt, editSelectedPath } from '@/vector/commands';
 import { editTextOnDoubleClick, isDoubleClick } from '../text/session';
 
@@ -72,12 +74,19 @@ const select: Tool = {
   group: 'select',
   order: 0,
   Options: SelectOptions,
-  Overlay: LayoutDropOverlay,
+  Overlay: SelectWireframeOverlay,
 
   onPointerDown(e, ctx) {
     if (e.button !== 0) return;
     if (isDoubleClick(e) && editTextOnDoubleClick(ctx.hitTest(e.point, { deep: true }))) return;
     const ed = ctx.editor();
+    // Wireframes: the flow handle of the selected element, then the flow arrows.
+    const flowFrom = hitFlowHandle(ctx, e.point);
+    if (flowFrom) {
+      gesture = startFlowDrag(ctx, flowFrom, e);
+      return;
+    }
+    if (useFlowStore.getState().selected) selectFlow(null);
     const handle = hitHandle(ctx, e);
     if (handle) {
       gesture =
@@ -102,6 +111,11 @@ const select: Tool = {
       }
       if (editPathAt(chain[chain.length - 1])) return;
     }
+    const arrow = !e.shift && !e.mod ? hitFlowArrow(ctx, e.point) : null;
+    if (arrow) {
+      selectFlow(arrow);
+      return;
+    }
     const hit = e.mod ? ctx.hitTest(e.point, { deep: true }) : selectedLevel > 0 ? chain[selectedLevel] : ctx.hitTest(e.point);
     if (hit) {
       if (e.shift) {
@@ -122,6 +136,11 @@ const select: Tool = {
     const ed = ctx.editor();
     if (!e.pressed) {
       // Hover: cursor over handles + hover outline.
+      if (hitFlowHandle(ctx, e.point)) {
+        ed.setCursor('crosshair');
+        ed.setHover(null);
+        return;
+      }
       const handle = hitHandle(ctx, e);
       if (handle?.kind === 'resize') ed.setCursor(handleCursor(handle.index, handle.frame.rotation));
       else if (handle?.kind === 'rotate') ed.setCursor('grab');
@@ -173,6 +192,15 @@ const select: Tool = {
 
   onKeyDown(e, ctx) {
     if (e.key === 'Enter' && !gesture && !pending && editSelectedPath()) return true;
+    const flow = useFlowStore.getState().selected;
+    if (flow && !gesture && (e.key === 'Delete' || e.key === 'Backspace')) {
+      removeFlowCommand(flow);
+      return true;
+    }
+    if (e.key === 'Escape' && flow && !gesture && !pending) {
+      selectFlow(null);
+      return true;
+    }
     if (e.key === 'Escape') {
       if (gesture || pending) select.onCancel!(ctx);
       else ctx.editor().clearSelection();

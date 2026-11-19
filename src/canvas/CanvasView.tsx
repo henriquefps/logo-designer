@@ -18,6 +18,8 @@ import { KnockoutPanel } from '@/vector/KnockoutPanel';
 import { fitTarget } from '@/wireframe/view';
 import { NoteConnectors } from '@/wireframe/canvas/NoteConnectors';
 import { ScreenLabels } from '@/wireframe/canvas/ScreenLabels';
+import { FlowArrows } from '@/wireframe/canvas/FlowArrows';
+import { FlowDropMenu, FlowEditor } from '@/wireframe/canvas/FlowMenus';
 
 type PanDrag = { pointerId: number; start: Vec; pan: Vec };
 type Pinch = { dist: number; mid: Vec; zoom: number; pan: Vec };
@@ -239,6 +241,7 @@ export function CanvasView() {
           <IconKeylinesOverlay />
           <ScreenLabels />
           <NoteConnectors />
+          <FlowArrows />
           <HoverOverlay />
           <SelectionOverlay />
           <GuidesOverlay />
@@ -249,6 +252,8 @@ export function CanvasView() {
       </div>
       {/* Outside the canvas element: React events from the portaled menu must not reach its pointer handlers. */}
       <CanvasContextMenu />
+      <FlowDropMenu />
+      <FlowEditor />
     </>
   );
 }

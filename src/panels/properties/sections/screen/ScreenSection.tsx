@@ -1,11 +1,13 @@
 import { CopySimpleIcon } from '@phosphor-icons/react';
-import { isScreenNode, platformDef, SCREEN_PLATFORMS, type ScreenPlatform } from '@/model';
+import { isScreenNode, platformDef, SCREEN_PLATFORMS, type ScreenPlatform, type ScreenStatus } from '@/model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDocStore } from '@/store/useDocStore';
 import { duplicateSelectedScreenAs, setScreenPlatform } from '@/wireframe/commands';
 import { freePlatforms } from '@/wireframe/screens';
+import { SCREEN_STATUSES, STATUS_LABELS, screenStatus } from '@/wireframe/flows';
+import { setScreenStatusCommand } from '@/wireframe/flowCommands';
 import { NumberField } from '../../../shared/NumberField';
 import { FieldRow, Section } from '../../../shared/Section';
 import type { SelectionContext } from '../../types';
@@ -44,6 +46,21 @@ export function ScreenSection({ ctx }: { ctx: SelectionContext }) {
             {SCREEN_PLATFORMS.map((p) => (
               <SelectItem key={p.id} value={p.id} disabled={p.id !== screen.platform && !free.includes(p.id)}>
                 {p.label} · {p.width}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldRow>
+      <FieldRow label="Status">
+        <Select value={screenStatus(ctx.doc, screen.screenId) ?? 'none'} onValueChange={(v) => setScreenStatusCommand(frame.id, v === 'none' ? null : (v as ScreenStatus))}>
+          <SelectTrigger size="sm" className="w-full" aria-label="Screen status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Not stated</SelectItem>
+            {SCREEN_STATUSES.map((st) => (
+              <SelectItem key={st} value={st}>
+                {STATUS_LABELS[st]}
               </SelectItem>
             ))}
           </SelectContent>
