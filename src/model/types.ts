@@ -57,6 +57,11 @@ export interface NodeBase {
   layoutItem?: LayoutItemInfo;
   /** Wireframe documents only: this top-level group is a note (a sticky, optionally attached to a node). */
   note?: NoteInfo;
+  /**
+   * Wireframe documents only: this node is a generated copy of the first child of its parent's
+   * `layout.repeat` (read-only; the pipeline rewrites it from the template). Set on the copy's root only.
+   */
+  repeatCopy?: RepeatCopyInfo;
 }
 
 export type PointType = 'corner' | 'smooth' | 'symmetric';
@@ -186,6 +191,28 @@ export interface LayoutInfo {
    * theirs in `screen` instead. Omitted = not laid out yet (the layout step measures the content).
    */
   size?: { width: number; height: number };
+  /** Lo-fi look of a stack / grid (not screen frames): omitted = `none` (invisible). */
+  style?: ContainerStyle;
+  /** Corner radius of a styled container (style tokens): omitted = `none` (square). */
+  radius?: ContainerRadius;
+  /**
+   * Repeat the first child (the template) `count` times: the pipeline generates `count − 1` read-only
+   * copies after it (`repeatCopy`). The container's gap is the space between the items.
+   */
+  repeat?: { count: number };
+}
+
+/** `outline` = 1 px border, `filled` = light grey, `outline-filled` = both. No colours. */
+export type ContainerStyle = 'none' | 'outline' | 'filled' | 'outline-filled';
+/** `small` / `large` corners from the wireframe style tokens. */
+export type ContainerRadius = 'none' | 'small' | 'large';
+
+/** Marks a generated repeat copy (see `LayoutInfo.repeat`). */
+export interface RepeatCopyInfo {
+  /** Id of the template (the container's first child) this is a copy of. */
+  template: Id;
+  /** Position of the copy in the list: 2…count (the template is 1). */
+  index: number;
 }
 
 /** `fill` the available space, `hug` the content, or a fixed size. */
