@@ -21,15 +21,26 @@ import {
   type SceneNode,
   type TextNode,
   type Transform,
+  type ScreenNode,
+  screenNodes,
+  unionRects,
+  worldBounds,
 } from '@/model';
+import { WF } from '@/wireframe/style';
 import { outlineText } from './outlineText';
 import { transformSubpaths } from './svg/pathData';
 import { isIdentity } from './svg/transformAttr';
 
 export interface SvgExportOptions {
-  scope?: 'artboard' | 'selection';
+  /**
+   * `artboard` (default): the artboard; in wireframe documents (no artboard) all the content.
+   * `selection`: the selection bounds + padding. `screen`: one screen frame of a wireframe (`screenId`).
+   */
+  scope?: 'artboard' | 'selection' | 'screen';
   /** Node ids for the selection scope. */
   selection?: Id[];
+  /** Screen scope: the frame's node id. */
+  screenId?: Id;
   /** Extra space around the selection bounds (document units). */
   padding?: number;
   /** Include the artboard background (default: true for artboard scope, false for selection). */
@@ -84,6 +95,7 @@ const translationOnly = (t: Transform) => t.rotation === 0 && t.scaleX === 1 && 
 class Writer {
   defs: string[] = [];
   private gradients = new Map<string, string>();
+  private clips = 0;
   private currentColor: boolean;
   constructor(currentColor = false) {
     this.currentColor = currentColor;
@@ -150,6 +162,7 @@ class Writer {
     const tr = simple ? undefined : transformAttr(t);
     switch (node.type) {
       case 'group': {
+        if (node.screen) return this.screen(node as ScreenNode, indent, outline);
         const children = (await Promise.all(node.children.map((c) => this.node(c, indent + '  ', outline)))).filter((c): c is string => !!c);
         if (!children.length) return null;
         return el('g', { transform: transformAttr(t), ...this.common(node) }, children, indent);
@@ -235,6 +248,17 @@ class Writer {
     }
   }
 
+  /** A screen frame: white paper and its content clipped to the frame (no border, no name). */
+  async screen(node: ScreenNode, indent: string, outline: boolean): Promise<string> {
+    const { width, height } = node.screen;
+    const id = `clip${++this.clips}`;
+    this.defs.push(el('clipPath', { id }, [el('rect', { width, height }, undefined, '    ')], '  '));
+    const inner = (await Promise.all(node.children.map((c) => this.node(c, indent + '    ', outline)))).filter((c): c is string => !!c);
+    const paper = el('rect', { width, height, fill: WF.paper }, undefined, indent + '  ');
+    const parts = inner.length ? [paper, el('g', { 'clip-path': `url(#${id})` }, inner, indent + '  ')] : [paper];
+    return el('g', { transform: transformAttr(node.transform), ...this.common(node) }, parts, indent);
+  }
+
   text(node: TextNode, indent: string): string {
     const lines = node.text.split('\n');
     const lh = node.fontSize * node.lineHeight;
@@ -263,7 +287,14 @@ class Writer {
 
 /** The area an export covers: artboard, or selection bounds + padding. Null when the selection is empty. */
 export function exportArea(doc: DesignDocument, opts: SvgExportOptions = {}): Rect | null {
-  if (opts.scope !== 'selection') return { x: 0, y: 0, width: doc.artboard.width, height: doc.artboard.height };
+  if (opts.scope === 'screen') {
+    const f = screenNodes(doc).find((n) => n.id === opts.screenId);
+    return f ? { x: f.transform.x, y: f.transform.y, width: f.screen.width, height: f.screen.height } : null;
+  }
+  if (opts.scope !== 'selection') {
+    if (doc.wireframe) return unionRects(doc.children.filter((n) => n.visible && !n.reference).map((n) => worldBounds(doc, n.id)));
+    return { x: 0, y: 0, width: doc.artboard.width, height: doc.artboard.height };
+  }
   const ids = topmostIds(doc, opts.selection ?? []);
   const b = selectionBounds(doc, ids);
   if (!b) return null;
@@ -273,19 +304,25 @@ export function exportArea(doc: DesignDocument, opts: SvgExportOptions = {}): Re
 
 export async function exportSvg(doc: DesignDocument, opts: SvgExportOptions = {}): Promise<SvgExportResult> {
   const selectionScope = opts.scope === 'selection';
+  const screenScope = opts.scope === 'screen';
   const area = exportArea(doc, opts);
-  if (!area) throw new Error('Nothing is selected.');
+  if (!area) throw new Error(screenScope ? 'That screen does not exist.' : selectionScope ? 'Nothing is selected.' : 'The document is empty.');
   const w = new Writer(opts.currentColor);
   const outline = opts.outlineText !== false;
   const body: string[] = [];
 
-  const background = opts.background ?? !selectionScope;
+  // Wireframes have no artboard (and no artboard background); screens bring their own paper.
+  const background = !doc.wireframe && (opts.background ?? !selectionScope);
   if (background && doc.artboard.background.kind !== 'none') {
     const bg = w.paint(doc.artboard.background);
     body.push(el('rect', { width: doc.artboard.width, height: doc.artboard.height, fill: bg.value, 'fill-opacity': bg.opacity }, undefined, '  '));
   }
 
-  if (selectionScope) {
+  if (screenScope) {
+    const frame = screenNodes(doc).find((n) => n.id === opts.screenId)!;
+    const s = await w.node(frame, '  ', outline);
+    if (s) body.push(s);
+  } else if (selectionScope) {
     const ids = sortByDocumentOrder(doc, topmostIds(doc, opts.selection ?? []));
     for (const id of ids) {
       const node = locate(doc, id)?.node;

@@ -45,6 +45,10 @@
         "icon": {
           "$ref": "#/definitions/IconDocInfo",
           "description": "Present only on app icon documents."
+        },
+        "wireframe": {
+          "$ref": "#/definitions/WireframeDocInfo",
+          "description": "Present only on wireframe documents."
         }
       },
       "required": [
@@ -213,6 +217,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -240,6 +260,155 @@
         }
       },
       "description": "Node is drawn at translate(x,y) rotate(rotation) scale(scaleX,scaleY) around its local origin."
+    },
+    "ScreenFrameInfo": {
+      "type": "object",
+      "properties": {
+        "screenId": {
+          "$ref": "#/definitions/Id",
+          "description": "The logical screen (`DesignDocument.wireframe.screens[].id`) this frame is a variant of."
+        },
+        "platform": {
+          "$ref": "#/definitions/ScreenPlatform"
+        },
+        "width": {
+          "type": "number",
+          "description": "Frame width (default: the platform width; editable for an odd case)."
+        },
+        "height": {
+          "type": "number",
+          "description": "Frame height, written by the wireframe pipeline: never below the platform minimum."
+        }
+      },
+      "description": "A screen frame: a top-level group drawn as a device frame (white, thin border, name above). Local origin = the frame's top-left corner; the frame spans 0..width × 0..height and clips its children on export. `height` is materialized: max(platform minimum, content)."
+    },
+    "ScreenPlatform": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "description": "Device class of a screen frame. Kept deliberately few: no device list, no orientations."
+    },
+    "ComponentInfo": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Library kind, e.g. `list-row` (src/wireframe/library/<kind>/index.ts)."
+        },
+        "props": {
+          "$ref": "#/definitions/Record%3Cstring%2Cunknown%3E",
+          "description": "Prop values (missing props take the definition's defaults)."
+        },
+        "size": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "description": "The box the children were built for (local origin = top-left). Omitted = the definition's default size."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "description": "A semantic component instance: `build(props, size)` of the library kind generates the group's children."
+    },
+    "Record<string,unknown>": {
+      "type": "object",
+      "additionalProperties": {}
+    },
+    "LayoutInfo": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/LayoutKind"
+        },
+        "gap": {
+          "type": "number",
+          "description": "Space between children."
+        },
+        "padding": {
+          "type": "number",
+          "description": "Inner padding on every side."
+        },
+        "align": {
+          "$ref": "#/definitions/LayoutAlign",
+          "description": "Cross-axis alignment of the children."
+        },
+        "columns": {
+          "type": "number",
+          "description": "Grid only: number of columns."
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "description": "Container layout (reserved: the layout step fills in the behaviour)."
+    },
+    "LayoutKind": {
+      "type": "string",
+      "enum": [
+        "vstack",
+        "hstack",
+        "grid"
+      ]
+    },
+    "LayoutAlign": {
+      "type": "string",
+      "enum": [
+        "start",
+        "center",
+        "end",
+        "stretch"
+      ]
+    },
+    "LayoutItemInfo": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "$ref": "#/definitions/LayoutSize"
+        },
+        "height": {
+          "$ref": "#/definitions/LayoutSize"
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "flow",
+            "pinned-bottom",
+            "free"
+          ],
+          "description": "`flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack."
+        }
+      },
+      "description": "A child's sizing inside a layout container (reserved for the layout step)."
+    },
+    "LayoutSize": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "fill"
+        },
+        {
+          "type": "string",
+          "const": "hug"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "description": "`fill` the available space, `hug` the content, or a fixed size."
     },
     "PathNode": {
       "type": "object",
@@ -291,6 +460,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -452,6 +637,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -504,6 +705,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -559,6 +776,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -638,6 +871,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -687,6 +936,22 @@
         },
         "transform": {
           "$ref": "#/definitions/Transform"
+        },
+        "screen": {
+          "$ref": "#/definitions/ScreenFrameInfo",
+          "description": "Wireframe documents only: this top-level group is a screen frame (see src/wireframe)."
+        },
+        "component": {
+          "$ref": "#/definitions/ComponentInfo",
+          "description": "Wireframe documents only: this group is a component instance; its children are generated."
+        },
+        "layout": {
+          "$ref": "#/definitions/LayoutInfo",
+          "description": "Wireframe documents only: this group lays out its children (stack / grid). Reserved for the layout step."
+        },
+        "layoutItem": {
+          "$ref": "#/definitions/LayoutItemInfo",
+          "description": "Wireframe documents only: how this node sits in its parent's `layout`. Reserved for the layout step."
         }
       },
       "required": [
@@ -760,6 +1025,34 @@
         "full-colour"
       ],
       "description": "one-colour: every paint becomes the glyph colour (default). full-colour: the document's own paints are kept."
+    },
+    "WireframeDocInfo": {
+      "type": "object",
+      "properties": {
+        "screens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WireframeScreen"
+          },
+          "description": "Logical screens, in creation order. Kept in sync with the frames by the wireframe pipeline."
+        }
+      },
+      "description": "Marks a wireframe document: infinite canvas (the artboard is unused), screens, components."
+    },
+    "WireframeScreen": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/Id"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "description": "A logical screen (`Settings`, `Gallery`): one or more frames, at most one per platform."
     }
   }
 }

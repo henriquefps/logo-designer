@@ -10,8 +10,10 @@ export type ExportFormat = 'svg' | RasterFormat;
 
 export interface ExportSettings {
   format: ExportFormat;
-  scope: 'artboard' | 'selection';
+  /** `screen`: one screen frame of a wireframe document (`screenId`). */
+  scope: 'artboard' | 'selection' | 'screen';
   selection: Id[];
+  screenId?: Id;
   padding: number;
   /** Include the artboard background (artboard scope). */
   background: boolean;
@@ -42,6 +44,7 @@ export async function renderExport(doc: DesignDocument, s: ExportSettings, name 
   const { svg, width, height } = await exportSvg(doc, {
     scope: s.scope,
     selection: s.selection,
+    screenId: s.screenId,
     padding: s.padding,
     background: s.scope === 'artboard' ? s.background : false,
   });

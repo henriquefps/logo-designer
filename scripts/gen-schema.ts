@@ -30,6 +30,12 @@ const OPTIONAL: Record<string, string[]> = {
   EllipseNode: [...NODE_BASE, ...PAINTED],
   PolygonNode: [...NODE_BASE, ...PAINTED],
   TextNode: [...NODE_BASE, ...PAINTED, 'fontFamily', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'align'],
+  // Wireframe documents (docs/project-format.md → Wireframe documents).
+  WireframeDocInfo: ['screens'],
+  WireframeScreen: ['name'],
+  ScreenFrameInfo: ['screenId', 'platform', 'width', 'height'],
+  ComponentInfo: ['props'],
+  LayoutInfo: ['gap', 'padding', 'align'],
 };
 
 export function generateSchema(): string {
