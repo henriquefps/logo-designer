@@ -45,7 +45,7 @@ type PropValue<S extends PropSpec> = S extends { type: 'number' }
 /** Resolved prop values: every prop present, typed by its spec. */
 export type PropsOf<S extends PropSpecs> = { [K in keyof S]: PropValue<S[K]> };
 
-/** The box a component is built for. `width` always; `height` when the parent fixes it. */
+/** The box a component is built for. `width` always; `height` when the parent or the user fixes it (only for components with `resizable.height`). */
 export interface BuildSize {
   width: number;
   height?: number;
@@ -90,6 +90,13 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   sizing: { width: LayoutSize; height: LayoutSize; bleed?: boolean };
   /** Default position of a new instance on a screen (absent = in the flow). See `DefaultPlacement`. */
   placement?: DefaultPlacement;
+  /**
+   * Which axes the user can size (defaults: width true, height false). A resizable height means `build()` uses
+   * `size.height` when given: the surface fills the box, the content keeps its natural place, and the box
+   * never gets shorter than the content. A fixed axis has no handle and a read-only W/H field ("Height
+   * follows the content"); the layout ignores any size set for it. See `resizableAxes`.
+   */
+  resizable?: { width?: boolean; height?: boolean };
   /** Size of a new instance outside a stack (and of instances without `component.size`). */
   defaultSize: { width: number; height: number };
   /** Pure and deterministic: same props + size → same children. */
@@ -97,6 +104,9 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   /** One line for the AI export, e.g. 'List row "Language" → value "English"'. */
   describe(props: PropsOf<S>): string;
 }
+
+/** The axes of a definition the user can size, defaults applied. */
+export const resizableAxes = (def: Pick<AnyComponentDef, 'resizable'>): { width: boolean; height: boolean } => ({ width: def.resizable?.width ?? true, height: def.resizable?.height ?? false });
 
 // Each definition keeps its own prop types; the registry only sees the erased shape.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

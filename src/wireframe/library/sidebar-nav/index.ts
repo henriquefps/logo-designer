@@ -34,6 +34,7 @@ export default defineComponent({
     icons: { type: 'boolean', label: 'Icons', default: true },
   },
   sizing: { width: 240, height: 'fill' },
+  resizable: { height: true },
   defaultSize: { width: 240, height: 640 },
   build(p, { width, height }) {
     const itemCount = p.items.filter((e) => !isSidebarSection(e)).length;

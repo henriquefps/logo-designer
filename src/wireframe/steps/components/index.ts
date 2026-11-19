@@ -5,7 +5,7 @@
 import type { Draft } from 'immer';
 import type { ComponentNode, GroupNode, SceneNode } from '@/model';
 import { getComponent } from '../../library/registry';
-import { resolveProps } from '../../library/types';
+import { resizableAxes, resolveProps } from '../../library/types';
 import { harvestIcons } from '../../icons';
 import { plain, type PipelineContext, type WireframeStep } from '../../types';
 
@@ -32,13 +32,15 @@ export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: n
   let built;
   try {
     // `height`: the layout fixes it (fixed or fill sizing); the box is that tall whatever build returns.
-    built = def.build(props, size?.height !== undefined ? { width, height: size.height } : { width });
+    built = def.build(props, size?.height !== undefined && resizableAxes(def).height ? { width, height: size.height } : { width });
   } catch (err) {
     // A broken component must not break the document: keep what was built before.
     console.warn(`Component "${def.kind}" failed to build`, err);
     return node.component.size?.height ?? def.defaultSize.height;
   }
-  const height = size?.height ?? built.height;
+  // The box is as tall as the layout fixed it, but never shorter than what the component drew (a resizable
+  // height is a minimum: content never overflows). Components that follow their content get no height.
+  const height = size?.height !== undefined ? Math.max(size.height, built.height) : built.height;
   const children = assignIds(built.children, node.id);
   if (JSON.stringify(children) !== JSON.stringify(node.children)) node.children = children as Draft<SceneNode>[];
   const cur = node.component.size;
@@ -58,7 +60,7 @@ function stale(nodes: readonly SceneNode[], ctx: PipelineContext, path: number[]
     if (n.component) {
       if (parentLays && n.layoutItem?.position !== 'free') return;
       // Generated children are never instances to rebuild on their own.
-      if (ctx.phase === 'load' || !prev || (prev as GroupNode).component !== n.component) out.push([...path, i]);
+      if (ctx.phase === 'load' || !prev || (prev as GroupNode).component !== n.component || (prev as GroupNode).layoutItem?.height !== n.layoutItem?.height) out.push([...path, i]);
       return;
     }
     stale(n.children, ctx, [...path, i], out, !!n.layout);
@@ -77,6 +79,13 @@ function rebuildFree(node: Draft<ComponentNode>, ctx: PipelineContext) {
   const was = prev?.component?.size;
   const now = node.component.size;
   const w = node.layoutItem?.width;
+  const axes = def ? resizableAxes(def) : { width: true, height: true };
+  const h = node.layoutItem?.height;
+  // A height the user set by resizing becomes `layoutItem.height` (fixed), like the width below.
+  if (def && axes.height && was && now && (h === undefined || typeof h === 'number') && Math.abs(now.height - was.height) > 0.5) {
+    node.layoutItem = { ...plain(node.layoutItem), height: Math.round(now.height * 100) / 100 };
+  }
+  const fixedH = axes.height && typeof node.layoutItem?.height === 'number' ? node.layoutItem.height : undefined;
   if (def && def.sizing.width === 'hug' && was && now && (w === undefined || w === 'hug')) {
     if (Math.abs(now.width - was.width) > 0.5) {
       node.layoutItem = { ...plain(node.layoutItem), width: Math.round(now.width * 100) / 100 }; // the user resized it
@@ -84,7 +93,7 @@ function rebuildFree(node: Draft<ComponentNode>, ctx: PipelineContext) {
       try {
         const hug = def.build(resolveProps(def, node.component.props as Record<string, unknown>), { width: now.width }).width;
         if (hug && Math.abs(hug - now.width) > 0.5) {
-          buildComponentInto(node, { width: Math.ceil(hug) });
+          buildComponentInto(node, { width: Math.ceil(hug), height: fixedH });
           return;
         }
       } catch {
@@ -92,7 +101,7 @@ function rebuildFree(node: Draft<ComponentNode>, ctx: PipelineContext) {
       }
     }
   }
-  buildComponentInto(node);
+  buildComponentInto(node, fixedH !== undefined ? { width: node.component.size?.width ?? def?.defaultSize.width ?? 0, height: fixedH } : undefined);
 }
 
 const step: WireframeStep = {

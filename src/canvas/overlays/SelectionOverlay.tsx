@@ -1,7 +1,7 @@
 import { canResizeSelection, canRotateSelection } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
-import { getSelectionFrame, handlePosition, rotationHandlePosition } from '../selectionFrame';
+import { getSelectionFrame, handleAllowed, handlePosition, rotationHandlePosition } from '../selectionFrame';
 import { useView } from './useView';
 
 const HANDLE = 8;
@@ -34,7 +34,7 @@ export function SelectionOverlay() {
             </>
           )}
           {Array.from({ length: 8 }, (_, i) => {
-            if (tiny && i % 2 === 1) return null;
+            if ((tiny && i % 2 === 1) || !handleAllowed(doc, selection, i)) return null;
             const p = toScreen(handlePosition(frame, i));
             return (
               <rect

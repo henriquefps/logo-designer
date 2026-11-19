@@ -499,6 +499,18 @@ row without children.
      the margins (headings, text, buttons, fields, cards). Instances inherit it; users override it per instance
      (Properties → In stack → Edge to edge, `layoutItem.bleed`). Outside stacks, a `defaultSize.width` of 390 (a
      phone) means edge to edge when inserted on a free screen; smaller `fill` components get 24 px margins.
+   - `resizable: { width, height }` (defaults: width `true`, height `false`): which axes the user can size. **Every
+     component either follows the size it is given or says it can't.** With `height: true`, `build(props, { width,
+     height })` receives `height` when the parent or the user fixes it (`layoutItem.height` = a number or `fill`, or
+     the H handle / field) and must use it: the surface (border, background) takes the whole box and the content keeps
+     its natural place (top for a card, centred for an empty state, the image fills an image's box, extra empty rows
+     for a table, more bars for a paragraph, actions on the bottom edge of a dialog). Without `height` it builds at
+     its natural height (what it hugs to), and a box never ends up shorter than that. Surfaces get `height: true`;
+     everything whose height is its content (rows, bars, fields, buttons) keeps the default. An axis that is not
+     resizable has no selection handle (a corner needs both axes), a read-only W/H field with the hint "Width is fixed" /
+     "Height follows the content", and the layout and `bakeScale` ignore any size set for it. Declare `width: false`
+     for things with an intrinsic width (avatar, icon). The contract test checks every component: a taller box gives
+     a taller drawing when `height` is resizable, and is ignored when it is not.
    - `placement` (optional): where a *new* instance goes on a screen when it should not join the flow:
      `{ position: 'pinned-bottom' }` (bottom navigation) or `{ position: 'free', anchor }` with anchor
      `bottom-right` (FAB), `bottom` (snackbar: 16 px sides, 24 px from the bottom), `bottom-edge` (bottom sheet:

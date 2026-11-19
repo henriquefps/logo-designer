@@ -16,6 +16,7 @@ export default defineComponent({
     initials: { type: 'text', label: 'Initials', default: 'AB', visibleWhen: { content: 'initials' } },
   },
   sizing: { width: 'hug', height: 'hug' },
+  resizable: { width: false },
   defaultSize: { width: 40, height: 40 },
   build(p) {
     const s = SIZES[p.size as keyof typeof SIZES] ?? SIZES.medium;

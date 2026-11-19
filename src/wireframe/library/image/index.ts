@@ -19,11 +19,13 @@ export default defineComponent({
     caption: { type: 'text', label: 'Caption', default: '', placeholder: 'None' },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 192 },
   build(p, { width, height }) {
     const capH = p.caption ? CAPTION_GAP + Math.ceil(lineHeight('caption')) : 0;
     const ratio = RATIOS[p.ratio as keyof typeof RATIOS];
-    const imgH = Math.max(1, Math.round(ratio ? width / ratio : height !== undefined ? height - capH : width * 0.6));
+    // A given height wins over the ratio (the ratio is what it hugs to): the image fills its box.
+    const imgH = Math.max(1, Math.round(height !== undefined ? height - capH : ratio ? width / ratio : width * 0.6));
     const children = nodes(
       imagePlaceholder({ x: 0, y: 0, width, height: imgH, radius: WF_RADIUS.md }),
       p.caption && text(truncate(p.caption, width, 'caption'), { x: 0, y: imgH + CAPTION_GAP, style: 'caption', tone: 'inkMuted', name: 'Caption' }),

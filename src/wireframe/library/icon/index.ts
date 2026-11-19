@@ -15,6 +15,7 @@ export default defineComponent({
     tone: { type: 'choice', label: 'Emphasis', options: ['normal', 'muted'], default: 'normal', labels: { normal: 'Normal', muted: 'Secondary (grey)' } },
   },
   sizing: { width: 'hug', height: 'hug' },
+  resizable: { width: false },
   defaultSize: { width: 24, height: 24 },
   build(p) {
     const size = Math.round(p.size);

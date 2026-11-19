@@ -20,8 +20,9 @@ export default defineComponent({
     actions: { type: 'list', label: 'Actions', default: [], item: 'Action', min: 0, max: 3, help: 'Buttons along the bottom.' },
   },
   sizing: { width: 'fill', height: 'hug' },
+  resizable: { height: true },
   defaultSize: { width: 342, height: 120 },
-  build(p, { width }) {
+  build(p, { width, height }) {
     const inner = Math.max(0, width - PAD * 2);
     const lines = Math.round(p.bodyLines);
     const actions: string[] = p.actions.filter(Boolean);
@@ -54,13 +55,15 @@ export default defineComponent({
       y += ACTION_H;
     }
     const hasContent = p.image || p.title || lines > 0 || actions.length;
-    const height = Math.ceil(hasContent ? y + PAD : PAD * 3);
+    // Taller card: border and background fill the box, the content keeps its place at the top.
+    const natural = Math.ceil(hasContent ? y + PAD : PAD * 3);
+    const total = Math.max(natural, Math.ceil(height ?? 0));
     const children = nodes(
-      box({ x: 0, y: 0, width, height, radius: WF_RADIUS.md, fill: 'paper', stroke: 'none', name: 'Surface' }),
+      box({ x: 0, y: 0, width, height: total, radius: WF_RADIUS.md, fill: 'paper', stroke: 'none', name: 'Surface' }),
       ...body,
-      box({ x: 0, y: 0, width, height, radius: WF_RADIUS.md, fill: 'none', stroke: 'line', name: 'Outline' }),
+      box({ x: 0, y: 0, width, height: total, radius: WF_RADIUS.md, fill: 'none', stroke: 'line', name: 'Outline' }),
     );
-    return { children, height };
+    return { children, height: total };
   },
   describe(p) {
     const parts = ['Card'];

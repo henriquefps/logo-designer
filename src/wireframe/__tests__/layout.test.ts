@@ -92,8 +92,10 @@ describe('vertical stack (a screen)', () => {
   });
 
   it('fixed heights are passed to the build (the box is that tall)', () => {
-    const doc = wireframe([box('a', 100, { height: 40 })]);
-    expect(size(doc, 'a')).toEqual([358, 40]);
+    const doc = wireframe([box('a', 100, { height: 160 })]);
+    expect(size(doc, 'a')).toEqual([358, 160]);
+    // A box never gets shorter than the content (the placeholder's own height).
+    expect(size(wireframe([box('a', 100, { height: 40 })]), 'a')).toEqual([358, 100]);
   });
 
   it('plain shapes keep their size and are only moved (their bounds land on the slot)', () => {
