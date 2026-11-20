@@ -4,6 +4,7 @@
 // "look, fix, render again" loop. Both render through the CLI renderer (resvg, outlined text), like
 // `to-png`. Layout and scaling are pure functions (tested without rendering); the renderers compose
 // one SVG (frames as embedded PNGs, overlay shapes as markup, text outlined by the fonts module).
+import { cliSvg } from './sandbox';
 import { createDocument, createText, findNode, solid, worldBounds, type DesignDocument, type Rect, type ScreenNode, type ScreenPlatform, type Vec } from '@/model';
 import { exportSvg } from '@/io/svgExport';
 import { bezierAt, flowCurves, flowsOf, flowTarget, screenStatus, STATUS_LABELS } from '@/wireframe/flows';
@@ -283,7 +284,7 @@ const f = (n: number) => String(Math.round(n * 100) / 100);
 
 async function renderPng(svg: string, width: number): Promise<Uint8Array> {
   const { Resvg } = await import('@resvg/resvg-js');
-  return new Uint8Array(new Resvg(svg, { fitTo: { mode: 'width', value: Math.max(1, Math.round(width)) }, font: { loadSystemFonts: false } }).render().asPng());
+  return new Uint8Array(new Resvg(cliSvg(process.env, svg), { fitTo: { mode: 'width', value: Math.max(1, Math.round(width)) }, font: { loadSystemFonts: false } }).render().asPng());
 }
 
 /** A rendered frame as a PNG `width` px wide. */

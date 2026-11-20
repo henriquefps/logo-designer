@@ -24,6 +24,8 @@ import { materializeDocument } from '@/wireframe/pipeline';
 import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 import { wfMain } from './wf';
+import { AgentSetupError, runAgent } from './agent';
+import { cliPath, cliSvg, SANDBOX_COMMANDS, SandboxError, sandboxRoot } from './sandbox';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -127,6 +129,13 @@ Usage: designer <command> [options]
                                               download a project: into its file (by the file's id) or, for an id,
                                               into -o / <name>.designer.json
   sync list [--json] [--server URL]           projects on the server (id, last change, size, name)
+  agent [--server URL] [--name N] [--workdir DIR] [--max-minutes 15] [--claude PATH]
+                                              AI agent bridge: takes the jobs the app sends to the sync server
+                                              ("Generate with AI", "Turn into a wireframe with AI", …) and runs
+                                              your own Claude Code on them, one at a time, with its tools limited
+                                              to the designer CLI in a job folder; the project is mirrored live.
+                                              Needs Claude Code installed and logged in. Same server and key as
+                                              live (skv run designer-sync -- designer agent). docs/agents.md
 
 Without -o, project/SVG output goes to stdout. Docs: docs/agents.md, docs/project-format.md.
 `;
@@ -162,6 +171,9 @@ const COMMON: ParseArgsConfig['options'] = {
   dir: { type: 'string' },
   platform: { type: 'string' },
   server: { type: 'string' },
+  workdir: { type: 'string' },
+  'max-minutes': { type: 'string' },
+  claude: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -174,8 +186,9 @@ async function readInput(path: string, io: CliIO): Promise<string> {
     if (!io.stdin) throw new UsageError('stdin is not available');
     return io.stdin();
   }
+  const file = await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), path, 'read');
   try {
-    return await readFile(resolve(io.cwd ?? process.cwd(), path), 'utf8');
+    return await readFile(file, 'utf8');
   } catch {
     throw new UsageError(`Cannot read ${path}`);
   }
@@ -187,7 +200,7 @@ async function emit(text: string | Uint8Array, output: string | undefined, io: C
     io.out(text.endsWith('\n') ? text.slice(0, -1) : text);
     return;
   }
-  await writeFile(resolve(io.cwd ?? process.cwd(), output), text);
+  await writeFile(await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), output, 'write'), text);
   io.err(`Wrote ${what} to ${output}`);
 }
 
@@ -615,13 +628,14 @@ async function wireframePng(path: string, doc: DesignDocument, values: Values, o
   const cwd = io.cwd ?? process.cwd();
   const single = frames.length === 1 && !!output && /\.png$/i.test(output);
   const dir = single ? null : (output ?? path.replace(/(\.designer)?\.json$/i, '') + '-screens');
-  if (dir) await mkdir(resolve(cwd, dir), { recursive: true });
+  const env = io.env ?? process.env;
+  if (dir) await mkdir(await cliPath(env, cwd, dir, 'write'), { recursive: true });
   for (const f of frames) {
     const { svg } = await exportSvg(doc, { scope: 'screen', screenId: f.id });
     const width = Math.round(size ?? f.screen.width);
-    const png = new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
+    const png = new Resvg(cliSvg(env, svg), { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
     const target = single ? output! : join(dir!, screenFile(f, 'png'));
-    await writeFile(resolve(cwd, target), new Uint8Array(png));
+    await writeFile(await cliPath(env, cwd, target, 'write'), new Uint8Array(png));
     io.err(`Wrote ${f.name} (${f.screen.platform}, ${width} px wide) to ${target}`);
   }
   return 0;
@@ -635,6 +649,16 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
     io.out(USAGE);
     return cmd ? 0 : 1;
+  }
+  // The agent's sandbox (designer agent): only its commands, whatever started the CLI.
+  try {
+    if (sandboxRoot(io.env ?? process.env) && !SANDBOX_COMMANDS.includes(cmd)) {
+      io.err(`designer ${cmd}: not available in the agent's sandbox (allowed: ${SANDBOX_COMMANDS.filter((c) => !c.startsWith('-')).join(', ')})`);
+      return 2;
+    }
+  } catch (e) {
+    io.err(e instanceof Error ? e.message : String(e));
+    return 2;
   }
   if (cmd === 'wf') return wfMain(rest, io);
   let values: Values;
@@ -743,7 +767,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         warnSkippedReferences(doc, io);
         const { svg } = await exportSvg(doc);
         const { Resvg } = await import('@resvg/resvg-js');
-        const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
+        const png = new Resvg(cliSvg(io.env ?? process.env, svg), { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
         const out = output ?? path.replace(/(\.designer)?\.(json|svg)$/i, '') + `-${Math.round(size)}.png`;
         await emit(new Uint8Array(png), out, io, 'PNG');
         return 0;
@@ -944,6 +968,30 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         }
         return await runLive(path, conn, origin, io, signal);
       }
+      case 'agent': {
+        const env = io.env ?? process.env;
+        const conn = connectionFrom(str(values, 'server'), env);
+        let signal = io.signal;
+        if (!signal) {
+          const ctrl = new AbortController();
+          process.once('SIGINT', () => ctrl.abort());
+          process.once('SIGTERM', () => ctrl.abort());
+          signal = ctrl.signal;
+        }
+        return await runAgent({
+          conn,
+          name: str(values, 'name'),
+          workdir: str(values, 'workdir'),
+          maxMinutes: str(values, 'max-minutes'),
+          claude: str(values, 'claude'),
+          origin,
+          cwd: io.cwd ?? process.cwd(),
+          env,
+          out: io.out,
+          err: io.err,
+          signal,
+        });
+      }
       case 'sync': {
         const [sub, target] = pos;
         const conn = connectionFrom(str(values, 'server'), io.env ?? process.env);
@@ -962,6 +1010,10 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         throw new UsageError(`Unknown command “${cmd}”`);
     }
   } catch (e) {
+    if (e instanceof AgentSetupError || e instanceof SandboxError) {
+      io.err(e.message);
+      return 1;
+    }
     if (e instanceof UsageError || e instanceof SyncUsage) {
       io.err(`${e.message}\n\nRun \`designer help\` for usage.`);
       return 2;

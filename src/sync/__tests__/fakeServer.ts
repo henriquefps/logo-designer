@@ -256,6 +256,7 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?:
       });
       return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
     }
+    if (parts[1] === 'health' && method === 'GET') return json(200, { ok: true, projectCount: items.projects.size, fontCount: items.fonts.size, events: opts.events !== false, ...(opts.jobs === false ? {} : { jobs: true }) });
     if (parts[1] === 'jobs' || parts[1] === 'agents') {
       const r = await jobsRoute(method, url, parts, init.body ? JSON.parse(String(init.body)) : undefined);
       if (r) return r;
