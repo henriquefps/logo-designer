@@ -1,11 +1,24 @@
 // Card: an outlined surface with an optional image on top, a title, body copy (grey bars) and actions.
 import type { SceneNode } from "@/model";
-import { box, imagePlaceholder, lineHeight, nodes, textBars, textBarsHeight, textInBand, text, textWidth, truncate } from '../../kit';
+import { box, describeItems, imagePlaceholder, itemKey, lineHeight, nodes, rect, textBars, textBarsHeight, textInBand, text, textWidth, truncate } from '../../kit';
 import { WF_RADIUS, WF_SPACE } from '../../style';
 import { defineComponent } from '../types';
 
 const PAD = WF_SPACE.lg;
 const ACTION_H = 32;
+
+/** The action buttons that fit on one row, left to right (index into the non-empty actions). */
+function actionSlots(actions: readonly string[], width: number): { i: number; x: number; w: number }[] {
+  const out: { i: number; x: number; w: number }[] = [];
+  let x = PAD;
+  for (let i = 0; i < actions.length; i++) {
+    const w = Math.ceil(textWidth(actions[i], 'label', 600)) + WF_SPACE.lg * 2;
+    if (x + w > width - PAD) break;
+    out.push({ i, x, w });
+    x += w + WF_SPACE.sm;
+  }
+  return out;
+}
 
 export default defineComponent({
   kind: 'card',
@@ -45,12 +58,9 @@ export default defineComponent({
     }
     if (actions.length) {
       y += WF_SPACE.md;
-      let x = PAD;
-      for (const a of actions) {
-        const w = Math.ceil(textWidth(a, 'label', 600)) + WF_SPACE.lg * 2;
-        if (x + w > width - PAD) break;
+      for (const { i, x, w } of actionSlots(actions, width)) {
+        const a = actions[i];
         body.push(box({ x, y, width: w, height: ACTION_H, radius: WF_RADIUS.md, fill: 'paper', stroke: 'ink', name: 'Action' }), textInBand(a, { x: x + w / 2, y, height: ACTION_H, style: 'label', weight: 600, align: 'center', name: 'Action label' }));
-        x += w + WF_SPACE.sm;
       }
       y += ACTION_H;
     }
@@ -65,12 +75,28 @@ export default defineComponent({
     );
     return { children, height: total };
   },
-  describe(p) {
+  parts(p, { width }) {
+    const actions: string[] = p.actions.filter(Boolean);
+    if (!actions.length) return [];
+    // The actions row sits under the image, title and body (same steps as build).
+    let y = p.image ? Math.min(200, Math.round(((width - 2) * 9) / 16)) + 1 : 0;
+    y += PAD;
+    const lines = Math.round(p.bodyLines);
+    if (p.title) y += Math.ceil(lineHeight('subheading'));
+    if (lines > 0) y += (p.title ? WF_SPACE.sm : 0) + Math.ceil(textBarsHeight(lines, 'label'));
+    y += WF_SPACE.md;
+    // Keys index the stored list (empty entries are not drawn but keep their place).
+    const index = p.actions.map((a, i) => (a ? i : -1)).filter((i) => i >= 0);
+    return actionSlots(actions, width).map(({ i, x, w }) => ({ key: itemKey(index[i], 'action'), label: actions[i], rect: rect(x, y, w, ACTION_H) }));
+  },
+  partLists: { action: 'actions' },
+  describe(p, opens) {
     const parts = ['Card'];
     if (p.image) parts.push('image on top');
     if (p.title) parts.push(`title "${p.title}"`);
     if (p.bodyLines > 0) parts.push(`${Math.round(p.bodyLines)} lines of body text (placeholder)`);
-    if (p.actions.length) parts.push(`actions: ${p.actions.filter(Boolean).map((a: string) => `"${a}"`).join(', ')}`);
+    const acts = p.actions.map((a, i) => ({ key: itemKey(i, 'action'), label: `"${a}"` })).filter((_, i) => p.actions[i]);
+    if (p.actions.length) parts.push(`actions: ${acts.some((a) => opens?.has(a.key)) ? describeItems(acts, opens) : acts.map((a) => a.label).join(', ')}`);
     return parts.join(', ');
   },
 });

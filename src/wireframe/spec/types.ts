@@ -73,7 +73,11 @@ export interface SpecScreen {
   variants?: SpecVariant[];
 }
 
-/** `from`: a node id or a path ("Settings/Language", "Settings@tablet/Language"); `to`: a screen name or id. */
+/**
+ * `from`: a node id or a path ("Settings/Language", "Settings@tablet/Language"), optionally ending at a part of a
+ * component (`#Files` by label, `#item:2` by key); a path whose head is a shared component's name links inside its
+ * master (every instance). `to`: a screen name or id.
+ */
 export interface SpecFlow {
   id?: string;
   from: string;
@@ -136,7 +140,8 @@ export interface NormCommon {
   rotation?: number;
   scale?: [number, number];
   size?: { width: number; height: number };
-  opens: string[];
+  /** Screens this node opens; `part` (a part label or key) for `"opens": { "<part>": "<screen>" }`. */
+  opens: { to: string; part?: string }[];
   note?: string;
 }
 

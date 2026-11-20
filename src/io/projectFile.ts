@@ -179,6 +179,11 @@ function componentInfo(v: unknown, path: string): ComponentInfo {
     const size = obj(o.size, sp);
     out.size = { width: positive(size.width, 1, at(sp, 'width')), height: nonNegative(size.height, 0, at(sp, 'height')) };
   }
+  // Generated (the pipeline works it out again); kept when well formed so a saved file reads back as it was.
+  if (o.resolved !== undefined && o.resolved !== null && typeof o.resolved === 'object' && !Array.isArray(o.resolved)) {
+    const r = Object.fromEntries(Object.entries(o.resolved as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && Number.isFinite(v))) as Record<string, number>;
+    if (Object.keys(r).length) out.resolved = r;
+  }
   return out;
 }
 
@@ -399,6 +404,14 @@ function wireframeInfo(v: unknown, path: string, warnings: string[]): { wirefram
       const to = str(f.to, at(p, 'to'));
       const flow: WireframeFlow = { id, from, to };
       if (f.label !== undefined && f.label !== null && str(f.label, at(p, 'label')).trim()) flow.label = (f.label as string).trim();
+      if (f.part !== undefined && f.part !== null) {
+        const part = str(f.part, at(p, 'part')).trim();
+        if (part) flow.part = part;
+      }
+      if (f.symbol !== undefined && f.symbol !== null) {
+        const symbol = str(f.symbol, at(p, 'symbol')).trim();
+        if (symbol) flow.symbol = symbol;
+      }
       return flow;
     });
     if (flows.length) info.flows = flows;
@@ -406,13 +419,28 @@ function wireframeInfo(v: unknown, path: string, warnings: string[]): { wirefram
   return { wireframe: info };
 }
 
-/** Drops flows whose source node or target logical screen is not in the file (with a warning each). */
+/**
+ * Drops flows whose source node or target logical screen is not in the file (with a warning each). A shared flow's
+ * source (`symbol`) is a node of that master's content.
+ */
 function checkFlows(wf: WireframeDocInfo, ids: ReadonlySet<string>, warnings: string[]): void {
   if (!wf.flows) return;
   const screens = new Set(wf.screens.map((s) => s.id));
+  const masters = new Map<string, Set<string>>();
+  for (const m of wf.symbols ?? []) {
+    const inside = new Set<string>();
+    const visit = (n: SceneNode) => {
+      inside.add(n.id);
+      if (n.type === 'group') n.children.forEach(visit);
+    };
+    m.content.children.forEach(visit);
+    masters.set(m.id, inside);
+  }
   const keep = wf.flows.filter((f, i) => {
     const p = `wireframe.flows[${i}]`;
-    if (!ids.has(f.from)) warnings.push(`${p}.from: ignored flow, no node "${f.from}"`);
+    if (f.symbol !== undefined && !masters.has(f.symbol)) warnings.push(`${p}.symbol: ignored flow, no shared component "${f.symbol}"`);
+    else if (f.symbol !== undefined && !masters.get(f.symbol)!.has(f.from)) warnings.push(`${p}.from: ignored flow, no node "${f.from}" in shared component "${f.symbol}"`);
+    else if (f.symbol === undefined && !ids.has(f.from)) warnings.push(`${p}.from: ignored flow, no node "${f.from}"`);
     else if (!screens.has(f.to)) warnings.push(`${p}.to: ignored flow, no logical screen "${f.to}"`);
     else return true;
     return false;

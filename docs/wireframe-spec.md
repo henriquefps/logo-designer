@@ -24,7 +24,7 @@ designer wf build hoard.spec.json --into hoard.designer.json   # update in place
 | --- | --- |
 | `screens` | **Required.** Logical screens, in order (below). |
 | `components` | Shared components (masters): `{ "name", "id"?, "content" }`, used with `{ "use": "<name>" }`. |
-| `flows` | Arrows: `{ "from", "to", "label"?, "id"? }`. Tapping `from` (a node) opens screen `to`. |
+| `flows` | Arrows: `{ "from", "to", "label"?, "id"? }`. Tapping `from` (a node, or a part of one: `#Files`) opens screen `to`. |
 | `notes` | Stickies: `{ "text", "on"?, "x"?, "y"?, "id"? }`, `on` = the node it is attached to. |
 | `canvas` | Top-level objects that are not in a screen (rare). |
 | `name` | Project name (default "Wireframe"). |
@@ -87,7 +87,7 @@ options, when a prop applies (`visibleWhen`) and an example. Plain text is the T
 | `bleed` | Edge to edge: ignore the stack's side padding (default from the component: rows, bars and headers bleed). |
 | `x`, `y`, `size`, `rotation`, `scale` | Only for nodes no layout places (free, in a free screen, in a group, on the canvas): position in the parent, box `{ "width", "height" }`. |
 | `hidden`, `locked`, `opacity` | As in the app. |
-| `opens` | Sugar for flows: `"opens": "Language"` (or a list) adds a flow from this node. |
+| `opens` | Sugar for flows: `"opens": "Language"` (or a list) adds a flow from this node; `"opens": { "Files": "Files" }` links **parts** of a component (a tab, an item, a back button: by label or key, see [Links from parts](#links-from-parts)). |
 | `note` | Sugar for notes: `"note": "Pull to refresh"` attaches a note to this node. |
 
 **Default placement.** A screen child the spec says nothing about takes its component's default position, like an
@@ -122,6 +122,43 @@ with (a tab bar whose content says `"position": "pinned-bottom"` is pinned on ev
 with `{ "use": "Trip card" }`, also as a repeat template or inside another component (never inside itself). Ids
 inside `content` are the master's own; an instance's nodes get `<instance id>~s~<master id>`, so a flow can start
 inside one instance: `"from": "Home/card/Lisbon"` or `"from": "card~s~title"`.
+
+## Links from parts
+
+A bottom navigation is one component, but each tab opens its own screen. Components that a person taps in pieces
+declare **parts** (`designer wf components` lists them): items of a list prop are keyed `item:<index>` (0-based;
+`action:<index>` for action lists), fixed pieces by name (`back`, `menu`, `close`, `primary`, `secondary`,
+`action:0`, `logo`, `avatar`, `previous`, `next`). Bottom navigation, tabs, segmented control, sidebar navigation,
+web header (links, actions, logo, avatar), breadcrumbs, toolbar actions, top app bar (leading button, action icons),
+bottom sheet rows, dialog and modal actions (and the modal's close), card actions, section header and snackbar
+actions, pagination (previous / next).
+
+- `"opens": { "<part>": "<screen>" }` on the component: the part by its label (case-insensitive) or its key.
+- In `flows`, a path or id ends at a part with `#`: `"Home/Bottom navigation#Files"`, `"tabs#item:1"`.
+- **Inside a shared component's `content`**, `opens` (with or without parts) is a link defined once in the master:
+  it applies to every instance, on every screen. In `flows`, a path that starts with the component's name does the
+  same: `"Tab bar/Bottom navigation#Files"`. A flow from a path through a screen (`"Home/Tab bar/…"`) stays on that
+  one instance.
+- `"selected": "auto"` (the default for bottom navigation, tabs, segmented control, sidebar navigation and the web
+  header) draws selected the item whose part opens the screen the component is on (the first one when none does):
+  one shared tab bar shows the right tab on each screen. A number keeps a fixed selection.
+- When the list changes in the app (tabs reordered, renamed, removed), flows on its parts follow their items: by
+  label, else by position for a renamed entry; a removed item's flows go.
+
+```json
+"components": [
+  {
+    "name": "Tab bar",
+    "content": {
+      "vstack": [{ "bottom-navigation": { "labels": ["Gallery", "Files", "Albums"] }, "opens": { "Gallery": "Gallery", "Files": "Files", "Albums": "Albums" } }],
+      "position": "pinned-bottom"
+    }
+  }
+]
+```
+
+`dump` writes part flows as top-level flows with the part's label when it is unique on the node (else its key):
+`"from": "row-1#Files"`, and a link defined in a master starts with the component: `"from": "Tab bar/nav-1#Files"`.
 
 ## Flows, notes and paths
 

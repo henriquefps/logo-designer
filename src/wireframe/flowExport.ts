@@ -2,7 +2,7 @@
 // aiExport.ts wires them in (README_SECTIONS / SCREEN_SECTIONS and the tree writer).
 import { findNode, type DesignDocument, type Id, type ScreenStatus, type WireframeFlow } from '@/model';
 import type { AiContext, AiScreen } from './aiExport';
-import { flowSourceLabel, flowsOf } from './flows';
+import { flowSourceLabel, flowSources, flowsOf } from './flows';
 import { getComponent } from './library/registry';
 import { frameOf } from './screens';
 
@@ -14,10 +14,14 @@ export const STATUS_TEXT: Record<ScreenStatus, string> = {
   new: 'new (a screen the app does not have yet)',
 };
 
-/** The source element in words: `"Language" list row`, `text "Hello"`, `"Box"`. */
-export function flowSourceText(doc: DesignDocument, id: Id): string {
+/** The source element in words: `"Language" list row`, `text "Hello"`, `"Box"`, `"Arquivos" in the bottom navigation`. */
+export function flowSourceText(doc: DesignDocument, id: Id, part?: string): string {
   const n = findNode(doc, id);
   if (!n) return 'an element';
+  if (part !== undefined && n.type === 'group' && n.component) {
+    const kind = getComponent(n.component.kind)?.label.toLowerCase() ?? n.component.kind;
+    return `${JSON.stringify(clean(flowSourceLabel(doc, id, part)))} in the ${kind}`;
+  }
   const label = clean(flowSourceLabel(doc, id));
   if (n.type === 'group' && n.component) {
     const kind = getComponent(n.component.kind)?.label.toLowerCase() ?? n.component.kind;
@@ -47,16 +51,19 @@ function flowRows(ctx: AiContext): FlowRow[] {
   const seen = new Set<string>();
   const rows: FlowRow[] = [];
   for (const f of flowsOf(ctx.doc)) {
-    const frame = frameOf(ctx.doc, f.from);
-    const from = frame && byId.get(frame.screen.screenId);
-    const to = byId.get(f.to);
-    if (!from || !to) continue;
-    const source = flowSourceText(ctx.doc, f.from);
-    const label = f.label ? clean(f.label) : undefined;
-    const key = JSON.stringify([from.id, to.id, source, label]);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    rows.push({ from, to, source, sourceLabel: clean(flowSourceLabel(ctx.doc, f.from)), label });
+    for (const id of flowSources(ctx.doc, f)) {
+      const frame = frameOf(ctx.doc, id);
+      const from = frame && byId.get(frame.screen.screenId);
+      const to = byId.get(f.to);
+      if (!from || !to) continue;
+      if (f.symbol && from.id === to.id) continue; // a shared tab bar's own tab: nothing opens
+      const source = flowSourceText(ctx.doc, id, f.part);
+      const label = f.label ? clean(f.label) : undefined;
+      const key = JSON.stringify([from.id, to.id, source, label]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ from, to, source, sourceLabel: clean(flowSourceLabel(ctx.doc, id, f.part)), label });
+    }
   }
   return rows;
 }

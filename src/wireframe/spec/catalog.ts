@@ -3,7 +3,7 @@
 // time so it never goes stale.
 import type { LayoutSize } from '@/model';
 import { getComponents } from '../library/registry';
-import { resizableAxes, type AnyComponentDef, type DefaultPlacement, type PropCondition, type PropSpec } from '../library/types';
+import { defaultProps, resizableAxes, type AnyComponentDef, type DefaultPlacement, type PropCondition, type PropSpec } from '../library/types';
 import { CONTAINER_PRESETS } from '../containers';
 import { defaultLayout } from '../layout';
 import { primaryListProp, primaryTextProp } from './parse';
@@ -18,6 +18,8 @@ export interface CatalogProp {
   max?: number;
   visibleWhen?: Readonly<Record<string, PropCondition>>;
   help?: string;
+  /** The prop also takes `"auto"` (a navigation's selected item that follows the screen). */
+  auto?: string;
 }
 
 export interface CatalogEntry {
@@ -34,6 +36,11 @@ export interface CatalogEntry {
   placement?: DefaultPlacement;
   defaultSize: { width: number; height: number };
   example: Record<string, unknown>;
+  /**
+   * Parts a flow can start at (`"opens": { "<label or key>": "<screen>" }`), as drawn with the default props; `lists`
+   * names the list props whose entries are parts (`item:<index>`).
+   */
+  parts?: { examples: { key: string; label: string }[]; lists: Record<string, string> };
 }
 
 export interface CatalogContainer {
@@ -70,6 +77,10 @@ function propOf(name: string, s: PropSpec): CatalogProp {
   }
   if (s.visibleWhen) p.visibleWhen = s.visibleWhen;
   if (s.help) p.help = s.help;
+  if (s.type === 'number' && s.auto) {
+    p.auto = s.auto.label;
+    if (s.auto.default) p.default = 'auto';
+  }
   return p;
 }
 
@@ -96,6 +107,12 @@ export function componentCatalog(): Catalog {
       if (text) entry.shortForm.text = text;
       if (list) entry.shortForm.list = list;
       if (def.placement) entry.placement = def.placement;
+      if (def.parts) {
+        const props = defaultProps(def);
+        const width = def.defaultSize.width;
+        const height = def.build(props, { width }).height;
+        entry.parts = { examples: def.parts(props, { width, height }).map((x) => ({ key: x.key, label: x.label })), lists: Object.fromEntries(Object.entries(def.partLists ?? {}).map(([k, v]) => [`${k}:<index>`, v])) };
+      }
       return entry;
     });
   const containers = (['vstack', 'hstack', 'grid'] as const).map((key): CatalogContainer => {
@@ -150,12 +167,18 @@ export function catalogMarkdown(c: Catalog = componentCatalog()): string {
       if (e.shortForm.text || e.shortForm.list) facts.push(`Short form: ${[e.shortForm.text && `"…" → ${e.shortForm.text}`, e.shortForm.list && `[…] → ${e.shortForm.list}`].filter(Boolean).join(', ')}`);
       if (e.keywords.length) facts.push(`Also: ${e.keywords.join(', ')}`);
       out.push(facts.join(' · '), '');
+      if (e.parts) {
+        const lists = Object.entries(e.parts.lists).map(([k, prop]) => `\`${k}\` = an entry of \`${prop}\``);
+        const ex = e.parts.examples.map((x) => `${fmt(x.label)} (\`${x.key}\`)`).join(', ');
+        out.push(`Parts (link one with \`"opens": { "<label or key>": "<screen>" }\`): ${ex || 'none with the defaults'}${lists.length ? `; ${lists.join(', ')}` : ''}.`, '');
+      }
       out.push('| Prop | Type | Default | Notes |', '| --- | --- | --- | --- |');
       for (const p of e.props) {
         const notes = [
           p.options && `one of ${p.options.join(', ')}`,
           (p.min !== undefined || p.max !== undefined) && `${p.type === 'list' ? 'entries ' : ''}${p.min ?? '…'}–${p.max ?? '…'}`,
           p.visibleWhen && `only when ${condText(p.visibleWhen)}`,
+          p.auto && `or "auto": ${p.auto.toLowerCase()}`,
           p.help,
         ]
           .filter(Boolean)

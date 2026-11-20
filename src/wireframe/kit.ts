@@ -7,6 +7,7 @@
 import { createEllipse, createGroup, createPath, createRect, createText, defaultStroke, measureText, none, solid, type BezierPoint, type Paint, type SceneNode, type Stroke, type SubPath, type TextNode } from '@/model';
 import { ICON_GLYPH_SIZE, iconGlyph, iconNodeName, normalizeIconName, recolor } from './icons';
 import { WF, WF_RADIUS, WF_SIZE, WF_TEXT, type WfTextStyle, type WfTone } from './style';
+import type { PartOpens } from './library/types';
 
 const color = (t: WfTone) => WF[t];
 const paint = (t: WfTone | 'none'): Paint => (t === 'none' ? none() : solid(color(t)));
@@ -303,4 +304,34 @@ export function buttonBox(label: string, o: { x: number; y: number; height?: num
       textInBand(label, { x: x + w / 2, y: o.y, height: h, align: 'center', style: 'label', weight: 600, tone: primary ? 'paper' : 'ink', name: 'Label' }),
     ]),
   };
+}
+
+// ---------- parts (links from pieces of a component) ----------
+
+/** A part rect (`ComponentPart.rect`) from a box. */
+export const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width: Math.max(0, width), height: Math.max(0, height) });
+
+/** The part key of entry `index` of a list prop with key prefix `prefix` (`item:2`). */
+export const itemKey = (index: number, prefix = 'item') => `${prefix}:${index}`;
+
+/** The index in a part key of a list prefix (`item:2` → 2), or null. */
+export function keyIndex(key: string, prefix = 'item'): number | null {
+  const m = new RegExp(`^${prefix}:(\\d+)$`).exec(key);
+  return m ? Number(m[1]) : null;
+}
+
+/** `selectFromPart` of a component whose selected prop is the 1-based position in its `item` list. */
+export function selectedFromItem(key: string): number | null {
+  const i = keyIndex(key);
+  return i === null ? null : i + 1;
+}
+
+/**
+ * The items of a navigation component in the AI export: `Galeria (selected), Arquivos` — or, when some open a
+ * screen, `Galeria (selected) → opens Galeria; Arquivos → opens Arquivos` (`opens.take(key)` marks them written).
+ */
+export function describeItems(items: readonly { key: string; label: string; selected?: boolean }[], opens?: PartOpens): string {
+  const texts = items.map((it) => ({ it, opens: opens?.take(it.key) }));
+  const any = texts.some((t) => t.opens);
+  return texts.map(({ it, opens: o }) => `${it.label}${it.selected ? ' (selected)' : ''}${o ? ` ${o}` : ''}`).join(any ? '; ' : ', ');
 }

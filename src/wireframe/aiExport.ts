@@ -27,14 +27,14 @@ import {
 } from '@/model';
 import { serializeProject } from '@/io/projectFile';
 import { getComponent } from './library/registry';
-import { resolveProps } from './library/types';
+import { autoProps, isAutoProp, resolveProps, type PartOpens } from './library/types';
 import { notesFor, type NoteForExport } from './notes';
 import { logicalScreen, screenSlug } from './screens';
 import { flowOpensLine, flowReadmeSection, flowScreenSection, flowSourceText, STATUS_TEXT } from './flowExport';
-import { flowsOf } from './flows';
+import { flowSources, flowsOf, partLabel } from './flows';
 import { styleWords } from './containers';
 import { repeatCount, repeatTemplate } from './repeat';
-import { instancesOf, newSymbolInstance, symbolsOf } from './symbols';
+import { instancePrefix, instancesOf, newSymbolInstance, symbolsOf } from './symbols';
 
 const PLATFORM_ORDER: ScreenPlatform[] = ['phone', 'tablet', 'desktop'];
 const platformLabel = (p: ScreenPlatform) => p[0].toUpperCase() + p.slice(1);
@@ -155,6 +155,10 @@ class TreeWriter {
   private readonly frame: ScreenNode;
   /** Outgoing flows by source node, written under it ("→ opens Language"). */
   private readonly flows = new Map<Id, string[]>();
+  /** Flows from parts of a component, by node and part key: written in its line ("Arquivos → opens Arquivos"). */
+  private readonly partFlows = new Map<Id, Map<string, { text: string; label: string }[]>>();
+  /** Describing a shared component's master (README): a selected item that follows the screen is said so. */
+  private readonly master: boolean;
 
   /** Shared component names by master id ("Shared: Trip card"). */
   private readonly shared: ReadonlyMap<Id, string>;
@@ -162,11 +166,12 @@ class TreeWriter {
   constructor(
     frame: ScreenNode,
     notes: NoteForExport[],
-    flows: { flow: WireframeFlow; target: string }[] = [],
-    opts: { shared?: ReadonlyMap<Id, string>; sourceText?: (id: Id) => string } = {},
+    flows: FlowEntry[] = [],
+    opts: { shared?: ReadonlyMap<Id, string>; sourceText?: (id: Id, part?: string) => string; master?: boolean } = {},
   ) {
     this.frame = frame;
     this.shared = opts.shared ?? new Map();
+    this.master = !!opts.master;
     // Shared instances are one line ("Shared: Trip card"): flows from inside one are written under it, with their source.
     const insideShared = new Map<Id, Id>();
     const scanShared = (n: GroupNode) => {
@@ -184,10 +189,18 @@ class TreeWriter {
       }
     };
     scanShared(frame);
-    for (const { flow, target } of flows) {
-      const owner = insideShared.get(flow.from);
-      const line = flowOpensLine(flow, target) + (owner && opts.sourceText ? ` (from ${opts.sourceText(flow.from)})` : '');
-      const key = owner ?? flow.from;
+    for (const { flow, target, source, partLabel: label } of flows) {
+      const owner = insideShared.get(source);
+      // A shared flow inside a shared instance is part of the master, described once in the README.
+      if (owner && flow.symbol) continue;
+      if (flow.part !== undefined && !owner) {
+        const byKey = this.partFlows.get(source) ?? new Map<string, { text: string; label: string }[]>();
+        byKey.set(flow.part, [...(byKey.get(flow.part) ?? []), { text: flowOpensLine(flow, target), label: label ?? flow.part }]);
+        this.partFlows.set(source, byKey);
+        continue;
+      }
+      const line = flowOpensLine(flow, target) + (owner && opts.sourceText ? ` (from ${opts.sourceText(source, flow.part)})` : '');
+      const key = owner ?? source;
       this.flows.set(key, [...(this.flows.get(key) ?? []), line]);
     }
     for (const n of notes) {
@@ -219,8 +232,9 @@ class TreeWriter {
     return out;
   }
 
-  private line(depth: number, text: string, ids: readonly Id[]) {
+  private line(depth: number, text: string, ids: readonly Id[], extra: readonly string[] = []) {
     this.lines.push(`${'  '.repeat(depth)}- ${text}`);
+    for (const l of extra) this.lines.push(`${'  '.repeat(depth + 1)}- ${l}`);
     for (const id of ids) {
       for (const l of this.flows.get(id) ?? []) this.lines.push(`${'  '.repeat(depth + 1)}- ${l}`);
       this.flows.delete(id);
@@ -259,15 +273,30 @@ class TreeWriter {
     if (n.type !== 'group') return this.line(depth, withPos(shapeLine(n)), [n.id, ...carried]);
     if (isComponentNode(n)) {
       const def = getComponent(n.component.kind);
+      const parts = this.partFlows.get(n.id);
+      const used = new Set<string>();
+      const opens: PartOpens | undefined = parts && {
+        has: (key) => parts.has(key),
+        take: (key) => {
+          const list = parts.get(key);
+          if (!list) return undefined;
+          used.add(key);
+          return list.map((x) => x.text).join(', ');
+        },
+      };
       let text: string;
       if (def) {
         try {
-          text = def.describe(resolveProps(def, n.component.props));
+          text = def.describe(resolveProps(def, n.component.props, n.component.resolved), opens);
+          if (this.master && autoProps(def).some((k) => isAutoProp(def, n.component.props, k))) text += ' — the selected item follows the screen (the one that opens the screen on show)';
         } catch {
           text = `${def.label} component`;
         }
       } else text = `Component "${n.component.kind}" (unknown kind)`;
-      return this.line(depth, withPos(text), [n.id, ...carried]);
+      // Parts the line did not mention: one line each under it.
+      const extra = parts ? [...parts].filter(([k]) => !used.has(k)).flatMap(([, list]) => list.map((x) => `${x.text} (from ${JSON.stringify(x.label)})`)) : [];
+      this.partFlows.delete(n.id);
+      return this.line(depth, withPos(text), [n.id, ...carried], extra);
     }
     const shared = n.symbol && this.shared.get(n.symbol.id);
     if (shared) return this.line(depth, withPos(`Shared: ${shared}`), [n.id, ...carried]);
@@ -342,8 +371,8 @@ function collectIds(n: GroupNode, out: Id[] = []): Id[] {
 function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport[]): string[] {
   const f = v.frame;
   const out = [`## ${platformLabel(v.platform)} (${size(f.screen.width, f.screen.height)})`, '', `Image: \`${v.image}\``, ''];
-  const flows = flowsOf(doc).map((flow) => ({ flow, target: logicalScreen(doc, flow.to)?.name ?? 'a missing screen' }));
-  const w = new TreeWriter(f, notes, flows, { shared: sharedNames(doc), sourceText: (id) => flowSourceText(doc, id) });
+  const flows = flowEntries(doc);
+  const w = new TreeWriter(f, notes, flows, { shared: sharedNames(doc), sourceText: (id, part) => flowSourceText(doc, id, part) });
   const l = f.layout;
   if (!l) out.push('Elements are placed freely (no stack); listed top to bottom.', '');
   else if (l.kind !== 'vstack') out.push(`Layout: ${stackName(l)}.`, '');
@@ -358,6 +387,26 @@ function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport
   if (rest.length) out.push('', 'Other notes on this variant:', ...rest.map((n) => `- ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`));
   out.push('');
   return out;
+}
+
+// ---------- flows ----------
+
+/** A flow at one of the canvas nodes it starts at (a shared flow: one entry per instance). */
+interface FlowEntry {
+  flow: WireframeFlow;
+  /** The target screen's name. */
+  target: string;
+  /** The canvas node. */
+  source: Id;
+  /** The part's label, for flows from a part. */
+  partLabel?: string;
+}
+
+function flowEntries(doc: DesignDocument): FlowEntry[] {
+  return flowsOf(doc).flatMap((flow) => {
+    const target = logicalScreen(doc, flow.to)?.name ?? 'a missing screen';
+    return flowSources(doc, flow).map((source) => ({ flow, target, source, ...(flow.part !== undefined ? { partLabel: partLabel(doc, source, flow.part) } : {}) }));
+  });
 }
 
 // ---------- shared components ----------
@@ -387,7 +436,15 @@ function sharedReadmeSection(ctx: AiContext): string[] {
     const root: GroupNode = { ...newSymbolInstance(s, symbols, { x: 0, y: 0 }), symbol: undefined };
     const size = root.layout?.size ?? { width: 0, height: 0 };
     const holder = { ...root, id: `${s.id}~holder`, children: [root], screen: { screenId: '', platform: 'phone', ...size } } as ScreenNode;
-    const w = new TreeWriter(holder, [], [], { shared: names });
+    // Links defined in the master ("one link, all screens") are written in its tree.
+    const masterDoc = { ...ctx.doc, children: [holder] } as DesignDocument;
+    const flows = flowsOf(ctx.doc)
+      .filter((f) => f.symbol === s.id)
+      .map((flow): FlowEntry => {
+        const source = instancePrefix(root.id) + flow.from;
+        return { flow, target: logicalScreen(ctx.doc, flow.to)?.name ?? 'a missing screen', source, ...(flow.part !== undefined ? { partLabel: partLabel(masterDoc, source, flow.part) } : {}) };
+      });
+    const w = new TreeWriter(holder, [], flows, { shared: names, master: true });
     w.write(holder, 0, false);
     const tree = w.text();
     out.push(...(tree.length ? tree : ['(empty)']), '');
@@ -440,7 +497,7 @@ export function aiMarkdown(doc: DesignDocument): AiMarkdown {
     '- "Note:" lines are the designer\'s remarks about the element above them.',
     '- `screens/<name>.<platform>.png` is an image of each variant; `project.designer.json` is the editable project.',
     ...(screens.some((s) => s.status) ? ['- Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.'] : []),
-    ...(flowsOf(doc).length ? ['- "→ opens X" under an element: tapping (or clicking) it opens the screen X. The Flow section below has the whole map.'] : []),
+    ...(flowsOf(doc).length ? ['- "→ opens X" under an element, or after an item in its line ("Bottom navigation: Gallery (selected) → opens Gallery; Files → opens Files"): tapping (or clicking) it opens the screen X. The Flow section below has the whole map.'] : []),
     '',
     ...(free.length ? ['## Notes', '', ...free.map((n) => `- ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`), ''] : []),
     ...sharedReadmeSection(ctx),

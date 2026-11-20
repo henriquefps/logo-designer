@@ -1,6 +1,6 @@
 // Bottom sheet: a panel rising from the bottom edge with a grab handle, a title and a list of rows.
 // Free, anchored at the bottom of the screen, edge to edge.
-import { box, divider, lineHeight, nodes, part, textInBand, truncate } from '../../kit';
+import { box, describeItems, divider, itemKey, lineHeight, nodes, part, rect, textInBand, truncate } from '../../kit';
 import { WF_RADIUS, WF_SPACE } from '../../style';
 import { defineComponent } from '../types';
 
@@ -43,5 +43,10 @@ export default defineComponent({
       height: h,
     };
   },
-  describe: (p) => `Bottom sheet${p.title ? ` "${p.title}"` : ''}: ${p.rows.slice(0, MAX).join(', ')}`,
+  parts(p, { width }) {
+    const y0 = TOP + (p.title ? Math.ceil(lineHeight('subheading')) + WF_SPACE.md : 0);
+    return p.rows.slice(0, MAX).map((label, i) => ({ key: itemKey(i), label, rect: rect(0, y0 + i * ROW, width, ROW) }));
+  },
+  partLists: { item: 'rows' },
+  describe: (p, opens) => `Bottom sheet${p.title ? ` "${p.title}"` : ''}: ${describeItems(p.rows.slice(0, MAX).map((label, i) => ({ key: itemKey(i), label })), opens)}`,
 });

@@ -7,7 +7,7 @@ import type { Tool, ToolContext, ToolPointerEvent } from '../types';
 import { startMove, startResize, startRotate, type Gesture } from './gestures';
 import { SelectOptions } from './SelectOptions';
 import { SelectWireframeOverlay } from '@/wireframe/canvas/SelectWireframeOverlay';
-import { hitFlowArrow, hitFlowHandle, startFlowDrag } from '@/wireframe/flowDrag';
+import { hitFlowArrow, hitFlowHandle, hitPartHandle, startFlowDrag, updateHoverPart } from '@/wireframe/flowDrag';
 import { removeFlowCommand, selectFlow, useFlowStore } from '@/wireframe/flowCommands';
 import { editPathAt, editSelectedPath } from '@/vector/commands';
 import { editTextOnDoubleClick, isDoubleClick } from '../text/session';
@@ -80,7 +80,12 @@ const select: Tool = {
     if (e.button !== 0) return;
     if (isDoubleClick(e) && editTextOnDoubleClick(ctx.hitTest(e.point, { deep: true }))) return;
     const ed = ctx.editor();
-    // Wireframes: the flow handle of the selected element, then the flow arrows.
+    // Wireframes: the flow handle of the selected element (or of its hovered part), then the flow arrows.
+    const partFrom = hitPartHandle(ctx, e.point);
+    if (partFrom) {
+      gesture = startFlowDrag(ctx, partFrom.id, e, partFrom.part);
+      return;
+    }
     const flowFrom = hitFlowHandle(ctx, e.point);
     if (flowFrom) {
       gesture = startFlowDrag(ctx, flowFrom, e);
@@ -136,7 +141,8 @@ const select: Tool = {
     const ed = ctx.editor();
     if (!e.pressed) {
       // Hover: cursor over handles + hover outline.
-      if (hitFlowHandle(ctx, e.point)) {
+      if (ctx.doc().wireframe) updateHoverPart(ctx, e.point);
+      if (hitPartHandle(ctx, e.point) || hitFlowHandle(ctx, e.point)) {
         ed.setCursor('crosshair');
         ed.setHover(null);
         return;

@@ -1,6 +1,6 @@
 // Dialog: a centred card with a title, a message and one or two actions (right aligned, the main one last).
 // Free, centred on the screen.
-import { box, lineHeight, nodes, text, textInBand, textWidth, truncate } from '../../kit';
+import { box, lineHeight, nodes, rect, text, textInBand, textWidth, truncate } from '../../kit';
 import { WF_RADIUS, WF_SPACE, type WfTextStyle } from '../../style';
 import { defineComponent } from '../types';
 
@@ -26,6 +26,19 @@ function wrap(value: string, maxWidth: number, style: WfTextStyle, maxLines: num
   const cut = lines.slice(0, maxLines);
   cut[maxLines - 1] = truncate(`${cut[maxLines - 1]} ${lines.slice(maxLines).join(' ')}`, maxWidth, style);
   return cut;
+}
+
+/** The actions on the bottom edge, right to left (main first): label, the text drawn, its right edge and width. */
+function dialogActions(p: { primary: string; secondary: string }, width: number) {
+  let x = width - PAD;
+  const actions = [p.primary && { label: p.primary, main: true }, p.secondary && { label: p.secondary, main: false }].filter(Boolean) as { label: string; main: boolean }[];
+  return actions.map((a) => {
+    const text = truncate(a.label, Math.max(0, x - PAD), 'label', 600);
+    const w = textWidth(text, 'label', a.main ? 600 : 500);
+    const out = { ...a, text, right: x, w };
+    x -= w + WF_SPACE.xl;
+    return out;
+  });
 }
 
 export default defineComponent({
@@ -54,14 +67,9 @@ export default defineComponent({
     // Taller box: the card fills it, the text stays on top and the actions sit on the bottom edge.
     const h = Math.max(height ?? 0, Math.ceil(PAD + titleH + gap1 + msgH + (hasActions ? WF_SPACE.xl + ACTION_H + WF_SPACE.sm : PAD)));
     const ay = h - WF_SPACE.sm - ACTION_H;
-    let x = width - PAD;
-    const actions = [p.primary && { label: p.primary, main: true }, p.secondary && { label: p.secondary, main: false }].filter(Boolean) as { label: string; main: boolean }[];
-    const placed = actions.map((a) => {
-      const label = truncate(a.label, Math.max(0, x - PAD), 'label', 600);
-      const n = textInBand(label, { x, y: ay, height: ACTION_H, style: 'label', weight: a.main ? 600 : 500, tone: a.main ? 'ink' : 'inkMuted', align: 'right', name: a.main ? 'Main action' : 'Other action' });
-      x -= textWidth(label, 'label', a.main ? 600 : 500) + WF_SPACE.xl;
-      return n;
-    });
+    const placed = dialogActions(p, width).map((a) =>
+      textInBand(a.text, { x: a.right, y: ay, height: ACTION_H, style: 'label', weight: a.main ? 600 : 500, tone: a.main ? 'ink' : 'inkMuted', align: 'right', name: a.main ? 'Main action' : 'Other action' }),
+    );
     return {
       children: nodes(
         box({ x: 0, y: 0, width, height: h, radius: WF_RADIUS.lg, fill: 'paper', stroke: 'ink', name: 'Card' }),
@@ -72,10 +80,15 @@ export default defineComponent({
       height: h,
     };
   },
-  describe(p) {
+  parts(p, { width, height }) {
+    const ay = height - WF_SPACE.sm - ACTION_H;
+    return dialogActions(p, width).map((a) => ({ key: a.main ? 'primary' : 'secondary', label: a.label, rect: rect(Math.max(0, a.right - a.w - 8), ay, Math.min(a.w + 16, a.right + 8), ACTION_H) }));
+  },
+  describe(p, opens) {
     const parts = [`Dialog${p.title ? ` "${p.title}"` : ''}`];
     if (p.message) parts.push(`message "${p.message}"`);
-    const actions = [p.primary && `"${p.primary}" (main)`, p.secondary && `"${p.secondary}"`].filter(Boolean);
+    const o = (key: string) => (opens?.has(key) ? ` ${opens.take(key)}` : '');
+    const actions = [p.primary && `"${p.primary}" (main)${o('primary')}`, p.secondary && `"${p.secondary}"${o('secondary')}`].filter(Boolean);
     if (actions.length) parts.push(`actions: ${actions.join(', ')}`);
     return parts.join(', ');
   },

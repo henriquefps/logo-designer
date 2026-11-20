@@ -381,7 +381,9 @@ get stable ids `<instance id>~<index>`; instances placed by a stack are left to 
 stacks and grids, below), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
 screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
 renames its logical screen, empty logical screens are removed; frame normalisation and height), **`flows`** (950,
-settle and load: flows whose source element or target logical screen is gone are removed).
+settle and load: flows whose source element or target logical screen is gone are removed). Between `symbols` and
+`repeat`: **`partFlows`** (425, settle: a list prop changed → the flows on its parts follow their items,
+`remapPartKey`) and **`autoSelect`** (430: `selected: 'auto'` → `component.resolved`, see "Links from parts" below).
 
 Rules for steps: compare with `ctx.previous()` and skip what did not change (the `change` phase runs on every
 pointer move); never assign an equal value (it still creates patches); read `ctx.input` or `plain(draft)` to
@@ -530,6 +532,40 @@ arrow picking; Escape cancels through the tool's `onCancel`), `canvas/FlowArrows
 label editor; Delete / Backspace delete it), Properties `sections/flows` (outgoing flows, remove, "Link to screen…") and
 the Screen section's Status; the badge is drawn by `ScreenLabels`. Export: `flowExport.ts` (README "Flow" list + Mermaid,
 "→ opens X" under the source, "Opened from" per screen; status in the README list and each screen file).
+
+
+### Links from parts of a component (`flows.ts`, `steps/partFlows`, `steps/autoSelect`)
+
+Contract: docs/wireframe-mode.md → Links from parts of a component.
+
+- **Parts** (`library/types.ts`): a definition may declare `parts(props, size) → { key, label, rect }[]` (local rects,
+  only what is drawn; the contract test checks they lie inside the build), `partLists` (key prefix → list prop:
+  `{ item: 'labels' }`; keys `item:<0-based index>`), and for navigation `selectFromPart(props, key)` (the 1-based
+  `selected` a part stands for). Components whose parts depend on text widths share one layout function between
+  `build` and `parts` (`headerLayout`, `toolbarLayout`, `crumbs`, `dialogActions`, `actionSlots`). Kit helpers:
+  `rect`, `itemKey`, `keyIndex`, `selectedFromItem`, `describeItems` (writes "Files → opens Files" for the export).
+- **Flows**: `WireframeFlow.part` (a part key of the instance `from`) and `.symbol` (defined in that master: `from` is a
+  master content id). `flowSources(doc, flow)` = the canvas nodes it starts at (one per instance for a shared flow;
+  index memoized per `doc.children`), `flowsAt(doc, node)` = its own + its master node's flows, `masterRef(doc, node)`
+  = the innermost instance, its master and the node's master id. `addFlow(…, { part, shared })`,
+  `newScreenFromFlow(…, { part, shared })` (named after the part), `partsOfNode` / `partWorldRect` / `partAt` /
+  `partLabel`, `flowCurves` (one arrow per source; a shared flow draws none on the screen it opens),
+  `localizeSharedFlows` (Detach / Delete master keep the links as each copy's own), `remapPartKey`.
+- **Steps**: `partFlows` (425, settle) compares each part flow's component props before/after (the master's content for
+  shared flows, after `symbols` wrote an edit made through an instance into it). `autoSelect` (430) writes
+  `component.resolved` for instances whose `auto` props are `'auto'` (every instance when flows or screens changed,
+  else changed subtrees) and rebuilds the ones no layout places; `resolveProps(def, props, resolved)` replaces
+  `'auto'` before `build` / `describe`. `resolved` is per instance: `sharedShape` and `contentOf` leave it out.
+- **App**: `flowDrag.ts` (`partSource`, `updateHoverPart`, `partHandlePoint` — top centre when other parts share the
+  row, else right edge — `hitPartHandle`, `startFlowDrag(…, part)`), `useFlowStore.hoverPart`, `sharedScope`;
+  `canvas/SelectWireframeOverlay` `PartHandle` (outline, label, handle); `FlowMenus` asks "This screen only" /
+  "Every screen using …" (menu `to`) and has the same choice in the New screen menu; `FlowArrows` dashes shared flows;
+  Properties → Flows (`FlowsSection`: rows per part, From / On / Link to screen); the component section shows a
+  "Follows the screen / Fixed" select for `auto` props.
+- **Present mode**: `hotspots` gives one per (node, part), with `part` and `label`; shared flows on every instance.
+- **Export**: `TreeWriter` hands each component its part flows as `PartOpens` (`describe(props, opens)`); parts the
+  line does not mention are written under it. The README master section writes the master's flows and "the selected
+  item follows the screen". Spec: `opens` map, `#part` paths, component-name paths, dump via `partRef`.
 
 ### Shared components (`src/wireframe/symbols.ts`, `symbolCommands.ts`)
 

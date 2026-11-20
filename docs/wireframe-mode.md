@@ -502,6 +502,34 @@ whose part links to the **current screen** is drawn selected; with no such link,
 makes one shared tab bar show the right tab on each screen with no per-instance overrides. A number
 keeps the old fixed behaviour.
 
+### As built (links from parts)
+
+- Code map: `docs/architecture.md` → Links from parts of a component. Demo: `scripts/demo/scenarios/10-links-na-navegacao.ts`.
+- **Part keys** are 0-based: `item:<i>` for list entries (`action:<i>` for action lists: web header, toolbar, card),
+  fixed names otherwise: top app bar `back` / `menu` / `close` and `action:<i>` (its icons), dialog and modal
+  `primary` / `secondary` (+ modal `close`), web header `logo` / `avatar`, section header and snackbar `action`,
+  pagination `previous` / `next`. Sidebar items keep their index in `items` (section labels have no part).
+  Only drawn pieces are parts (a header link cut by the width has none; its flow stays).
+- **Removal rule, made exact:** an item keeps its flow by label (first match); else by its old index only when the
+  entry now there is not one of the old entries (a rename); else the flow goes. So removing a tab removes its link
+  and never hands it to the next tab.
+- **Shared links:** `WireframeFlow.symbol` + `from` in the master's id space. A shared link draws **one** arrow (from
+  the selected instance when there is one, else the first instance not on the screen it opens): four tabs × four
+  screens would be sixteen arrows. Shared arrows are dashed. Detach and Delete master turn the master's links into
+  links of each copy, so nothing is lost.
+- **Drawing:** the part's handle is on its top edge when parts share a row (tabs), else on its right edge; a tab's
+  arrow leaves upwards from its top, so arrows do not run along the bar over the next screens' tabs. A part can be
+  dragged onto its own screen (a real drag, not a click on the handle): that is how a tab becomes the selected one
+  there. The scope choice appears after the drop (on a screen: the two choices; on empty canvas: a radio group
+  next to New screen, default "Every screen using …"). Properties → Flows has From (whole element / each part) and
+  On (every screen / this screen only) for linking without dragging.
+- **Selected follows the screen:** `selected` is `'auto'` by default for bottom navigation, tabs, segmented control,
+  sidebar navigation and the web header (new instances and specs; files that stored a number keep it); the resolved
+  value is `component.resolved`, per instance. The Properties field is "Follows the screen / Fixed".
+- **Found while recording the demo:** wrapping a pinned bottom navigation in a stack (needed for Make component,
+  since a library component cannot be one itself) dropped the stack into the screen's flow. `wrapInLayout` now gives
+  the stack the pieces' common `pinned-bottom` / `free` position (regression test in `layoutEdit.test.ts`).
+
 ## Phase 3: agents (detailed)
 
 Goal: an agent (Claude Code, Codex, a script) creates, reads and edits wireframe projects as well as

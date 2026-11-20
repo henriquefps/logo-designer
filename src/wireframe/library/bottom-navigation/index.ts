@@ -1,6 +1,6 @@
 // Bottom navigation: 2–5 destinations, each an icon over a label; one is selected. Pinned to the
 // bottom of the screen, edge to edge.
-import { box, divider, icon, nodes, part, textInBand, truncate } from '../../kit';
+import { box, describeItems, divider, icon, itemKey, selectedFromItem, nodes, part, rect, textInBand, truncate } from '../../kit';
 import { WF_RADIUS } from '../../style';
 import { defineComponent } from '../types';
 
@@ -18,7 +18,7 @@ export default defineComponent({
   keywords: ['tab bar', 'navigation bar', 'menu', 'footer'],
   props: {
     labels: { type: 'list', label: 'Tabs', default: ['Gallery', 'Albums', 'Settings'], item: 'Tab', min: 2, max: MAX },
-    selected: { type: 'number', label: 'Selected tab', default: 1, min: 1, max: MAX, step: 1, help: '1 = the first tab.' },
+    selected: { type: 'number', label: 'Selected tab', default: 1, min: 1, max: MAX, step: 1, help: '1 = the first tab. Follows the screen: the tab that opens the screen on show.', auto: { label: 'Follows the screen', default: true } },
     icon1: { type: 'icon', label: 'Icon, tab 1', default: 'lucide:Image' },
     icon2: { type: 'icon', label: 'Icon, tab 2', default: 'lucide:FolderOpen' },
     icon3: { type: 'icon', label: 'Icon, tab 3', default: 'lucide:Settings' },
@@ -45,9 +45,16 @@ export default defineComponent({
     });
     return { children: [divider({ x: 0, y: 0.5, width }), ...tabs], height: H };
   },
-  describe(p) {
+  parts(p, { width }) {
+    const labels = p.labels.slice(0, MAX);
+    const slot = width / Math.max(1, labels.length);
+    return labels.map((label, i) => ({ key: itemKey(i), label, rect: rect(slot * i, 0, slot, H) }));
+  },
+  partLists: { item: 'labels' },
+  selectFromPart: (_p, key) => selectedFromItem(key),
+  describe(p, opens) {
     const labels = p.labels.slice(0, MAX);
     const s = sel(p, labels.length);
-    return `Bottom navigation: ${labels.map((l, i) => (i === s ? `${l} (selected)` : l)).join(', ')}`;
+    return `Bottom navigation: ${describeItems(labels.map((label, i) => ({ key: itemKey(i), label, selected: i === s })), opens)}`;
   },
 });

@@ -31,6 +31,9 @@ Hoard screenshots from `HOARD_SHOTS=<dir>` (`hoard-galeria.jpg`, `hoard-configur
 HOARD_SHOTS=~/designer-demos/inputs/hoard DEMO_E2E_DIR=/tmp/e2e bun run demo 08 09
 ```
 
+Scenario `10-links-na-navegacao` (links from parts): a bottom navigation made into the shared "Tab bar" on four
+screens, each tab linked once from the master, each screen's own tab selected, then Present through the tabs.
+
 `node scripts/demo/watch-live.ts <dir>` runs the same pieces for a session driven by hand or by an agent: a
 designer-sync on localhost, the app in Chromium with Sync on, and a control folder (`echo <id> > <dir>/open`,
 `echo shot.png > <dir>/shot`); see the comment at its top.

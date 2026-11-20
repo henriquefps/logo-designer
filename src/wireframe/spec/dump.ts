@@ -4,7 +4,8 @@
 // computes (positions and sizes in a stack) is left out too, and geometry nobody computes (free
 // positions, fixed sizes, frame positions, notes) is written. `buildFromSpec(dumpToSpec(p))` gives
 // back `p` (tested in __tests__/roundtrip.test.ts).
-import { platformDef, type DesignDocument, type Id, type LayoutInfo, type SceneNode, type ScreenNode, type WireframeSymbol } from '@/model';
+import { platformDef, walk, type DesignDocument, type Id, type LayoutInfo, type SceneNode, type ScreenNode, type WireframeSymbol } from '@/model';
+import { partsOfNode } from '../flows';
 import { getComponent } from '../library/registry';
 import { checkProp, type PropSpec } from '../library/types';
 import { defaultLayout, defaultScreenLayout } from '../layout';
@@ -89,6 +90,15 @@ function layoutDiff(l: LayoutInfo): Record<string, unknown> {
 }
 
 const raw = (n: SceneNode): SpecNode => ({ node: structuredClone(n) });
+
+/** How a dump names a part: its label when no other part of the node has it (an agent reads and edits labels), else its key. */
+export function partRef(n: SceneNode | null | undefined, key: string): string {
+  const parts = partsOfNode(n);
+  const p = parts.find((x) => x.key === key);
+  const label = p?.label.trim().toLowerCase();
+  if (!p || !label || /[/#]/.test(label) || parts.filter((x) => x.label.trim().toLowerCase() === label).length > 1) return key;
+  return p.label.trim();
+}
 
 /** One node of a screen tree (or of a master's content: `inMaster`). Null for generated nodes. */
 function dumpNode(n: SceneNode, ctx: DumpCtx, parentLays: boolean, frameChild = false): SpecNode | null {
@@ -184,11 +194,21 @@ export function dumpToSpec(doc: DesignDocument, opts: DumpOptions = {}): Wirefra
   }
   const canvas = doc.children.filter((c) => !(c.type === 'group' && (c.screen || isNoteNode(c))));
   if (canvas.length) spec.canvas = canvas.map((c) => dumpNode(c, ctx, false)).filter((c): c is SpecNode => !!c);
+  // A part: "<node>#Files"; a shared flow (defined in a master) starts with the component: "Tab bar/<node id>#Files"
+  // (its id when a screen has that name).
   const flows = wf.flows ?? [];
+  const nodeById = new Map<string, SceneNode>();
+  if (flows.some((f) => f.part !== undefined)) {
+    walk(doc.children, (n) => void nodeById.set(n.id, n));
+    for (const m of symbols) walk(m.content.children, (n) => void nodeById.set(`${m.id}\u0000${n.id}`, n));
+  }
+  const screenNames = new Set(wf.screens.map((x) => x.name.toLowerCase()));
   if (flows.length) {
     spec.flows = flows.map((f): SpecFlow => {
       const target = wf.screens.find((s) => s.id === f.to);
-      return { id: f.id, from: f.from, to: target?.name ?? f.to, ...(f.label ? { label: f.label } : {}) };
+      const node = nodeById.get(f.symbol ? `${f.symbol}\u0000${f.from}` : f.from);
+      const head = f.symbol ? `${screenNames.has(ctx.useRef(f.symbol).toLowerCase()) ? f.symbol : ctx.useRef(f.symbol)}/` : '';
+      return { id: f.id, from: `${head}${f.from}${f.part !== undefined ? `#${partRef(node, f.part)}` : ''}`, to: target?.name ?? f.to, ...(f.label ? { label: f.label } : {}) };
     });
   }
   const notes = notesOf(doc);

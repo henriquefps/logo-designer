@@ -30,14 +30,14 @@ import {
   type WireframeSymbol,
 } from '@/model';
 import { getComponent } from '../library/registry';
-import { resolveProps } from '../library/types';
+import { storedProps } from '../library/types';
 import { defaultLayout, defaultScreenLayout } from '../layout';
 import { buildComponentInto } from '../steps/components';
 import { materializeChildren, reaches } from '../symbols';
 import { createScreenFrame, frames, newScreenPosition, screenSlug, variantPosition } from '../screens';
 import { defaultPlacement } from '../instances';
 import { buildNoteChildren, isNoteNode, notePositionFor, noteRect, notesOf, type NoteNode } from '../notes';
-import { flowSource, flowSourceLabel } from '../flows';
+import { flowSource, flowSourceLabel, partsOfNode } from '../flows';
 import { materializeDocument } from '../pipeline';
 import { defaultName, layoutShape, sourceIds } from './common';
 import { parseSpec } from './parse';
@@ -71,8 +71,8 @@ interface Ctx {
   symbols: WireframeSymbol[];
   issues: SpecIssue[];
   warnings: string[];
-  /** Node-level sugar collected while building: `opens` and `note`. */
-  opens: { from: Id; to: string; path: string }[];
+  /** Node-level sugar collected while building: `opens` (with `symbol`: inside that master) and `note`. */
+  opens: { from: Id; to: string; part?: string; symbol?: Id; path: string }[];
   notes: { on: Id; text: string; path: string }[];
 }
 
@@ -85,6 +85,8 @@ interface Place {
   index: number;
   /** Inside a master's content: ids are the master's own. */
   master?: Map<Id, SceneNode>;
+  /** The master being built (with `master`). */
+  symbol?: Id;
 }
 
 function signature(n: SceneNode): string {
@@ -169,7 +171,7 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
   let itemBase: LayoutItemInfo | undefined;
   if (n.form === 'component') {
     const def = getComponent(n.kind)!;
-    const props = resolveProps(def, n.props) as Record<string, unknown>;
+    const props = storedProps(def, n.props);
     const prevComp = prev?.type === 'group' && prev.component?.kind === n.kind ? prev.component : undefined;
     let width = typeof n.width === 'number' ? n.width : (n.size?.width ?? prevComp?.size?.width ?? def.defaultSize.width);
     let height = n.size?.height ?? prevComp?.size?.height ?? def.defaultSize.height;
@@ -204,7 +206,7 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
     const size = n.size ?? (laid ? undefined : prevSize);
     if (size) layout.size = { ...size };
     const prevGroup = prev?.type === 'group' && !prev.symbol && !prev.component ? prev : undefined;
-    const children = buildChildren(n.children, { parentLays: true, prevParent: prevGroup, index: 0, master: place.master }, ctx);
+    const children = buildChildren(n.children, { parentLays: true, prevParent: prevGroup, index: 0, master: place.master, symbol: place.symbol }, ctx);
     node = { ...createGroup({ name: '' }), id, layout, children };
     node.name = n.name ?? defaultName(node);
   } else if (n.form === 'use') {
@@ -229,7 +231,7 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
     };
   } else {
     const prevGroup = prev?.type === 'group' && !prev.symbol && !prev.component && !prev.layout ? prev : undefined;
-    const children = buildChildren(n.children, { parentLays: false, prevParent: prevGroup, index: 0, master: place.master }, ctx);
+    const children = buildChildren(n.children, { parentLays: false, prevParent: prevGroup, index: 0, master: place.master, symbol: place.symbol }, ctx);
     node = { ...createGroup({ name: n.name ?? 'Group' }), id, children };
   }
   node.visible = !n.hidden;
@@ -247,10 +249,12 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
 
 function collectSugar(n: NormNode, id: Id, place: Place, ctx: Ctx) {
   if (place.master) {
-    if (n.opens.length || n.note !== undefined) ctx.issues.push({ path: n.path, message: '"opens" and "note" inside a shared component would apply to every instance; put them on the screen' });
+    // Links in a master apply to every instance (one tab bar, linked once); notes stay on screens.
+    if (n.note !== undefined) ctx.issues.push({ path: n.path, message: '"note" inside a shared component would apply to every instance; put it on the screen' });
+    for (const o of n.opens) ctx.opens.push({ from: id, to: o.to, ...(o.part !== undefined ? { part: o.part } : {}), symbol: place.symbol, path: `${n.path}.opens${o.part !== undefined ? `.${o.part}` : ''}` });
     return;
   }
-  for (const to of n.opens) ctx.opens.push({ from: id, to, path: `${n.path}.opens` });
+  for (const o of n.opens) ctx.opens.push({ from: id, to: o.to, ...(o.part !== undefined ? { part: o.part } : {}), path: `${n.path}.opens${o.part !== undefined ? `.${o.part}` : ''}` });
   if (n.note !== undefined) ctx.notes.push({ on: id, text: n.note, path: `${n.path}.note` });
 }
 
@@ -304,7 +308,7 @@ function buildSymbols(spec: NormSpec, existing: DesignDocument | null, ctx: Ctx)
 function buildMaster(c: NormComponent, id: Id, prev: WireframeSymbol | undefined, ctx: Ctx): WireframeSymbol {
   const index = new Map<Id, SceneNode>();
   if (prev) walk(prev.content.children, (n) => void index.set(n.id, n));
-  const node = buildNode({ ...c.content, id }, { parentLays: false, index: 0, master: index, prevParent: undefined }, ctx);
+  const node = buildNode({ ...c.content, id }, { parentLays: false, index: 0, master: index, symbol: id, prevParent: undefined }, ctx);
   const content: GroupNode = node && node.type === 'group' ? node : { ...createGroup({ name: c.name }), id, children: [] };
   content.id = id;
   content.name = c.name;
@@ -332,7 +336,15 @@ function frameLayout(v: NormVariant): LayoutInfo | null {
 
 interface Resolver {
   resolve(ref: string, path: string): Id | null;
+  /** A flow's `from`: a node (canvas, or in a master with `symbol`) and the part after `#`, if any. */
+  source(ref: string, path: string): { id: Id; symbol?: Id; part?: string } | null;
   screen(ref: string): WireframeScreen | undefined;
+}
+
+/** `"Home/Bottom navigation#Files"` → the path and the part (after the first `#` of the last segment). */
+export function splitPart(ref: string): { path: string; part?: string } {
+  const i = ref.indexOf('#', ref.lastIndexOf('/') + 1);
+  return i < 0 ? { path: ref } : { path: ref.slice(0, i), part: ref.slice(i + 1).trim() };
 }
 
 function makeResolver(doc: DesignDocument, ctx: Ctx): Resolver {
@@ -351,8 +363,67 @@ function makeResolver(doc: DesignDocument, ctx: Ctx): Resolver {
     });
     return hits;
   };
+  const symbols = doc.wireframe!.symbols ?? [];
+  const masterOf = (ref: string) => symbols.find((x) => x.id === ref) ?? symbols.find((x) => lc(x.name) === lc(ref));
+  /** A node of a master's content by id. */
+  const inMaster = (id: Id): { symbol: Id; node: SceneNode } | null => {
+    for (const m of symbols) {
+      let hit: SceneNode | null = null;
+      walk(m.content.children, (n) => {
+        if (hit) return false;
+        if (n.id === id) hit = n;
+      });
+      if (hit) return { symbol: m.id, node: hit };
+    }
+    return null;
+  };
+  /** Within a master: a segment matches a node's id, name or component label (not into components or nested instances). */
+  const searchMaster = (from: GroupNode, seg: string): SceneNode[] => {
+    const hits: SceneNode[] = [];
+    walk(from.children, (n) => {
+      if (n.repeatCopy) return false;
+      const holder = { children: [n], wireframe: doc.wireframe } as unknown as DesignDocument;
+      if (n.id === seg || lc(n.name) === lc(seg) || lc(flowSourceLabel(holder, n.id)) === lc(seg)) hits.push(n);
+      return !(n.type === 'group' && (n.component || n.symbol));
+    });
+    return hits;
+  };
   return {
     screen,
+    source(ref, path) {
+      const { path: nodeRef, part } = splitPart(ref);
+      const withPart = (id: Id, node: SceneNode | null, symbol?: Id) => {
+        if (part === undefined) return { id, ...(symbol ? { symbol } : {}) };
+        const parts = partsOfNode(node);
+        const hit = parts.find((p) => p.key === part) ?? parts.find((p) => lc(p.label) === lc(part));
+        if (!hit) {
+          ctx.issues.push({ path, message: parts.length ? `"${part}" is not a part of "${node?.name}" (parts: ${parts.map((p) => `"${p.label}"`).join(', ')})` : `"${node?.name}" has no parts to link from (only navigation and action components do)` });
+          return null;
+        }
+        return { id, part: hit.key, ...(symbol ? { symbol } : {}) };
+      };
+      if (all.has(nodeRef)) return withPart(nodeRef, all.get(nodeRef)!);
+      const direct = inMaster(nodeRef);
+      if (direct) return withPart(nodeRef, direct.node, direct.symbol);
+      const segs = nodeRef.split('/').map((x) => x.trim());
+      const head = segs[0].split('@')[0].trim();
+      const m = !screen(head) && !frames(doc).some((f) => f.id === head) ? masterOf(head) : undefined;
+      if (m && segs.length > 1) {
+        let cur: SceneNode = m.content;
+        for (const seg of segs.slice(1)) {
+          const hits: SceneNode[] = cur.type === 'group' ? searchMaster(cur, seg) : [];
+          if (!hits.length) {
+            ctx.issues.push({ path, message: `"${seg}" matches nothing in shared component "${m.name}"` });
+            return null;
+          }
+          if (hits.length > 1) ctx.warnings.push(`${path}: "${ref}" — "${seg}" matches ${hits.length} nodes; using the first (give the node an "id" to be exact)`);
+          cur = hits[0];
+        }
+        return withPart(cur.id, cur, m.id);
+      }
+      const id = this.resolve(nodeRef, path);
+      return id ? withPart(id, all.get(id) ?? null) : null;
+    },
     resolve(ref, path) {
       if (all.has(ref)) return ref;
       const segs = ref.split('/').map((s) => s.trim());
@@ -477,36 +548,46 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
   // Flows.
   const oldFlows = existing?.wireframe?.flows ?? [];
   const flows: WireframeFlow[] = keptFlows;
-  const addFlow = (from: Id, toRef: string, path: string, id?: string, label?: string) => {
+  const sameFlow = (f: WireframeFlow, from: Id, to: Id, part?: string, symbol?: Id) => f.from === from && f.to === to && (f.part ?? null) === (part ?? null) && (f.symbol ?? null) === (symbol ?? null);
+  const addFlow = (src0: { id: Id; part?: string; symbol?: Id }, toRef: string, path: string, id?: string, label?: string) => {
     const target = r.screen(toRef);
     if (!target) {
       ctx.issues.push({ path, message: `no screen "${toRef}" (screens: ${screens.map((s) => `"${s.name}"`).join(', ')})` });
       return;
     }
-    const src = flowSource(doc, from);
+    const src = src0.symbol ? src0.id : flowSource(doc, src0.id);
     if (!src) {
       ctx.issues.push({ path, message: 'the source must be an element inside a screen' });
       return;
     }
-    const same = flows.find((f) => f.from === src && f.to === target.id);
+    const { part, symbol } = src0;
+    const same = flows.find((f) => sameFlow(f, src, target.id, part, symbol));
     if (same) {
       if (label !== undefined) same.label = label;
       return;
     }
-    const prevFlow = (id !== undefined ? oldFlows.find((f) => f.id === id) : undefined) ?? oldFlows.find((f) => f.from === src && f.to === target.id);
-    flows.push({ id: id ?? prevFlow?.id ?? newId('f'), from: src, to: target.id, ...(label ? { label } : {}) });
+    const prevFlow = (id !== undefined ? oldFlows.find((f) => f.id === id) : undefined) ?? oldFlows.find((f) => sameFlow(f, src, target.id, part, symbol));
+    flows.push({ id: id ?? prevFlow?.id ?? newId('f'), from: src, to: target.id, ...(label ? { label } : {}), ...(part !== undefined ? { part } : {}), ...(symbol ? { symbol } : {}) });
+  };
+  /** `opens` sugar: the part is a label or a key of the node's parts. */
+  const sugarSource = (o: Ctx['opens'][number]): { id: Id; part?: string; symbol?: Id } | null => {
+    if (o.part === undefined) return { id: o.from, ...(o.symbol ? { symbol: o.symbol } : {}) };
+    return r.source(`${o.from}#${o.part}`, o.path);
   };
   /** A reference to a node this build removed (it was in the project, the spec dropped it): like a delete in the app, its flows go and its notes detach. */
   const removedRef = (ref: string) => ctx.prev.has(ref) && !findNode(doc, ref);
   for (const f of spec.flows ?? []) {
-    if (removedRef(f.from)) {
+    if (removedRef(splitPart(f.from).path)) {
       ctx.warnings.push(`${f.path}: its source ${f.from} was removed, so the flow is dropped`);
       continue;
     }
-    const from = r.resolve(f.from, `${f.path}.from`);
+    const from = r.source(f.from, `${f.path}.from`);
     if (from) addFlow(from, f.to, `${f.path}.to`, f.id, f.label);
   }
-  for (const o of ctx.opens) addFlow(o.from, o.to, o.path);
+  for (const o of ctx.opens) {
+    const from = sugarSource(o);
+    if (from) addFlow(from, o.to, o.path);
+  }
 
   // Notes.
   const oldNotes = existing ? notesOf(existing) : [];

@@ -7,7 +7,7 @@ import { validateDocument } from '@/io/projectFile';
 import { masterShape } from '../../symbols';
 import { materializeDocument } from '../../pipeline';
 import { buildFromSpec, dumpToSpec } from '..';
-import { containersProject, settingsProject, sharedProject, variantsProject } from './fixtures';
+import { containersProject, navProject, settingsProject, sharedProject, variantsProject } from './fixtures';
 
 /** The project as the spec sees it: top-level order (z-order) aside, masters compared by what instances share. */
 function canonical(doc: DesignDocument) {
@@ -28,6 +28,7 @@ const FIXTURES: [string, () => DesignDocument][] = [
   ['containers (vstack / hstack / grid, styles, repeat, nested, fixed, free, pinned, free frame, plain shapes)', containersProject],
   ['shared components (two screens, nested, inside a repeat, flows from inside an instance)', sharedProject],
   ['multi-variant screens (phone + tablet, desktop)', variantsProject],
+  ['links from parts (shared tab bar linked in its master, tabs, top app bar back / action)', navProject],
 ];
 
 describe('wireframe spec round trip', () => {

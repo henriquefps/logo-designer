@@ -118,7 +118,10 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
   stacks of library pieces (`{ "hstack": [ { "heading": … }, { "icon": { "icon": "search" } }, … ] }`), and put
   what still cannot be drawn in a note. Icons are Lucide names (`search`, `trash-2`, `settings`); `wf build` warns
   about a name Lucide does not have.
-- `"opens": "Other screen"` on a node draws a flow; `"note": "…"` attaches a note; `"status"` is `current`
+- `"opens": "Other screen"` on a node draws a flow; on a navigation component link each tab / item / action with
+  `"opens": { "Files": "Files" }` (parts by label or key; `wf components` lists them). Put the `opens` of a tab bar
+  inside its shared component's `content`: one link for every screen, and each screen shows its own tab selected
+  (`selected` defaults to `"auto"`). `"note": "…"` attaches a note; `"status"` is `current`
   (as the app is), `changed` (proposed change) or `new`. Write a note wherever behaviour cannot be drawn
   (what a tap does besides navigating, loading/empty/error states, gestures, conditions).
 
@@ -171,7 +174,8 @@ When you are given `<project>-for-ai.zip` (or its folder) to **build the app**:
 3. Build in the target app's own stack and design system (wireframes are greyscale and low fidelity: no colours,
    fonts or exact sizes to copy). "List of N × (…)" is one item rendered from data; "Shared: X" is one reusable
    component; "pinned to bottom" / "floating" are real placement.
-4. Wire navigation from the "→ opens X" lines and the Flow section; implement every "Note:" (they are
+4. Wire navigation from the "→ opens X" lines (also inline, after an item: "Bottom navigation: Gallery (selected)
+   → opens Gallery; Files → opens Files") and the Flow section; implement every "Note:" (they are
    requirements, not comments) and ask when one is ambiguous.
 5. `project.designer.json` is the editable source: `designer wf dump` it for an exact, machine-readable tree.
 
