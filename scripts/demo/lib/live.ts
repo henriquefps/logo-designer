@@ -70,6 +70,9 @@ export interface LiveProcess {
   /** Everything it printed so far, one entry per line. */
   lines: string[];
   waitForLine(re: RegExp, ms?: number): Promise<string>;
+  /** Waits for a line matching `re` printed after this call's `since` count (see `count`). */
+  waitForNew(re: RegExp, since: number, ms?: number): Promise<void>;
+  count(re: RegExp): number;
   /** Ctrl+C, then waits for it to exit (it clears the live mark on the way out). */
   stop(): Promise<void>;
 }
@@ -91,10 +94,13 @@ export async function startLive(root: string, file: string, server: string, orig
   };
   const head = await waitForLine(/^Live: .*\((\S+)\)/, 20_000);
   const id = /\((\S+)\) ↔/.exec(head)![1];
+  const count = (re: RegExp) => lines.filter((l) => re.test(l)).length;
   return {
     id,
     lines,
     waitForLine,
+    count,
+    waitForNew: async (re, since, ms = 10_000) => void (await waitUntil(`designer live to print another ${re}`, () => count(re) > since, ms)),
     stop: async () => {
       if (!exited) child.kill('SIGINT');
       await exit;

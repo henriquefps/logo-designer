@@ -37,7 +37,7 @@ const projectNames = (page: Page) =>
   page.evaluate(() => (window as unknown as { __designer: { useProjectsStore: { getState(): { projects: { name: string }[] } } } }).__designer.useProjectsStore.getState().projects.map((p) => p.name));
 
 /** Henrique renames the open project: Projects dialog → ⋯ → Rename → type → Enter. */
-async function renameProject(page: Page, from: string, to: string) {
+async function renameProject(page: Page, from: string, to: string): Promise<number> {
   await page.getByTitle('Projects').click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: `Actions for ${from}` }).click();
@@ -45,8 +45,10 @@ async function renameProject(page: Page, from: string, to: string) {
   const input = dialog.getByLabel('Project name');
   await input.fill(to);
   await input.press('Enter');
+  const at = Date.now();
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
+  return at;
 }
 
 let server: SyncServer | null = null;
@@ -88,10 +90,11 @@ try {
   ok('Live indicator: last change by the CLI');
 
   // 2. Henrique edits in the app (real input: the Projects dialog renames the project).
-  const before = Date.now();
-  await renameProject(page, 'Hoard', 'Hoard (Henrique)');
-  const appToFile = await waitUntil('the rename in the file', () => readProject(file).name === 'Hoard (Henrique)', 5_000);
-  ok(`app edit → file in ${appToFile} ms (from the Enter key; ${Date.now() - before} ms including the dialog)`);
+  const enter = await renameProject(page, 'Hoard', 'Hoard (Henrique)');
+  await waitUntil('the rename in the file', () => readProject(file).name === 'Hoard (Henrique)', 5_000, 10);
+  const appToFile = Date.now() - enter;
+  if (appToFile > 1500) throw new Error(`app → file took ${appToFile} ms (expected about 1 s)`);
+  ok(`app edit (Enter in the rename field) → file in ${appToFile} ms`);
   await live.waitForLine(/↓ pulled .*edited in the app/);
   await waitUntil('the indicator to say this device', async () => (await indicator.getAttribute('data-live-by')) === 'this-device', 3_000);
   ok('Live indicator: last change by this device');
@@ -100,8 +103,10 @@ try {
   await context.setOffline(true);
   await renameProject(page, 'Hoard (Henrique)', 'Offline rename');
   await page.waitForTimeout(1200); // autosaved on the device, the push fails (offline)
+  const PUSHED = /↑ pushed \(file changed\)/;
+  let n = live.count(PUSHED);
   editProject(file, (d) => addComponent(d, 'Settings', 'list-row', { title: 'Backup', trailing: 'chevron' }, 'Backup row'));
-  await live.waitForLine(/↑ pushed \(file changed\)/);
+  await live.waitForNew(PUSHED, n);
   await page.waitForTimeout(300);
   await context.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
@@ -112,8 +117,9 @@ try {
 
   // 4. Conflict, the app is newer: the agent's file edit lands while the app is offline, then the app edits later.
   await context.setOffline(true);
+  n = live.count(PUSHED);
   editProject(file, (d) => addComponent(d, 'Settings', 'list-row', { title: 'Theme' }, 'Theme row'));
-  await live.waitForLine(/↑ pushed \(file changed\)/);
+  await live.waitForNew(PUSHED, n);
   const pushes = live.lines.filter((l) => l.includes('↑ pushed')).length;
   await page.waitForTimeout(200);
   await renameProject(page, 'Hoard (Henrique)', 'Hoard (newest)');
