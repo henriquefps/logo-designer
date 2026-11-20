@@ -7,10 +7,11 @@
 import { cliSvg } from './sandbox';
 import { createDocument, createText, findNode, solid, worldBounds, type DesignDocument, type Rect, type ScreenNode, type ScreenPlatform, type Vec } from '@/model';
 import { exportSvg } from '@/io/svgExport';
-import { bezierAt, flowCurves, flowsOf, flowTarget, screenStatus, STATUS_LABELS } from '@/wireframe/flows';
+import { flowLayout, screenStatus, STATUS_LABELS } from '@/wireframe/flows';
+import { placeLabels, routePath } from '@/wireframe/routing';
 import { arrowHead } from '@/wireframe/canvas/arrowHead';
 import { labelLayout, labelWidth } from '@/wireframe/canvas/labels';
-import { frameOf, frameRect, screenSlug } from '@/wireframe/screens';
+import { frameRect, screenSlug } from '@/wireframe/screens';
 import { noteRect, notesOf, type NoteNode } from '@/wireframe/notes';
 import { WF } from '@/wireframe/style';
 import { framesFor, parsePlatform } from './wireframe';
@@ -100,10 +101,12 @@ export interface SheetFrame {
 
 export interface SheetArrow {
   flowId: string;
-  /** Bézier points in output px and the end direction. */
-  points: [Vec, Vec, Vec, Vec];
+  /** The routed polyline in output px (around the frames, like the canvas) and the end direction. */
+  points: Vec[];
   dir: Vec;
   label?: string;
+  /** The label's centre (output px), on a clear stretch of the arrow. */
+  labelAt?: Vec;
 }
 
 export interface SheetNote {
@@ -152,14 +155,44 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
 
   // Content bounds in document space (the label strip above each frame is sized after the scale is known).
   const boxes: Rect[] = [...shown.map(frameRect), ...noteList.map(noteRect)];
-  const minX = Math.min(...boxes.map((r) => r.x));
-  const minY = Math.min(...boxes.map((r) => r.y));
-  const maxX = Math.max(...boxes.map((r) => r.x + r.width));
-  const maxY = Math.max(...boxes.map((r) => r.y + r.height));
+  let minX = Math.min(...boxes.map((r) => r.x));
+  let minY = Math.min(...boxes.map((r) => r.y));
+  let maxX = Math.max(...boxes.map((r) => r.x + r.width));
+  let maxY = Math.max(...boxes.map((r) => r.y + r.height));
+
+  // Arrows are routed around the shown frames (the same routing as the canvas), the label strip above each frame kept
+  // clear; they may leave the frames' bounds (a lane above the row), so the bounds grow to hold them and the scale is
+  // solved again.
+  const shownIds = new Set(shown.map((f) => f.id));
+  const route = (scale: number, labelSize: number, strip: number) => {
+    const { arrows, avoid } = flowLayout(doc, { shown: (f) => shownIds.has(f.id), notes: args.notes, band: (strip + labelSize * 0.3) / scale, unit: 1 / scale });
+    const spots = placeLabels(
+      arrows.map((a) => a.route),
+      arrows.map((a) => (a.flow.label ? { width: (textWidth(a.flow.label, 400, labelSize) + labelSize * 1.6) / scale, height: (labelSize * 2) / scale } : null)),
+      avoid,
+    );
+    return { arrows, spots };
+  };
+  let solved = solveScale(maxX - minX, maxY - minY, 0, args.scale, args.max);
+  let routed = route(solved.scale, solved.labelSize, solved.strip);
+  for (let i = 0; i < 3; i++) {
+    const pad = solved.labelSize / solved.scale;
+    const pts = routed.arrows.flatMap((a) => a.route.points);
+    routed.spots.forEach((p) => p && pts.push(p));
+    if (!pts.length) break;
+    const nx0 = Math.min(minX, ...pts.map((p) => p.x - pad));
+    const nx1 = Math.max(maxX, ...pts.map((p) => p.x + pad));
+    // The strip above the content already gives `strip` px of room at the top.
+    const ny0 = Math.min(minY, ...pts.map((p) => p.y - pad + solved.strip / solved.scale));
+    const ny1 = Math.max(maxY, ...pts.map((p) => p.y + pad));
+    if (nx0 >= minX - 0.5 && nx1 <= maxX + 0.5 && ny0 >= minY - 0.5 && ny1 <= maxY + 0.5) break;
+    [minX, maxX, minY, maxY] = [nx0, nx1, ny0, ny1];
+    solved = solveScale(maxX - minX, maxY - minY, 0, args.scale, args.max);
+    routed = route(solved.scale, solved.labelSize, solved.strip);
+  }
   const docW = maxX - minX;
   const docH = maxY - minY;
-
-  const { scale, labelSize, strip } = solveScale(docW, docH, 0, args.scale, args.max);
+  const { scale, labelSize, strip } = solved;
   const margin = MARGIN;
   const px = (r: Rect): Rect => ({ x: margin + (r.x - minX) * scale, y: margin + strip + (r.y - minY) * scale, width: r.width * scale, height: r.height * scale });
   const pt = (p: Vec): Vec => ({ x: margin + (p.x - minX) * scale, y: margin + strip + (p.y - minY) * scale });
@@ -175,18 +208,12 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
     return { frame: f, rect, name: layout.name, detail: layout.detail, badge: layout.badge ? badgeText : null, ...(status ? { status } : {}) };
   });
 
-  const shownIds = new Set(shown.map((f) => f.id));
-  const arrows: SheetArrow[] = [];
-  for (const flow of flowsOf(doc)) {
-    // One arrow per source (a flow defined in a shared component's master starts on every instance), from its part.
-    for (const { source, curve: c } of flowCurves(doc, flow)) {
-      const origin = frameOf(doc, source);
-      const target = flowTarget(doc, flow, origin);
-      if (!origin || !target || !shownIds.has(origin.id) || !shownIds.has(target.id)) continue;
-      const [a, b, cc, d] = c.points.map(pt) as SheetArrow['points'];
-      arrows.push({ flowId: flow.id, points: [a, b, cc, d], dir: c.dir, ...(flow.label ? { label: flow.label } : {}) });
-    }
-  }
+  const arrows: SheetArrow[] = routed.arrows.map((a, i) => ({
+    flowId: a.flow.id,
+    points: a.route.points.map(pt),
+    dir: a.route.dir,
+    ...(a.flow.label ? { label: a.flow.label, labelAt: pt(routed.spots[i]!) } : {}),
+  }));
 
   const notes: SheetNote[] = noteList.map((note) => {
     const t = note.note.target ? (findNode(doc, note.note.target) ? worldBounds(doc, note.note.target) : null) : null;
@@ -377,18 +404,21 @@ export async function renderSheet(doc: DesignDocument, args: SheetArgs): Promise
     out.push(`<image x="${f(n.rect.x)}" y="${f(n.rect.y)}" width="${f(n.rect.width)}" height="${f(n.rect.height)}" preserveAspectRatio="none" xlink:href="${dataUrl(png, 'image/png')}"/>`);
   }
 
-  // Flow arrows over the frames: the same curves and arrowheads as the canvas overlay.
+  // Flow arrows over the frames: the same routes and arrowheads as the canvas overlay.
   const sw = f(Math.max(1.5, s / 8));
   for (const a of L.arrows) {
-    const [p0, p1, p2, p3] = a.points;
-    out.push(`<g opacity="0.75" fill="none"><path d="M${f(p0.x)},${f(p0.y)} C${f(p1.x)},${f(p1.y)} ${f(p2.x)},${f(p2.y)} ${f(p3.x)},${f(p3.y)}" stroke="${INK}" stroke-width="${sw}"/>`);
-    out.push(`<circle cx="${f(p0.x)}" cy="${f(p0.y)}" r="${f(s / 4)}" fill="${INK}"/><path d="${arrowHead(p3, a.dir, s * 0.75).replace(/-?\d+(\.\d+)?/g, (m) => f(Number(m)))}" fill="${INK}"/></g>`);
-    if (a.label) {
-      const mid = bezierAt(a.points, 0.5);
-      const w = textWidth(a.label, 400, s) + s;
-      out.push(`<rect x="${f(mid.x - w / 2)}" y="${f(mid.y - s * 0.8)}" width="${f(w)}" height="${f(s * 1.6)}" rx="${f(s * 0.8)}" fill="#ffffff" stroke="${INK}" stroke-width="1" opacity="0.9"/>`);
-      labels.push({ text: a.label, x: mid.x, y: mid.y, size: s, anchor: 'middle' });
-    }
+    const p0 = a.points[0];
+    const end = a.points[a.points.length - 1];
+    out.push(`<g opacity="0.75" fill="none"><path d="${routePath(a.points, s * 0.6)}" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`);
+    out.push(`<circle cx="${f(p0.x)}" cy="${f(p0.y)}" r="${f(s / 4)}" fill="${INK}"/><path d="${arrowHead(end, a.dir, s * 0.75).replace(/-?\d+(\.\d+)?/g, (m) => f(Number(m)))}" fill="${INK}"/></g>`);
+  }
+  // Labels over every arrow.
+  for (const a of L.arrows) {
+    if (!a.label || !a.labelAt) continue;
+    const mid = a.labelAt;
+    const w = textWidth(a.label, 400, s) + s;
+    out.push(`<rect x="${f(mid.x - w / 2)}" y="${f(mid.y - s * 0.8)}" width="${f(w)}" height="${f(s * 1.6)}" rx="${f(s * 0.8)}" fill="#ffffff" stroke="${INK}" stroke-width="1" opacity="0.9"/>`);
+    labels.push({ text: a.label, x: mid.x, y: mid.y, size: s, anchor: 'middle' });
   }
 
   out.push(await outlinedLabels(labels, L.width, L.height), '</svg>');

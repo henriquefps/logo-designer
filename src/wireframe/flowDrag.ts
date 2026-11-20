@@ -9,7 +9,7 @@
 import { worldBounds, type Id, type Rect, type Vec } from '@/model';
 import type { ToolContext, ToolPointerEvent } from '@/tools/types';
 import type { Gesture } from '@/tools/select/gestures';
-import { canFlowFrom, flowAt, frameAt, partAt, partInRow, partsOfId, partWorldRect } from './flows';
+import { canFlowFrom, canvasArrowOptions, flowAt, frameAt, partAt, partInRow, partsOfId, partWorldRect } from './flows';
 import { frameOf } from './screens';
 import { addFlowCommand, sharedScope, useFlowStore } from './flowCommands';
 
@@ -82,7 +82,7 @@ export function updateHoverPart(ctx: ToolContext, point: Vec): void {
 }
 
 /** The arrow under the pointer (wireframes only). */
-export const hitFlowArrow = (ctx: ToolContext, point: Vec): Id | null => (ctx.doc().wireframe ? flowAt(ctx.doc(), point, ARROW_HIT_PX * ctx.px(), ctx.editor().selection) : null);
+export const hitFlowArrow = (ctx: ToolContext, point: Vec): Id | null => (ctx.doc().wireframe ? flowAt(ctx.doc(), point, ARROW_HIT_PX * ctx.px(), canvasArrowOptions(ctx.editor().zoom, ctx.editor().selection)) : null);
 
 /**
  * Drag from the handle (of the element, or of one of its parts): a preview line; on release, link to the screen under
