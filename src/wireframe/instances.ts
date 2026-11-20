@@ -3,7 +3,7 @@
 import type { Draft } from 'immer';
 import { createGroup, isComponentNode, platformDef, type ComponentNode, type GroupNode, type LayoutItemInfo, type SceneNode, type Vec } from '@/model';
 import type { AnyComponentDef } from './library/types';
-import { defaultProps, resolveProps } from './library/types';
+import { initialProps, resolveProps } from './library/types';
 import { contentBottom } from './screens';
 
 /** Space around content placed freely in a frame (until the frame has a stack layout). */
@@ -11,7 +11,7 @@ export const FREE_MARGIN = 24;
 export const FREE_GAP = 16;
 
 /** A new instance of `def` (children empty: the pipeline builds them). `at` = top-left in the parent's space. */
-export function newInstance(def: AnyComponentDef, at: Vec, width = def.defaultSize.width, props: Record<string, unknown> = defaultProps(def)): ComponentNode {
+export function newInstance(def: AnyComponentDef, at: Vec, width = def.defaultSize.width, props: Record<string, unknown> = initialProps(def)): ComponentNode {
   return {
     ...createGroup({ name: def.label, transform: { x: Math.round(at.x), y: Math.round(at.y) } }),
     component: { kind: def.kind, props: structuredClone(props), size: { width: Math.round(width), height: def.defaultSize.height } },

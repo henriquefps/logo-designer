@@ -1,5 +1,5 @@
 // Section header: a small label above a group of rows, with an optional action on the right ("See all").
-import { nodes, textInBand, textWidth, truncate } from '../../kit';
+import { rect, nodes, textInBand, textWidth, truncate } from '../../kit';
 import { WF_SPACE } from '../../style';
 import { defineComponent } from '../types';
 
@@ -30,5 +30,10 @@ export default defineComponent({
       height: H,
     };
   },
-  describe: (p) => `Section header "${p.label}"${p.action ? `, action "${p.action}"` : ''}`,
+  parts(p, { width }) {
+    if (!p.action) return [];
+    const w = textWidth(truncate(p.action, Math.max(0, (width - PAD * 2) / 2), 'label', 500), 'label', 500);
+    return [{ key: 'action', label: p.action, rect: rect(Math.max(0, width - PAD - w - 8), 0, Math.min(width, w + 16), H) }];
+  },
+  describe: (p, opens) => `Section header "${p.label}"${p.action ? `, action "${p.action}"${opens?.has('action') ? ` ${opens.take('action')}` : ''}` : ''}`,
 });

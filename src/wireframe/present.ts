@@ -2,7 +2,7 @@
 // document. The state is the frame on show and a history stack of frames; every function returns a
 // new state and never touches the document (present mode is read-only).
 import { findNode, locate, walk, worldBounds, type DesignDocument, type Id, type Rect, type ScreenNode, type ScreenPlatform, type WireframeFlow } from '@/model';
-import { flowTarget, flowsOf } from './flows';
+import { flowSources, flowTarget, flowsOf, partLabel, partWorldRect } from './flows';
 import { copyPrefix } from './repeat';
 import { frameOf, frameRect, frames, variantsOf } from './screens';
 
@@ -19,6 +19,10 @@ export interface PresentState {
 export interface Hotspot {
   /** The element the hotspot sits on. */
   nodeId: Id;
+  /** The part of the element (a bottom navigation item), when the flows start at one. */
+  part?: string;
+  /** The part's label ("Arquivos"). */
+  label?: string;
   /** In the frame's local space (0..width × 0..height), clipped to the frame. */
   rect: Rect;
   /** The flow a click follows (the element's first one). */
@@ -94,21 +98,25 @@ const isShown = (doc: DocLike, id: Id): boolean => {
   return !!loc && loc.node.visible && loc.ancestors.every((a) => a.visible);
 };
 
-/** The elements of the frame on show that have flows, with their rectangles in the frame's space. */
+/** The elements (and parts of elements) of the frame on show that have flows, with their rectangles in the frame's space. */
 export function hotspots(doc: DocLike, s: PresentState): Hotspot[] {
   const frame = presentedFrame(doc, s);
   if (!frame) return [];
   const origin = frameRect(frame);
-  const byNode = new Map<Id, WireframeFlow[]>();
-  const add = (id: Id, f: WireframeFlow) => {
-    if (!byNode.has(id)) byNode.set(id, []);
-    byNode.get(id)!.push(f);
+  const spots = new Map<string, { nodeId: Id; part?: string; flows: WireframeFlow[] }>();
+  const add = (nodeId: Id, part: string | undefined, f: WireframeFlow) => {
+    const key = part === undefined ? nodeId : `${nodeId}#${part}`;
+    const spot = spots.get(key);
+    if (spot) spot.flows.push(f);
+    else spots.set(key, { nodeId, ...(part !== undefined ? { part } : {}), flows: [f] });
   };
   const flows = flowsOf(doc);
-  for (const f of flows) add(f.from, f);
+  // Shared flows (defined in a master) start at that node in every instance.
+  for (const f of flows) for (const id of flowSources(doc, f)) add(id, f.part, f);
   // A repeat copy is a generated clone of its template (ids = copy prefix + template id): its elements
   // behave like the template's, flows included (flows never start at a copy).
   if (flows.length) {
+    const sources = [...spots.values()];
     walk(frame.children, (n) => {
       if (!n.repeatCopy) return;
       const template = findNode(asDoc(doc), n.repeatCopy.template);
@@ -116,20 +124,20 @@ export function hotspots(doc: DocLike, s: PresentState): Hotspot[] {
       const prefix = copyPrefix(n.repeatCopy.template, n.repeatCopy.index);
       const inside = new Set<Id>();
       walk([template], (t) => void inside.add(t.id));
-      for (const f of flows) if (inside.has(f.from)) add(prefix + f.from, f);
+      for (const spot of sources) if (inside.has(spot.nodeId)) for (const f of spot.flows) add(prefix + spot.nodeId, spot.part, f);
     });
   }
   const out: Hotspot[] = [];
-  for (const [nodeId, flows] of byNode) {
+  for (const { nodeId, part, flows } of spots.values()) {
     if (nodeId === frame.id || frameOf(doc, nodeId)?.id !== frame.id || !isShown(doc, nodeId) || !findNode(asDoc(doc), nodeId)) continue;
-    const b = worldBounds(asDoc(doc), nodeId);
+    const b = part !== undefined ? partWorldRect(doc, nodeId, part) : worldBounds(asDoc(doc), nodeId);
     if (!b) continue;
     const x = Math.max(0, b.x - origin.x);
     const y = Math.max(0, b.y - origin.y);
     const w = Math.min(origin.width, b.x - origin.x + b.width) - x;
     const h = Math.min(origin.height, b.y - origin.y + b.height) - y;
     if (w <= 0 || h <= 0) continue;
-    out.push({ nodeId, rect: { x, y, width: w, height: h }, flow: flows[0], flows });
+    out.push({ nodeId, ...(part !== undefined ? { part, label: partLabel(doc, nodeId, part) } : {}), rect: { x, y, width: w, height: h }, flow: flows[0], flows });
   }
   return out;
 }

@@ -23,7 +23,12 @@ export type PropSpec =
   | (PropBase & { type: 'text' | 'multiline'; default: string; placeholder?: string })
   /** An icon name from the app's icon libraries (`lucide:Heart`, `iconify:ph:heart`; '' = none). See src/wireframe/icons.ts. */
   | (PropBase & { type: 'icon'; default: string })
-  | (PropBase & { type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string })
+  /**
+   * `auto`: the prop may also hold the string `'auto'` (a navigation's selected item that follows the screen, see
+   * `ComponentDef.selectFromPart`). `auto.default`: an unset prop (a new instance) is `'auto'`. Builds never see
+   * `'auto'`: `resolveProps` replaces it with what the pipeline resolved, else `default`.
+   */
+  | (PropBase & { type: 'number'; default: number; min?: number; max?: number; step?: number; unit?: string; auto?: AutoSpec })
   | (PropBase & { type: 'boolean'; default: boolean })
   /** `labels` maps an option to its label in the panel (default: the option, capitalised). */
   | (PropBase & { type: 'choice'; options: readonly string[]; default: string; labels?: Readonly<Record<string, string>> })
@@ -31,6 +36,32 @@ export type PropSpec =
   | (PropBase & { type: 'list'; default: readonly string[]; item?: string; min?: number; max?: number });
 
 export type PropType = PropSpec['type'];
+
+/** A number prop that can follow the screen (`'auto'`). */
+export interface AutoSpec {
+  /** Option label in the properties panel ("Follows the screen"). */
+  label: string;
+  /** New instances (and unset props) are `'auto'`. */
+  default?: boolean;
+}
+
+export const AUTO = 'auto';
+
+/**
+ * A piece of a component's drawing a person taps (a bottom navigation item, a tab, a back button, a dialog
+ * action): flows can start at it (docs/wireframe-mode.md → Links from parts of a component).
+ */
+export interface ComponentPart {
+  /**
+   * Stable key. Items of a list prop: `<prefix>:<index>` (0-based index into the list, the prefix declared in
+   * `partLists`, e.g. `item:2`); fixed pieces: a name (`back`, `primary`, `action:1`).
+   */
+  key: string;
+  /** What it says (the list entry, the button text, "Back"): shown in the UI, matched by the spec format. */
+  label: string;
+  /** In the instance's local space (origin = its top-left), inside the built box. */
+  rect: { x: number; y: number; width: number; height: number };
+}
 
 export type PropSpecs = Record<string, PropSpec>;
 
@@ -101,8 +132,34 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
   defaultSize: { width: number; height: number };
   /** Pure and deterministic: same props + size → same children. */
   build(props: PropsOf<S>, size: BuildSize): BuildResult;
-  /** One line for the AI export, e.g. 'List row "Language" → value "English"'. */
-  describe(props: PropsOf<S>): string;
+  /**
+   * One line for the AI export, e.g. 'List row "Language" → value "English"'. `opens`: the part flows of this
+   * instance ("→ opens Arquivos" by part key); a component that writes them inline (`describeItems`) reads them
+   * with `opens.take(key)`, the export lists the ones it did not take under the line.
+   */
+  describe(props: PropsOf<S>, opens?: PartOpens): string;
+  /**
+   * The parts a person taps, for the size the instance was built at (only what is drawn: an item cut by the
+   * width has no part). Pure, like `build`, and the rects lie inside the build's box (the contract test).
+   */
+  parts?(props: PropsOf<S>, size: { width: number; height: number }): ComponentPart[];
+  /**
+   * List props whose entries are parts: key prefix → prop (`{ item: 'labels' }`). Flows on those parts are
+   * remapped when the list changes (reorder, rename, removal; `remapPartKey`).
+   */
+  partLists?: Readonly<Record<string, string>>;
+  /**
+   * For props with `auto` (`selected`): the value a part stands for (`item:2` → 3), or null when that part
+   * does not select anything. The pipeline uses it to draw selected the item that opens the current screen.
+   */
+  selectFromPart?(props: PropsOf<S>, key: string): number | null;
+}
+
+/** Part flows handed to `describe`: the text to write for a part ("→ opens Arquivos"), marked as used once read. */
+export interface PartOpens {
+  take(key: string): string | undefined;
+  /** Whether part `key` has flows (without marking it written). */
+  has(key: string): boolean;
 }
 
 /** The axes of a definition the user can size, defaults applied. */
@@ -123,10 +180,11 @@ const show = (v: unknown) => (typeof v === 'string' ? JSON.stringify(v) : Array.
  * is, why (the caller turns it into a warning). `undefined` (prop not set) is fine: the default.
  */
 export function checkProp(spec: PropSpec, v: unknown): { value: unknown; problem?: string } {
-  if (v === undefined) return { value: spec.type === 'list' ? [...spec.default] : spec.default };
+  if (v === undefined) return { value: spec.type === 'list' ? [...spec.default] : spec.type === 'number' && spec.auto?.default ? AUTO : spec.default };
   switch (spec.type) {
     case 'number': {
-      if (typeof v !== 'number' || !Number.isFinite(v)) return { value: spec.default, problem: `expected a number, got ${show(v)}` };
+      if (v === AUTO && spec.auto) return { value: AUTO };
+      if (typeof v !== 'number' || !Number.isFinite(v)) return { value: spec.auto?.default ? AUTO : spec.default, problem: `expected a number${spec.auto ? ' or "auto"' : ''}, got ${show(v)}` };
       const c = Math.min(spec.max ?? Infinity, Math.max(spec.min ?? -Infinity, v));
       return c === v ? { value: v } : { value: c, problem: `${v} is out of range (${spec.min ?? '−∞'}..${spec.max ?? '∞'}), using ${c}` };
     }
@@ -166,15 +224,51 @@ export function validateProps(def: AnyComponentDef, raw: Record<string, unknown>
   return { props, problems };
 }
 
-/** Prop values with defaults filled in and wrong types replaced by the default. Never throws. */
-export function resolveProps<S extends PropSpecs>(def: ComponentDef<S>, raw: Record<string, unknown>): PropsOf<S> {
+/**
+ * Prop values with defaults filled in and wrong types replaced by the default, ready for `build` / `describe`.
+ * `'auto'` becomes `resolved[key]` (what the pipeline worked out for the instance, `component.resolved`), else the
+ * prop's `default`. Never throws.
+ */
+export function resolveProps<S extends PropSpecs>(def: ComponentDef<S>, raw: Record<string, unknown>, resolved?: Readonly<Record<string, number>>): PropsOf<S> {
   const out: Record<string, unknown> = {};
-  for (const [key, spec] of Object.entries(def.props)) out[key] = checkProp(spec, raw?.[key]).value;
+  for (const [key, spec] of Object.entries(def.props)) {
+    const v = checkProp(spec, raw?.[key]).value;
+    out[key] = v === AUTO && spec.type === 'number' ? (resolved?.[key] ?? spec.default) : v;
+  }
   return out as PropsOf<S>;
 }
 
-/** Default values of every prop (what a new instance starts with). */
+/** Prop values as stored on an instance: like `resolveProps`, but `'auto'` stays `'auto'`. */
+export function storedProps(def: AnyComponentDef, raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, spec] of Object.entries(def.props as PropSpecs)) out[key] = checkProp(spec, raw?.[key]).value;
+  return out;
+}
+
+/** Default values of every prop, resolved for building (`'auto'` → the first item). */
 export const defaultProps = <S extends PropSpecs>(def: ComponentDef<S>): PropsOf<S> => resolveProps(def, {});
+
+/** What a new instance stores: the defaults, `'auto'` kept (a new bottom navigation follows the screen). */
+export const initialProps = (def: AnyComponentDef): Record<string, unknown> => storedProps(def, {});
+
+/** True when the stored value of `key` is `'auto'` (set, or unset with an `auto.default` spec). */
+export function isAutoProp(def: AnyComponentDef, raw: Record<string, unknown>, key: string): boolean {
+  const spec = (def.props as PropSpecs)[key];
+  return !!spec && spec.type === 'number' && !!spec.auto && checkProp(spec, raw?.[key]).value === AUTO;
+}
+
+/** Props of `def` that can be `'auto'`. */
+export const autoProps = (def: AnyComponentDef): string[] => Object.entries(def.props as PropSpecs).filter(([, s]) => s.type === 'number' && !!s.auto).map(([k]) => k);
+
+/** The parts of an instance (none for components without `parts`; never throws). */
+export function partsOf(def: AnyComponentDef, raw: Record<string, unknown>, size: { width: number; height: number }, resolved?: Readonly<Record<string, number>>): ComponentPart[] {
+  if (!def.parts) return [];
+  try {
+    return def.parts(resolveProps(def, raw, resolved), size);
+  } catch {
+    return [];
+  }
+}
 
 /** Whether a prop's field applies, given the resolved values of the other props (`visibleWhen`). */
 export function isPropVisible(spec: PropSpec, props: Readonly<Record<string, unknown>>): boolean {

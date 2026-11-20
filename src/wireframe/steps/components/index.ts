@@ -26,7 +26,7 @@ export function buildComponentInto(node: Draft<ComponentNode>, size?: { width: n
   const def = getComponent(node.component.kind);
   if (!def) return null;
   const width = size?.width ?? node.component.size?.width ?? def.defaultSize.width;
-  const props = resolveProps(def, node.component.props as Record<string, unknown>);
+  const props = resolveProps(def, node.component.props as Record<string, unknown>, node.component.resolved);
   // Icons the instance was saved with stay drawn even before the app loads the libraries.
   harvestIcons(plain(node.children) as SceneNode[]);
   let built;
@@ -91,7 +91,7 @@ function rebuildFree(node: Draft<ComponentNode>, ctx: PipelineContext) {
       node.layoutItem = { ...plain(node.layoutItem), width: Math.round(now.width * 100) / 100 }; // the user resized it
     } else {
       try {
-        const hug = def.build(resolveProps(def, node.component.props as Record<string, unknown>), { width: now.width }).width;
+        const hug = def.build(resolveProps(def, node.component.props as Record<string, unknown>, node.component.resolved), { width: now.width }).width;
         if (hug && Math.abs(hug - now.width) > 0.5) {
           buildComponentInto(node, { width: Math.ceil(hug), height: fixedH });
           return;

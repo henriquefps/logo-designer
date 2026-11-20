@@ -120,7 +120,7 @@ function componentHeight(c: GroupNode & { component: NonNullable<GroupNode['comp
     const def = getComponent(info.kind);
     if (!def) return info.size?.height ?? childBox(c).height;
     try {
-      return def.build(resolveProps(def, info.props as Record<string, unknown>), { width }).height;
+      return def.build(resolveProps(def, info.props as Record<string, unknown>, info.resolved), { width }).height;
     } catch {
       return info.size?.height ?? def.defaultSize.height; // a broken component keeps its box
     }
@@ -137,7 +137,7 @@ export function hugWidth(n: SceneNode): number {
     // The width its content needs (a button's label + padding), else its default width.
     return memo(hugWidthCache as WeakMap<object, Map<number | string, number>>, info, 0, () => {
       try {
-        return def.build(resolveProps(def, info.props as Record<string, unknown>), { width: def.defaultSize.width }).width ?? def.defaultSize.width;
+        return def.build(resolveProps(def, info.props as Record<string, unknown>, info.resolved), { width: def.defaultSize.width }).width ?? def.defaultSize.width;
       } catch {
         return def.defaultSize.width;
       }

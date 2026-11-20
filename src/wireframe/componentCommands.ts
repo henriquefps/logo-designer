@@ -5,7 +5,7 @@ import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { getComponent } from './library/registry';
 import type { AnyComponentDef, PropSpec } from './library/types';
-import { defaultProps } from './library/types';
+import { checkProp, initialProps } from './library/types';
 import { ensureIcons } from './iconLoader';
 import { appendPosition, defaultPlacement, detachInstance, dropPosition, newInstance } from './instances';
 import { frameOf, frames } from './screens';
@@ -87,7 +87,7 @@ export function frameAt(doc: DesignDocument, p: Vec): ScreenNode | null {
 export async function insertComponent(kind: string, at?: Vec): Promise<Id | null> {
   const def = getComponent(kind);
   if (!def || !useDocStore.getState().doc.wireframe) return null;
-  const props = defaultProps(def);
+  const props = initialProps(def);
   await ensureIcons(iconProps(def, props));
   const doc = useDocStore.getState().doc;
   let node: ComponentNode;
@@ -149,7 +149,7 @@ export async function setComponentProp(id: Id, key: string, value: unknown) {
   const spec = def?.props[key] as PropSpec | undefined;
   if (spec?.type === 'icon' && typeof value === 'string') await ensureIcons([value]);
   const cur = n.component.props[key];
-  if (JSON.stringify(cur ?? (spec ? (spec.type === 'list' ? [...spec.default] : spec.default) : undefined)) === JSON.stringify(value)) return;
+  if (JSON.stringify(cur ?? (spec ? checkProp(spec, undefined).value : undefined)) === JSON.stringify(value)) return;
   useDocStore.getState().updateNodes(
     [id],
     (d) => {

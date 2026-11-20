@@ -1,5 +1,5 @@
 // Pagination: previous, a window of page numbers with ellipses, next. The current page is filled.
-import { box, chevron, textInBand } from '../../kit';
+import { box, chevron, rect, textInBand } from '../../kit';
 import { WF_RADIUS, WF_SPACE } from '../../style';
 import type { SceneNode } from '@/model';
 import { defineComponent } from '../types';
@@ -57,6 +57,16 @@ export default defineComponent({
     }
     slot((x0) => children.push(cell(x0, false), chevron({ x: x0 + (SIZE - 20) / 2, y: (SIZE - 20) / 2, tone: cur < p.pages ? 'ink' : 'line' })));
     return { children, height: SIZE };
+  },
+  parts(p, { width }) {
+    const cur = Math.min(Math.round(p.pages), Math.max(1, Math.round(p.current)));
+    const count = pageItems(p.pages, cur).length + 2;
+    const total = count * SIZE + (count - 1) * GAP;
+    const x = p.align === 'left' ? 0 : p.align === 'right' ? width - total : (width - total) / 2;
+    return [
+      { key: 'previous', label: 'Previous', rect: rect(x, 0, SIZE, SIZE) },
+      { key: 'next', label: 'Next', rect: rect(x + total - SIZE, 0, SIZE, SIZE) },
+    ];
   },
   describe: (p) => `Pagination: page ${Math.min(Math.round(p.pages), Math.max(1, Math.round(p.current)))} of ${Math.round(p.pages)}`,
 });

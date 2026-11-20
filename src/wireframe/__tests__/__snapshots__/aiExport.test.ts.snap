@@ -20,7 +20,7 @@ Wireframe of an app, exported for an AI agent. It describes structure and conten
 - "Note:" lines are the designer's remarks about the element above them.
 - \`screens/<name>.<platform>.png\` is an image of each variant; \`project.designer.json\` is the editable project.
 - Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.
-- "→ opens X" under an element: tapping (or clicking) it opens the screen X. The Flow section below has the whole map.
+- "→ opens X" under an element, or after an item in its line ("Bottom navigation: Gallery (selected) → opens Gallery; Files → opens Files"): tapping (or clicking) it opens the screen X. The Flow section below has the whole map.
 
 ## Notes
 

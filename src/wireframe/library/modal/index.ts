@@ -1,6 +1,6 @@
 // Modal window: a dialog over a web page. Title with a close button, body copy as grey bars and one or two actions.
 // Opens free and centred on the screen (`placement`); it is not part of the page flow.
-import { box, buttonBox, polyline, textBars, textBarsHeight, textInBand, truncate, lineHeight } from '../../kit';
+import { box, buttonBox, polyline, rect, textBars, textBarsHeight, textInBand, truncate, lineHeight } from '../../kit';
 import { WF_RADIUS, WF_SIZE, WF_SPACE } from '../../style';
 import { defineComponent } from '../types';
 
@@ -51,11 +51,28 @@ export default defineComponent({
     if (p.secondary) children.push(buttonBox(p.secondary, { x: right, y: actionsY, height: WF_SIZE.control, align: 'right', variant: 'secondary', minWidth: 88 }).node);
     return { children, height: h };
   },
-  describe(p) {
+  parts(p, { width, height }) {
+    const actionsY = height - PAD - WF_SIZE.control;
+    const out = [];
+    let right = width - PAD;
+    if (p.primary) {
+      const w = buttonBox(p.primary, { x: right, y: 0, height: WF_SIZE.control, align: 'right', minWidth: 88 }).width;
+      out.push({ key: 'primary', label: p.primary, rect: rect(right - w, actionsY, w, WF_SIZE.control) });
+      right -= w + WF_SPACE.sm;
+    }
+    if (p.secondary) {
+      const w = buttonBox(p.secondary, { x: right, y: 0, height: WF_SIZE.control, align: 'right', minWidth: 88 }).width;
+      out.push({ key: 'secondary', label: p.secondary, rect: rect(right - w, actionsY, w, WF_SIZE.control) });
+    }
+    if (p.close) out.push({ key: 'close', label: 'Close', rect: rect(width - PAD - 20, PAD + lineHeight('subheading') / 2 - 12, 24, 24) });
+    return out;
+  },
+  describe(p, opens) {
     const parts = [`Modal window "${p.title}"`, `${Math.round(p.lines)} body lines`];
-    const actions = [p.primary && `${p.primary} (primary)`, p.secondary].filter(Boolean);
+    const o = (key: string) => (opens?.has(key) ? ` ${opens.take(key)}` : '');
+    const actions = [p.primary && `${p.primary} (primary)${o('primary')}`, p.secondary && `${p.secondary}${o('secondary')}`].filter(Boolean);
     parts.push(actions.length ? `actions ${actions.join(', ')}` : 'no actions');
-    if (p.close) parts.push('close button');
+    if (p.close) parts.push(`close button${o('close')}`);
     return parts.join('; ');
   },
 });

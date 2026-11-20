@@ -30,7 +30,7 @@ import {
   type WireframeSymbol,
 } from '@/model';
 import { getComponent } from '../library/registry';
-import { resolveProps } from '../library/types';
+import { storedProps } from '../library/types';
 import { defaultLayout, defaultScreenLayout } from '../layout';
 import { buildComponentInto } from '../steps/components';
 import { materializeChildren, reaches } from '../symbols';
@@ -169,7 +169,7 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
   let itemBase: LayoutItemInfo | undefined;
   if (n.form === 'component') {
     const def = getComponent(n.kind)!;
-    const props = resolveProps(def, n.props) as Record<string, unknown>;
+    const props = storedProps(def, n.props);
     const prevComp = prev?.type === 'group' && prev.component?.kind === n.kind ? prev.component : undefined;
     let width = typeof n.width === 'number' ? n.width : (n.size?.width ?? prevComp?.size?.width ?? def.defaultSize.width);
     let height = n.size?.height ?? prevComp?.size?.height ?? def.defaultSize.height;

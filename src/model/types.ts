@@ -176,6 +176,11 @@ export interface ComponentInfo {
   props: Record<string, unknown>;
   /** The box the children were built for (local origin = top-left). Omitted = the definition's default size. */
   size?: { width: number; height: number };
+  /**
+   * Values the pipeline worked out for props stored as `'auto'` (a navigation's `selected`: the item whose part
+   * opens the screen this instance is on). Generated: never shared between instances of a shared component.
+   */
+  resolved?: Record<string, number>;
 }
 
 export type LayoutKind = 'vstack' | 'hstack' | 'grid';
@@ -265,11 +270,21 @@ export interface WireframeScreen {
  */
 export interface WireframeFlow {
   id: Id;
-  /** The source element (a node inside a frame; a component instance, not one of its generated children). */
+  /**
+   * The source element (a node inside a frame; a component instance, not one of its generated children). With
+   * `symbol`, a node of that shared component's master content (its own id space): the flow applies to every instance.
+   */
   from: Id;
   /** The target logical screen (`wireframe.screens[].id`). */
   to: Id;
   label?: string;
+  /**
+   * A part of the component instance `from` (a bottom navigation item, a tab, a back button): its key from the
+   * definition's `parts` (`item:2`, `back`). Absent = the whole element.
+   */
+  part?: string;
+  /** Set when the flow is defined in shared component `symbol`'s master: `from` is a node of its content. */
+  symbol?: Id;
 }
 
 /** Points an instance at its shared component (`wireframe.symbols[].id`). */

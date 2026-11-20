@@ -31,6 +31,7 @@ import type { Draft } from 'immer';
 import {
   createGroup,
   newId,
+  type ComponentInfo,
   type DesignDocument,
   type GroupNode,
   type Id,
@@ -68,6 +69,7 @@ function omit<T extends object, K extends keyof T>(o: T, key: K): Omit<T, K> {
   return copy;
 }
 const withoutSize = (l: LayoutInfo): LayoutInfo => omit(l, 'size');
+const withoutResolved = (c: ComponentInfo): ComponentInfo => (c.resolved ? omit(c, 'resolved') : c);
 
 // ---------- comparing instances ----------
 
@@ -78,7 +80,8 @@ function normNode(n: SceneNode, prefix: string, parentLays: boolean): unknown {
   if (n.type === 'group') {
     if (n.component) {
       o.children = undefined; // built from kind + props + size
-      if (flow) o.component = { kind: n.component.kind, props: n.component.props };
+      // `resolved` (a tab bar's selected tab on this screen) is per instance, never shared.
+      o.component = flow ? { kind: n.component.kind, props: n.component.props } : withoutResolved(n.component);
     } else if (n.symbol) {
       o.children = undefined; // from its own master
       o.layout = undefined;
@@ -145,6 +148,7 @@ export function contentOf(inst: GroupNode, s: Pick<WireframeSymbol, 'id' | 'name
   const strip = (n: SceneNode): SceneNode => {
     const id = stripId(n.id, prefix);
     if (n.type !== 'group') return { ...n, id };
+    if (n.component?.resolved) return { ...n, id, component: withoutResolved(n.component), children: kids(n.children) };
     if (n.symbol && !n.component) {
       if (!reaches(symbols, n.symbol.id, s.id)) return { ...n, id, children: [] };
       return { ...omit(n, 'symbol'), id, children: kids(n.children) };
@@ -321,6 +325,7 @@ function prefixTree(n: SceneNode, prefix: string, map: Map<Id, Id>): SceneNode {
 export function remapRefs(d: Draft<DocLike>, map: ReadonlyMap<Id, Id>) {
   if (!map.size) return;
   for (const f of d.wireframe?.flows ?? []) {
+    if (f.symbol) continue; // in the master's id space
     const to = map.get(f.from);
     if (to) f.from = to;
   }

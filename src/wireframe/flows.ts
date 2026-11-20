@@ -1,20 +1,33 @@
 // Flows and screen status of wireframe documents (docs/wireframe-mode.md → Phase 2: Flows, Screen
-// status). A flow is `wireframe.flows[]`: { id, from: node inside a frame, to: logical screen, label? }.
-// Arrows are a canvas overlay (canvas/FlowArrows.tsx), never part of a screen export.
+// status; → Links from parts of a component). A flow is `wireframe.flows[]`: { id, from: node inside a
+// frame, to: logical screen, label?, part?, symbol? }. Arrows are a canvas overlay (canvas/FlowArrows.tsx),
+// never part of a screen export.
+//
+// - `part`: the flow starts at a part of the component instance `from` (a bottom navigation item: `item:2`),
+//   see the definition's `parts`. Parts of list props are remapped when the list changes (`remapPartKey`,
+//   the `parts` pipeline step).
+// - `symbol`: the flow is defined in a shared component's master; `from` is a node of the master content and
+//   the flow applies to every instance (`flowSources` lists the canvas nodes it starts at). Without it, a flow
+//   from inside an instance belongs to that instance only.
 //
 // Pure functions on plain documents or immer drafts, shared by the app (flowCommands.ts), the
 // pipeline (`flows` step: flows die with their source node or target screen), the export for AI and,
 // later, present mode: `flowsFrom(doc, nodeId)` = the hotspots of an element, `flowTarget(doc, flow,
 // fromFrame)` = the frame to show next.
 import {
+  apply,
   findNode,
   isComponentNode,
   isScreenNode,
   locate,
   newId,
+  rectFromPoints,
   walk,
   worldBounds,
+  worldMatrix,
+  type ComponentInfo,
   type DesignDocument,
+  type GroupNode,
   type Id,
   type Rect,
   type SceneNode,
@@ -24,8 +37,10 @@ import {
   type WireframeFlow,
 } from '@/model';
 import { getComponent } from './library/registry';
-import { resolveProps } from './library/types';
+import { checkProp, partsOf, resolveProps, type AnyComponentDef, type ComponentPart, type PropSpec } from './library/types';
 import { addScreen, frameOf, frameRect, frames, variantsOf } from './screens';
+import { instancePrefix } from './symbols';
+import { deepEqual } from './repeat';
 import { plain } from './types';
 
 type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
@@ -51,8 +66,135 @@ export function setScreenStatus(doc: DocLike, screenId: Id, status: ScreenStatus
 
 export const flowsOf = (doc: DocLike): WireframeFlow[] => doc.wireframe?.flows ?? [];
 
-/** Outgoing flows of a node (its hotspots in present mode), in creation order. */
-export const flowsFrom = (doc: DocLike, nodeId: Id): WireframeFlow[] => flowsOf(doc).filter((f) => f.from === nodeId);
+/** Flows defined on the canvas node `nodeId` itself (not the shared ones that apply to it), in creation order. */
+export const flowsFrom = (doc: DocLike, nodeId: Id): WireframeFlow[] => flowsOf(doc).filter((f) => f.from === nodeId && !f.symbol);
+
+/** True for a flow defined in a shared component's master (it applies to every instance). */
+export const isSharedFlow = (f: Pick<WireframeFlow, 'symbol'>): boolean => !!f.symbol;
+
+// ---------- parts ----------
+
+const partsCache = new WeakMap<ComponentInfo, ComponentPart[]>();
+
+/** The parts of a component instance (local rects), or [] for other nodes and components without parts. */
+export function partsOfNode(n: SceneNode | null | undefined): ComponentPart[] {
+  if (!n || n.type !== 'group' || !n.component) return [];
+  const c = n.component;
+  const hit = partsCache.get(c);
+  if (hit) return hit;
+  const def = getComponent(c.kind);
+  const parts = def ? partsOf(def, c.props, c.size ?? def.defaultSize, c.resolved) : [];
+  partsCache.set(c, parts);
+  return parts;
+}
+
+/** Parts of the canvas node `id`. */
+export const partsOfId = (doc: DocLike, id: Id): ComponentPart[] => partsOfNode(findNode(asDoc(doc), id));
+
+/** A part's rectangle in document space, or null when the node or the part is not there. */
+export function partWorldRect(doc: DocLike, id: Id, key: string): Rect | null {
+  const part = partsOfId(doc, id).find((p) => p.key === key);
+  if (!part) return null;
+  const m = worldMatrix(asDoc(doc), id);
+  const { x, y, width, height } = part.rect;
+  return rectFromPoints([apply(m, { x, y }), apply(m, { x: x + width, y }), apply(m, { x: x + width, y: y + height }), apply(m, { x, y: y + height })]);
+}
+
+/** The part of node `id` under a document point (the last listed wins on overlap), or null. */
+export function partAt(doc: DocLike, id: Id, p: Vec): ComponentPart | null {
+  const parts = partsOfId(doc, id);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const r = partWorldRect(doc, id, parts[i].key);
+    if (r && p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height) return parts[i];
+  }
+  return null;
+}
+
+/** A part's label ("Arquivos"), or the key when the part is not drawn now. */
+export const partLabel = (doc: DocLike, id: Id, key: string): string => partsOfId(doc, id).find((p) => p.key === key)?.label ?? key;
+
+/**
+ * Where a flow on part `key` goes when a list prop of the component changes (docs/wireframe-mode.md → Reorder/rename
+ * safety): the item keeps its flow when its label is still in the list (first match), else by its old index when
+ * that is still in range and the entry there is not one of the old ones (a rename), else the flow goes (null).
+ * Keys of fixed parts, and of lists that did not change, are returned as they are.
+ */
+export function remapPartKey(def: AnyComponentDef, before: Record<string, unknown>, after: Record<string, unknown>, key: string): string | null {
+  const m = /^([a-z][a-z-]*):(\d+)$/.exec(key);
+  const prop = m ? def.partLists?.[m[1]] : undefined;
+  const spec = prop ? (def.props as Record<string, PropSpec>)[prop] : undefined;
+  if (!m || !spec || spec.type !== 'list') return key;
+  const old = checkProp(spec, before[prop!]).value as string[];
+  const now = checkProp(spec, after[prop!]).value as string[];
+  if (deepEqual(old, now)) return key;
+  const i = Number(m[2]);
+  const label = old[i];
+  if (label === undefined) return i < now.length ? key : null;
+  const j = now.indexOf(label);
+  if (j >= 0) return `${m[1]}:${j}`;
+  if (i < now.length && !old.includes(now[i])) return key;
+  return null;
+}
+
+// ---------- shared components: one link for every instance ----------
+
+/**
+ * The shared component a canvas node belongs to: the innermost instance containing it, the master and the node's
+ * id in the master's content. Null outside instances (and for an instance's root itself, which is per instance).
+ */
+export function masterRef(doc: DocLike, nodeId: Id): { symbol: Id; from: Id; instance: Id } | null {
+  const loc = locate(asDoc(doc), nodeId);
+  if (!loc) return null;
+  for (let i = loc.ancestors.length - 1; i >= 0; i--) {
+    const a = loc.ancestors[i];
+    if (a.symbol && !a.component) {
+      const prefix = instancePrefix(a.id);
+      return { symbol: a.symbol.id, from: nodeId.startsWith(prefix) ? nodeId.slice(prefix.length) : nodeId, instance: a.id };
+    }
+  }
+  return null;
+}
+
+const occurrenceCache = new WeakMap<object, Map<string, Id[]>>();
+const occKey = (symbol: Id, from: Id) => `${symbol}\u0000${from}`;
+
+/** `symbol + master id` → the canvas nodes showing that master node (one per instance), memoized per document tree. */
+function occurrences(doc: DocLike): Map<string, Id[]> {
+  const hit = occurrenceCache.get(doc.children);
+  if (hit) return hit;
+  const out = new Map<string, Id[]>();
+  const visit = (nodes: readonly SceneNode[], inst: GroupNode | null) => {
+    for (const n of nodes) {
+      if (n.repeatCopy) continue; // copies follow their template (present mode maps them)
+      if (inst) {
+        const prefix = instancePrefix(inst.id);
+        const k = occKey(inst.symbol!.id, n.id.startsWith(prefix) ? n.id.slice(prefix.length) : n.id);
+        const list = out.get(k);
+        if (list) list.push(n.id);
+        else out.set(k, [n.id]);
+      }
+      if (n.type !== 'group' || n.component) continue;
+      visit(n.children, n.symbol ? n : inst);
+    }
+  };
+  for (const top of doc.children) if (isScreenNode(top)) visit(top.children, null);
+  occurrenceCache.set(doc.children, out);
+  return out;
+}
+
+/** The canvas nodes a flow starts at: `from` itself, or (a shared flow) that master node in every instance on a screen. */
+export function flowSources(doc: DocLike, flow: Pick<WireframeFlow, 'from' | 'symbol'>): Id[] {
+  if (!flow.symbol) return findNode(asDoc(doc), flow.from) ? [flow.from] : [];
+  return occurrences(doc).get(occKey(flow.symbol, flow.from)) ?? [];
+}
+
+/** Every flow that starts at canvas node `nodeId`: its own and the shared ones of its master node. */
+export function flowsAt(doc: DocLike, nodeId: Id): WireframeFlow[] {
+  const all = flowsOf(doc);
+  if (!all.length) return [];
+  const ref = all.some((f) => f.symbol) ? masterRef(doc, nodeId) : null;
+  return all.filter((f) => (f.symbol ? !!ref && f.symbol === ref.symbol && f.from === ref.from : f.from === nodeId));
+}
 
 /** Flows that open a logical screen. */
 export const flowsTo = (doc: DocLike, screenId: Id): WireframeFlow[] => flowsOf(doc).filter((f) => f.to === screenId);
@@ -81,27 +223,45 @@ export const canFlowFrom = (doc: DocLike, id: Id): boolean => !!doc.wireframe &&
 export function flowTarget(doc: DocLike, flow: Pick<WireframeFlow, 'from' | 'to'>, fromFrame?: ScreenNode | null): ScreenNode | null {
   const variants = variantsOf(doc, flow.to);
   if (!variants.length) return null;
-  const origin = fromFrame === undefined ? frameOf(doc, flow.from) : fromFrame;
+  const origin = fromFrame === undefined ? frameOf(doc, (flow as Pick<WireframeFlow, 'symbol'>).symbol ? (flowSources(doc, flow as WireframeFlow)[0] ?? flow.from) : flow.from) : fromFrame;
   return (origin && variants.find((v) => v.screen.platform === origin.screen.platform)) || variants[0];
+}
+
+export interface AddFlowOptions {
+  /** A part of the instance (`item:2`); it must be one of its parts now. */
+  part?: string;
+  /**
+   * The source is inside a shared component's instance: true defines the flow in the master, so it applies to every
+   * instance ("Every screen using Tab bar"); false / absent keeps it on this instance ("This screen only").
+   */
+  shared?: boolean;
 }
 
 /**
  * Adds a flow from `from` (resolved with `flowSource`) to the logical screen `to`. An existing flow
- * between the same two gets the label instead of a duplicate. Returns the flow id, or null when
- * `from` is not an element inside a screen or `to` is not a logical screen.
+ * between the same two (same part, same scope) gets the label instead of a duplicate. Returns the flow id, or null
+ * when `from` is not an element inside a screen, `to` is not a logical screen, the part is not one of the element's,
+ * or `shared` is asked for an element that is not inside a shared component.
  */
-export function addFlow(doc: DocLike, from: Id, to: Id, label?: string): Id | null {
+export function addFlow(doc: DocLike, from: Id, to: Id, label?: string, opts: AddFlowOptions = {}): Id | null {
   const wf = doc.wireframe;
   if (!wf) return null;
   const source = flowSource(doc, from);
   if (!source || !wf.screens.some((s) => s.id === to)) return null;
+  if (opts.part !== undefined && !partsOfId(doc, source).some((p) => p.key === opts.part)) return null;
+  let at: Pick<WireframeFlow, 'from' | 'symbol'> = { from: source };
+  if (opts.shared) {
+    const ref = masterRef(doc, source);
+    if (!ref) return null;
+    at = { from: ref.from, symbol: ref.symbol };
+  }
   const text = label?.trim();
-  const existing = (wf.flows ?? []).find((f) => f.from === source && f.to === to);
+  const existing = (wf.flows ?? []).find((f) => f.from === at.from && f.to === to && (f.part ?? null) === (opts.part ?? null) && (f.symbol ?? null) === (at.symbol ?? null));
   if (existing) {
     if (text && existing.label !== text) existing.label = text;
     return existing.id;
   }
-  const flow: WireframeFlow = { id: newId('f'), from: source, to, ...(text ? { label: text } : {}) };
+  const flow: WireframeFlow = { id: newId('f'), from: at.from, to, ...(text ? { label: text } : {}), ...(opts.part !== undefined ? { part: opts.part } : {}), ...(at.symbol ? { symbol: at.symbol } : {}) };
   if (!wf.flows) wf.flows = [];
   wf.flows.push(flow);
   return flow.id;
@@ -136,8 +296,14 @@ export function pruneFlows(doc: DocLike): number {
   if (!wf?.flows) return 0;
   const ids = new Set<Id>();
   walk(plain(doc.children), (n) => void ids.add(n.id));
+  const masters = new Map<Id, Set<Id>>();
+  for (const s of plain(wf.symbols) ?? []) {
+    const inside = new Set<Id>();
+    walk(s.content.children, (n) => void inside.add(n.id));
+    masters.set(s.id, inside);
+  }
   const screens = new Set(wf.screens.map((s) => s.id));
-  const keep = wf.flows.filter((f) => ids.has(f.from) && screens.has(f.to));
+  const keep = wf.flows.filter((f) => (f.symbol ? !!masters.get(f.symbol)?.has(f.from) : ids.has(f.from)) && screens.has(f.to));
   const removed = wf.flows.length - keep.length;
   if (!removed) return 0;
   if (keep.length) wf.flows = keep;
@@ -160,7 +326,7 @@ export function flowsInside(doc: DocLike, nodes: readonly SceneNode[]): Wirefram
   if (!flows.length) return [];
   const ids = new Set<Id>();
   for (const n of nodes) walk([plain(n) as SceneNode], (x) => void ids.add(x.id));
-  return flows.filter((f) => ids.has(f.from)).map((f) => ({ ...f }));
+  return flows.filter((f) => !f.symbol && ids.has(f.from)).map((f) => ({ ...f }));
 }
 
 /** New flows (fresh ids, same targets and labels) for the copies of `flows`' sources; flows from nodes without a copy are skipped. */
@@ -168,7 +334,7 @@ export function copyFlows(flows: readonly WireframeFlow[], ids: ReadonlyMap<Id, 
   const out: WireframeFlow[] = [];
   for (const f of flows) {
     const from = ids.get(f.from);
-    if (from) out.push({ id: newId('f'), from, to: f.to, ...(f.label ? { label: f.label } : {}) });
+    if (from && !f.symbol) out.push({ id: newId('f'), from, to: f.to, ...(f.label ? { label: f.label } : {}), ...(f.part !== undefined ? { part: f.part } : {}) });
   }
   return out;
 }
@@ -196,10 +362,17 @@ export const screenIdsOf = (nodes: readonly SceneNode[]): Id[] => nodes.filter(i
 /** Props that name what an element says, in order of preference (list row → title, button → label…). */
 const LABEL_PROPS = ['label', 'title', 'text', 'message'];
 
-/** What the element says, for naming the screen it opens: a component's label / title / text, a text's content, else the node name. */
-export function flowSourceLabel(doc: DocLike, nodeId: Id): string {
+/**
+ * What the element says, for naming the screen it opens: a part's label ("Arquivos"), a component's label / title /
+ * text, a text's content, else the node name.
+ */
+export function flowSourceLabel(doc: DocLike, nodeId: Id, part?: string): string {
   const n = findNode(asDoc(doc), nodeId);
   if (!n) return '';
+  if (part !== undefined) {
+    const label = partsOfNode(n).find((p) => p.key === part)?.label;
+    if (label?.trim()) return label.replace(/\s+/g, ' ').trim();
+  }
   if (n.type === 'group' && n.component) {
     const def = getComponent(n.component.kind);
     const props = def ? (resolveProps(def, n.component.props) as Record<string, unknown>) : n.component.props;
@@ -216,15 +389,39 @@ export function flowSourceLabel(doc: DocLike, nodeId: Id): string {
  * "New screen" when a flow is dropped on empty canvas: a logical screen with one frame of the
  * source's platform, its top-left at `at`, named after the source's label, and a flow to it.
  */
-export function newScreenFromFlow(doc: DocLike, fromId: Id, at: Vec): { frameId: Id; screenId: Id; flowId: Id } | null {
+export function newScreenFromFlow(doc: DocLike, fromId: Id, at: Vec, opts: AddFlowOptions = {}): { frameId: Id; screenId: Id; flowId: Id } | null {
   const source = flowSource(doc, fromId);
   if (!source || !doc.wireframe) return null;
+  if (opts.part !== undefined && !partsOfId(doc, source).some((p) => p.key === opts.part)) return null;
+  if (opts.shared && !masterRef(doc, source)) return null;
   const platform = frameOf(doc, source)?.screen.platform ?? 'phone';
-  const name = flowSourceLabel(doc, source).slice(0, 60) || undefined;
+  const name = flowSourceLabel(doc, source, opts.part).slice(0, 60) || undefined;
   const frameId = addScreen(doc, { platform, name, x: Math.round(at.x), y: Math.round(at.y) });
   const frame = frames(doc).find((f) => f.id === frameId)!;
-  const flowId = addFlow(doc, source, frame.screen.screenId)!;
+  const flowId = addFlow(doc, source, frame.screen.screenId, undefined, opts)!;
   return { frameId, screenId: frame.screen.screenId, flowId };
+}
+
+/**
+ * Turns the shared flows of master `symbol` into flows of the instances' own nodes (each instance in `instances`, or
+ * every one): before Detach or Delete master, so the links stay on the screens. Returns how many were added.
+ */
+export function localizeSharedFlows(doc: DocLike, symbol: Id, instances?: readonly Id[]): number {
+  const wf = doc.wireframe;
+  const shared = (wf?.flows ?? []).filter((f) => f.symbol === symbol);
+  if (!wf || !shared.length) return 0;
+  const only = instances ? new Set(instances) : null;
+  const added: WireframeFlow[] = [];
+  for (const f of shared) {
+    for (const id of flowSources(doc, f)) {
+      const ref = masterRef(doc, id);
+      if (!ref || ref.symbol !== symbol || (only && !only.has(ref.instance))) continue;
+      added.push({ id: newId('f'), from: id, to: f.to, ...(f.label ? { label: f.label } : {}), ...(f.part !== undefined ? { part: f.part } : {}) });
+    }
+  }
+  if (!added.length) return 0;
+  wf.flows!.push(...added);
+  return added.length;
 }
 
 // ---------- arrow geometry (document space) ----------
@@ -274,18 +471,33 @@ export function curveBetween(s: Rect, t: Rect): FlowCurve {
   return { points: [start, { x: start.x + out.x * k, y: start.y + out.y * k }, { x: end.x - dir.x * k, y: end.y - dir.y * k }, end], dir };
 }
 
-/** The arrow of a flow (source element → nearest edge of the target frame), or null when either end is missing or hidden. */
-export function flowCurve(doc: DocLike, flow: WireframeFlow): FlowCurve | null {
-  const from = findNode(asDoc(doc), flow.from);
-  if (!from || !from.visible) return null;
-  const origin = frameOf(doc, flow.from);
-  if (origin && !origin.visible) return null;
-  const target = flowTarget(doc, flow, origin);
-  if (!target || !target.visible) return null;
-  const s = worldBounds(asDoc(doc), flow.from);
-  if (!s) return null;
-  return curveBetween(s, frameRect(target));
+/** Where a flow starts on canvas node `source`: its part's rectangle, else the node's bounds (document space). */
+export function flowSourceRect(doc: DocLike, source: Id, part?: string): Rect | null {
+  return part !== undefined ? (partWorldRect(doc, source, part) ?? worldBounds(asDoc(doc), source)) : worldBounds(asDoc(doc), source);
 }
+
+/**
+ * The arrows of a flow, one per canvas node it starts at (a shared flow: one per instance), each from the source (or
+ * its part) to the nearest edge of the target frame. Hidden ends draw nothing; a shared flow draws nothing on the
+ * screen it opens (the tab bar's own tab: it would point at its own screen on every screen).
+ */
+export function flowCurves(doc: DocLike, flow: WireframeFlow): { source: Id; curve: FlowCurve }[] {
+  const out: { source: Id; curve: FlowCurve }[] = [];
+  for (const id of flowSources(doc, flow)) {
+    const loc = locate(asDoc(doc), id);
+    if (!loc || !loc.node.visible || loc.ancestors.some((a) => !a.visible)) continue;
+    const origin = frameOf(doc, id);
+    const target = flowTarget(doc, flow, origin);
+    if (!target || !target.visible) continue;
+    if (flow.symbol && origin && origin.screen.screenId === flow.to) continue;
+    const s = flowSourceRect(doc, id, flow.part);
+    if (s) out.push({ source: id, curve: curveBetween(s, frameRect(target)) });
+  }
+  return out;
+}
+
+/** The (first) arrow of a flow, or null when either end is missing or hidden. */
+export const flowCurve = (doc: DocLike, flow: WireframeFlow): FlowCurve | null => flowCurves(doc, flow)[0]?.curve ?? null;
 
 /** A point on a cubic Bézier. */
 export function bezierAt([a, b, c, d]: readonly [Vec, Vec, Vec, Vec], t: number): Vec {
@@ -321,8 +533,7 @@ export function distanceToCurve(curve: FlowCurve, p: Vec): number {
 export function flowAt(doc: DocLike, p: Vec, tolerance: number): Id | null {
   const list = flowsOf(doc);
   for (let i = list.length - 1; i >= 0; i--) {
-    const c = flowCurve(doc, list[i]);
-    if (c && distanceToCurve(c, p) <= tolerance) return list[i].id;
+    for (const { curve } of flowCurves(doc, list[i])) if (distanceToCurve(curve, p) <= tolerance) return list[i].id;
   }
   return null;
 }

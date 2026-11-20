@@ -129,11 +129,12 @@ function Presenter() {
           </svg>
           {spots.map((h) => (
             <button
-              key={h.nodeId}
+              key={h.part === undefined ? h.nodeId : `${h.nodeId}#${h.part}`}
               type="button"
               data-slot="hotspot"
+              data-part={h.part}
               onClick={() => follow(h.flow)}
-              aria-label={h.flow.label || `Open ${doc.wireframe?.screens.find((s) => s.id === h.flow.to)?.name ?? 'screen'}`}
+              aria-label={h.flow.label || `${h.label ? `${h.label}: open` : 'Open'} ${doc.wireframe?.screens.find((s) => s.id === h.flow.to)?.name ?? 'screen'}`}
               title={h.flow.label}
               className={`absolute cursor-pointer rounded-sm outline-2 -outline-offset-1 transition-colors hover:bg-sky-400/20 hover:outline-sky-400 focus-visible:bg-sky-400/20 focus-visible:outline-sky-400 ${flash ? 'bg-sky-400/15 outline-sky-400/70' : 'outline-transparent'}`}
               style={{ left: h.rect.x * scale, top: h.rect.y * scale, width: h.rect.width * scale, height: h.rect.height * scale }}
