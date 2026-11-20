@@ -538,9 +538,22 @@ which when drawing from inside an instance ("This screen only" / "Every screen u
 
 Navigation components with a selected index (bottom navigation, tabs, segmented control, sidebar
 navigation, web header) get `selected: 'auto'` as an option (default for new instances): the item
-whose part links to the **current screen** is drawn selected; with no such link, the first. This
-makes one shared tab bar show the right tab on each screen with no per-instance overrides. A number
-keeps the old fixed behaviour.
+whose part links to the **current screen** is drawn selected. This makes one shared tab bar show the
+right tab on each screen with no per-instance overrides. A number keeps the old fixed behaviour.
+
+When no item links to the current screen (a sub-screen), the flows are walked backwards (decided
+2026-11-20): the item that links to a screen which, directly or through other screens, opens the
+current one is selected, so Settings → Server keeps "Settings" selected on the Server screen.
+
+- **Nearest wins:** breadth first over incoming flows (from any element or part, on any frame of a
+  screen); an item linking to a screen one flow away beats one linking to a screen two flows away.
+- **Ties:** the first such item. **Cycles** are safe (each screen is visited once).
+- **No path:** the first item, as before.
+- One resolved value (`component.resolved`) serves the canvas, exports, the wf sheet, Present mode and
+  Export for AI's "(selected)". Code: `src/wireframe/steps/autoSelect` (`screenGraph`, `distancesTo`);
+  tests: `src/wireframe/__tests__/autoSelect.test.ts`.
+- A consequence: in-screen tabs whose item opens a screen that leads back select that item (Gallery's
+  Videos tab opens Files, and Files' tab bar opens Gallery: Videos is selected on Gallery).
 
 ### As built (links from parts)
 
