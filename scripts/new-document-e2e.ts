@@ -163,7 +163,7 @@ try {
         [1024, 768],
         [390, 844],
       ]) {
-        const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
         await ctx.addInitScript((t) => {
           localStorage.setItem('designer.theme', t);
           localStorage.setItem('designer.welcomed', '1');
