@@ -27,17 +27,48 @@ interface AgentState {
   dismiss: (id: string) => void;
 }
 
+/**
+ * Dismissed and undone rows outlive a reload (a page reload brought every finished job of the day back, with its Undo
+ * offered again: phase 4 end-to-end run). Per device, newest ids kept.
+ */
+const ROWS_KEY = 'designer.agent.rows';
+const MAX_KEPT = 300;
+
+function loadRowMarks(): { dismissed: string[]; undone: string[] } {
+  try {
+    const v = JSON.parse(localStorage.getItem(ROWS_KEY) ?? 'null') as { dismissed?: unknown; undone?: unknown } | null;
+    const ids = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
+    return { dismissed: ids(v?.dismissed), undone: ids(v?.undone) };
+  } catch {
+    return { dismissed: [], undone: [] };
+  }
+}
+
+function saveRowMarks(dismissed: Set<string>, undone: Set<string>) {
+  try {
+    localStorage.setItem(ROWS_KEY, JSON.stringify({ dismissed: [...dismissed].slice(-MAX_KEPT), undone: [...undone].slice(-MAX_KEPT) }));
+  } catch {
+    // private mode / no storage: the marks last until the reload
+  }
+}
+
+const marks = loadRowMarks();
+
 export const useAgentStore = create<AgentState>()((set) => ({
   agents: null,
   agentsError: null,
   jobs: {},
   snapshots: new Set(),
-  undone: new Set(),
-  dismissed: new Set(),
+  undone: new Set(marks.undone),
+  dismissed: new Set(marks.dismissed),
   panelOpen: true,
   setPanelOpen: (panelOpen) => set({ panelOpen }),
   dismiss: (id) => set((s) => ({ dismissed: new Set(s.dismissed).add(id) })),
 }));
+
+useAgentStore.subscribe((s, prev) => {
+  if (s.dismissed !== prev.dismissed || s.undone !== prev.undone) saveRowMarks(s.dismissed, s.undone);
+});
 
 export function usePresence(): Presence {
   const syncConfigured = useSyncStore((s) => s.settings.enabled && s.settings.url.trim().length > 0);

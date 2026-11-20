@@ -193,3 +193,13 @@ describe('the platform guessed from a screenshot', () => {
     expect([guessPlatform(1440, 900), guessPlatform(1920, 1080), guessPlatform(2560, 1600)]).toEqual(['desktop', 'desktop', 'desktop']);
   });
 });
+
+describe('panel rows across a reload', () => {
+  it('dismissed and undone rows are kept on this device', () => {
+    useAgentStore.getState().dismiss('job-dismissed');
+    useAgentStore.setState((s) => ({ undone: new Set(s.undone).add('job-undone') }));
+    const saved = JSON.parse(localStorage.getItem('designer.agent.rows')!) as { dismissed: string[]; undone: string[] };
+    expect(saved.dismissed).toContain('job-dismissed');
+    expect(saved.undone).toContain('job-undone');
+  });
+});

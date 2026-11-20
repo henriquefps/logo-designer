@@ -105,6 +105,16 @@ export interface JobRow {
   screen: string | null;
 }
 
+/**
+ * A later job of the same project ran (or runs) and was not undone: restoring this job's snapshot would also throw
+ * away that job's work (phase 4 end-to-end run: undoing an older job silently removed two newer jobs' screens), so
+ * only the newest job's changes can be undone; undoing it offers the one before. Queued jobs have not changed
+ * anything yet; dismissed rows still count, their changes are in the project.
+ */
+function laterChanges(jobs: Jobs, job: AppJob, undone: ReadonlySet<string> | undefined): boolean {
+  return Object.values(jobs).some((o) => o.id !== job.id && o.projectId === job.projectId && o.createdAt > job.createdAt && o.status !== 'queued' && !undone?.has(o.id));
+}
+
 /** Finished jobs stay in the panel this long (running and queued ones always show). */
 export const RECENT_MS = 24 * 60 * 60_000;
 export const MAX_ROWS = 6;
@@ -135,7 +145,7 @@ export function jobRows(
       cancelling: !over && !!j.cancelRequested,
       summary: over ? (j.summary?.trim() ?? null) || null : null,
       error: j.status === 'failed' ? (j.error?.trim() ?? null) || null : null,
-      canUndo: over && !undone && !!opts.snapshots?.has(j.id),
+      canUndo: over && !undone && !!opts.snapshots?.has(j.id) && !laterChanges(jobs, j, opts.undone),
       undone,
       screen: screenName(opts.doc, j.screenId ?? input?.screenId),
     };

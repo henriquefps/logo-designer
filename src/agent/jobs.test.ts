@@ -122,6 +122,27 @@ describe('presence and entry-point preconditions', () => {
   });
 });
 
+describe('undo is offered for the newest job only', () => {
+  it('a later job that ran (dismissed or not) hides the undo of the earlier one; undoing the later one offers it again', () => {
+    const doc = createDocument({ name: 'App', wireframe: { screens: [] } });
+    const jobs: Jobs = {
+      older: job({ id: 'older', status: 'done', createdAt: T, finishedAt: T + 30_000 }),
+      newer: job({ id: 'newer', status: 'done', createdAt: T + 1000, finishedAt: T + 60_000 }),
+      queued: job({ id: 'queued', status: 'queued', createdAt: T + 2000 }),
+      elsewhere: job({ id: 'elsewhere', projectId: 'other', status: 'done', createdAt: T + 3000 }),
+    };
+    const snapshots = new Set(['older', 'newer', 'queued']);
+    const undo = (o: { undone?: Set<string>; dismissed?: Set<string> } = {}) =>
+      Object.fromEntries(jobRows(jobs, { projectId: 'p1', doc, now: T + 61_000, snapshots, ...o }).map((r) => [r.id, r.canUndo]));
+    // Regression (phase 4 end-to-end run): the older job's Undo restored its snapshot and threw away the newer job's screens.
+    expect(undo()).toEqual({ queued: false, newer: true, older: false });
+    expect(undo({ dismissed: new Set(['newer']) })).toEqual({ queued: false, older: false });
+    expect(undo({ undone: new Set(['newer']) })).toEqual({ queued: false, newer: false, older: true });
+    // A running later job counts too: its changes are arriving.
+    expect(jobRows({ ...jobs, newer: { ...jobs.newer, status: 'running' } }, { projectId: 'p1', doc, now: T, snapshots }).find((r) => r.id === 'older')?.canUndo).toBe(false);
+  });
+});
+
 describe('snapshot restore', () => {
   it('takes the snapshot’s content and keeps the project’s identity and live mark', () => {
     const snap = createDocument({ name: 'Old name', wireframe: { screens: [] } });
