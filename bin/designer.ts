@@ -24,7 +24,7 @@ function writeAll(fd: number, s: string) {
       off += writeSync(fd, bytes, off, bytes.length - off);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EAGAIN') throw e;
-      Bun.sleepSync(1); // a non-blocking pipe that is full: wait for the reader
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1); // a full non-blocking pipe: let the reader catch up
     }
   }
 }

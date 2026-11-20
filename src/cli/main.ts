@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { execFile } from 'node:child_process';
 import { parseArgs, promisify, type ParseArgsConfig } from 'node:util';
-import { createDocument, findNode, skippedReferenceNodes, skippedReferenceNotice, worldBounds, type DesignDocument, type Rect, type SceneNode, type ScreenNode } from '@/model';
+import { createDocument, findNode, skippedReferenceNodes, skippedReferenceNotice, worldBounds, type DesignDocument, type Rect, type SceneNode, type ScreenNode, screenNodes } from '@/model';
 import { applyKnockout, gapUnit, knockout, targetsBelow } from '@/vector/knockout';
 import { loadPaper } from '@/vector/paperOps';
 import { serializeProject, validateDocument } from '@/io/projectFile';
@@ -13,7 +13,7 @@ import { ensureSvgGeometry } from '@/io/svgImport';
 import { exportSvg } from '@/io/svgExport';
 import { exportGlyph, GLYPH_BOX } from '@/io/glyphExport';
 import { APP_ORIGIN, buildImportLink, buildOpenLink, LINK_MAX_LENGTH, LINK_WARN_LENGTH, nameFromPath } from '@/io/shareLink';
-import { CORS_HEADERS, galleryHtml, pickOpener, type GalleryItem } from './present';
+import { chooseHandover, CORS_HEADERS, formatBytes, galleryHtml, pickOpener, type GalleryItem } from './present';
 import { describeKeyline, fitDocument, keylineOf } from './fit';
 import { BRAND, GLYPH_DEFAULT, normalizeTile } from '@/icon/rules';
 import { contrastWarnings } from '@/icon/colour';
@@ -110,8 +110,10 @@ Usage: designer <command> [options]
   link --url <url>                            ?import= link for a file on the web (raw.githubusercontent.com…)
   link <file> --github                        ?import= link to the file on GitHub (current branch, pushed)
   serve <project|svg> [--port 8765]           serve one file with CORS and print its ?import= link
-  open <project|svg> [more…] [--no-wait]      open in Designer in the default browser, no link printed
-                                              (several files, or no GUI: like present)
+  open <project|svg> [more…]                  open in Designer in the default browser, no link printed
+                                              (several files, or no GUI: like present; a file too big
+                                              for an open link, e.g. a wireframe with screenshots, is
+                                              served on localhost until Designer has downloaded it)
   present <files…> [--port 8765] [--no-open]  local gallery page (preview + "Open in Designer" per file);
                                               keeps running until Ctrl+C
   live <project> [--server URL]               live editing through your sync server: pushes the file now, then
@@ -444,7 +446,7 @@ async function runKnockout(doc: DesignDocument, values: Values, io: CliIO): Prom
 // ---------- serve ----------
 
 /** Serves one file with CORS (+ Private Network Access) headers; resolves once listening. */
-export async function startServer(path: string, port: number, io: Pick<CliIO, 'cwd'>) {
+export async function startServer(path: string, port: number, io: Pick<CliIO, 'cwd'>, onServed?: () => void) {
   const { createServer } = await import('node:http');
   const file = resolve(io.cwd ?? process.cwd(), path);
   await readFile(file); // fail early
@@ -461,7 +463,7 @@ export async function startServer(path: string, port: number, io: Pick<CliIO, 'c
       return;
     }
     readFile(file).then(
-      (buf) => res.writeHead(200, { ...headers, 'Content-Type': type }).end(buf),
+      (buf) => res.writeHead(200, { ...headers, 'Content-Type': type }).end(buf, () => onServed?.()),
       () => res.writeHead(404, headers).end('gone'),
     );
   });
@@ -484,9 +486,41 @@ async function defaultOpenUrl(url: string): Promise<boolean> {
   const opener = pickOpener(process.platform, process.env, url);
   if (!opener) return false;
   return new Promise<boolean>((ok) => {
-    const child = execFile(opener.command, opener.args, (e) => ok(!e));
-    child.once('error', () => ok(false));
+    try {
+      const child = execFile(opener.command, opener.args, (e) => ok(!e));
+      child.once('error', () => ok(false));
+    } catch {
+      ok(false); // e.g. E2BIG: the URL is longer than the OS takes as an argument
+    }
   });
+}
+
+/**
+ * `designer open` for a file whose `#open=` link is too long for the OS opener (see chooseHandover):
+ * serves it on localhost, opens a short `?import=` link and waits until Designer has downloaded it
+ * (the app fetches before it asks to confirm), then stops. Without a GUI browser: the gallery, as before.
+ */
+async function openViaImport(path: string, name: string, linkLength: number, port: number, origin: string, io: CliIO): Promise<number> {
+  let served!: () => void;
+  const downloaded = new Promise<void>((done) => (served = done));
+  const { server, url } = await startServer(path, port, io, () => served());
+  const opened = await (io.openUrl ?? defaultOpenUrl)(buildImportLink(url, { origin }));
+  if (!opened) {
+    server.close();
+    io.err('No GUI browser available here; serving a local page instead.');
+    return await present([path], port || 8765, origin, true, io);
+  }
+  io.err(`'${name}' is too big for an open link (${formatBytes(linkLength)}): Designer downloads it from ${url}. Waiting for it… (Ctrl+C to stop)`);
+  const stopped = new Promise<'stopped'>((done) => io.signal?.addEventListener('abort', () => done('stopped'), { once: true }));
+  const how = await Promise.race([downloaded.then(() => 'downloaded' as const), stopped]);
+  server.closeAllConnections?.();
+  server.close();
+  if (how === 'stopped') {
+    io.err('Stopped before Designer downloaded the file.');
+    return 1;
+  }
+  io.out(`Opened '${name}' in Designer — confirm the import in the browser.`);
+  return 0;
 }
 
 interface Presented {
@@ -518,6 +552,7 @@ export async function startGallery(paths: string[], port: number, origin: string
         name: f.name,
         width: f.doc.artboard.width,
         height: f.doc.artboard.height,
+        ...(f.doc.wireframe ? { screens: screenNodes(f.doc).length } : {}),
         previewUrl: `/preview/${i}.svg`,
         importLink: buildImportLink(`http://localhost:${actual}/files/${urlName(i)}`, { origin }),
       }));
@@ -887,7 +922,9 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         const { doc, svg } = await loadDoc(pos[0], io);
         const text = svg ? (await readInput(pos[0], io)).trim() : JSON.stringify(doc);
         const link = await buildOpenLink(text, { origin, ...(svg ? { name: nameFromPath(pos[0]) } : {}) });
-        if (link.length > LINK_MAX_LENGTH) throw new Error(`The file is too big for an open link (${Math.round(link.length / 1024)} KB); use \`designer present ${pos[0]}\`.`);
+        if (chooseHandover(link.length, process.platform) === 'import') {
+          return await openViaImport(pos[0], svg ? nameFromPath(pos[0]) : doc.name, link.length, Number(str(values, 'port') ?? 0), origin, io);
+        }
         if (!(await (io.openUrl ?? defaultOpenUrl)(link))) {
           io.err('No GUI browser available here; serving a local page instead.');
           return await present(pos, Number(str(values, 'port') ?? 8765), origin, true, io);

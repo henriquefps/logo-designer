@@ -580,6 +580,24 @@ nothing changes for people who don't use it.
 images), make sure `designer open` / `present` pick the `?import=` path automatically when needed,
 and that live editing (A5) is the recommended path for agent sessions.
 
+#### As built (A6)
+
+- Measured (`docs/agents.md` → Open links in detail has the table): 10 phone screens of ~100 components each
+  are 1.4 MB of compact JSON and a 99 KB `#open=` link; one embedded 1080×2243 screenshot makes it 611 KB, two
+  1.8 MB. Image components are placeholders; embedded bitmaps decide the size.
+- The real limit was not Chrome's 2 MB but the OS opener: `designer open` died with `E2BIG` on Linux above
+  128 KB of link (one screenshot was enough). `designer open` now opens the `#open=` link only up to 64 KB
+  (30 000 characters on Windows) and otherwise serves the file on `localhost`, opens a `?import=` link and
+  exits once the app has downloaded it (the app fetches before asking to confirm). `present` always used
+  `?import=`; its cards now say "Wireframe · N screens" instead of the unused artboard size. Code:
+  `chooseHandover` / `openLinkLimit` in `src/cli/present.ts`, `openViaImport` in `src/cli/main.ts`; tests in
+  `present.test.ts` (the decision, with the measured sizes) and `main.test.ts` (the served path end to end).
+- Live editing (`designer live`, A5) is the recommended handover for agent sessions on wireframes (64 MB per
+  project on the sync server, no link); `docs/agents.md` and the skill say so.
+- Found on the way: CLI output into a pipe was cut at 64 KB (`designer to-svg big.json | wc -c` → 65537), and
+  Bun's async stdout writes repeated 64 KB chunks; `bin/designer.ts` now writes stdout synchronously
+  (`src/cli/bin.test.ts`).
+
 ### A7. The `designer` skill and an end-to-end run
 
 The skill (`skills/designer/`) gets a **Wireframes** section: when to use wireframe mode, the spec
