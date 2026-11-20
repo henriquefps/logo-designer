@@ -12,6 +12,34 @@ export class AgentSetupError extends Error {}
  */
 export const ALLOWED_DESIGNER = ['wf', 'screen', 'to-png', 'validate', 'info'] as const;
 export const ALLOWED_TOOLS = [...ALLOWED_DESIGNER.map((c) => `Bash(designer ${c} *)`), 'Read', 'Write', 'Edit'];
+/**
+ * Claude Code runs its own list of "read-only" shell commands (cat, grep, sed -n, head, ls, find, wc, echo, pwd…)
+ * without any allow rule, even in dontAsk mode (found with 2.1.329), and no setting turns that off. A deny rule does
+ * win over it, but a deny rule cannot say "everything except". So the denied set is spelled out as a prefix tree
+ * around the one allowed start `designer `: for every position in it, every other character that could stand there.
+ * Any command that does not begin with `designer ` is then denied, whatever its name, and the allow rules above
+ * decide which `designer` commands run. Compound commands are checked part by part by Claude Code, so a `cat` behind
+ * `designer wf … ;` is denied too. Backslash, parentheses and `*` are escaped as the rule syntax needs.
+ */
+export function denyAllButDesigner(start = 'designer '): string[] {
+  const esc = (c: string) => (c === '\\' || c === '(' || c === ')' || c === '*' ? `\\${c}` : c);
+  const chars = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) => String.fromCharCode(0x21 + i));
+  const rules: string[] = [];
+  for (let i = 0; i < start.length; i++) {
+    const prefix = start.slice(0, i).replace(/./g, esc);
+    for (const c of i === 0 ? chars : [...chars, ' ']) {
+      if (c === start[i]) continue;
+      // `designer:*` is Claude Code's legacy spelling of `designer *`: it would deny the allowed commands themselves.
+      if (c === ':' && i === start.length - 1) continue;
+      rules.push(`Bash(${prefix}${esc(c)}*)`);
+      // `*` may match nothing, but a bare single character (`[`) is a command of its own.
+      if (i === 0) rules.push(`Bash(${esc(c)})`);
+    }
+  }
+  return rules;
+}
+export const DENIED_TOOLS = denyAllButDesigner();
+
 /** The built-in tools that exist at all in the session (no WebFetch, WebSearch, Task, Glob, Grep, …). */
 export const TOOLS = 'Bash,Read,Write,Edit';
 
@@ -28,6 +56,9 @@ export function claudeArgs(appendSystemPrompt: string): string[] {
     TOOLS,
     '--allowedTools',
     ...ALLOWED_TOOLS,
+    // Deny rules win: Claude Code's built-in read-only commands (cat, ls, grep…) do not run either.
+    '--disallowedTools',
+    ...DENIED_TOOLS,
     // Nothing outside the allow list runs, and nobody is asked.
     '--permission-mode',
     'dontAsk',
