@@ -316,6 +316,14 @@ export interface DesignDocument {
   icon?: IconDocInfo;
   /** Present only on wireframe documents. */
   wireframe?: WireframeDocInfo;
+  /** Present while the project is edited live (`designer live`, docs/sync.md): changes go through the sync server within about a second. */
+  live?: LiveInfo;
+}
+
+/** Live editing mark (docs/sync.md → Live editing). */
+export interface LiveInfo {
+  /** Who saved the current version: `"cli"` (the `designer` CLI) or `"app:<device id>"`. */
+  editedBy: string;
 }
 
 export interface Rect {

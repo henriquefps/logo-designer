@@ -532,6 +532,13 @@ function iconInfo(v: unknown, path: string): { icon?: IconDocInfo } {
  * readable message naming the JSON path that is wrong. Duplicate node ids are renewed; optional
  * fields (ids, names, opacity, transform parts, stroke, fill…) get their defaults.
  */
+/** `live` is sync state, not design: anything malformed is dropped rather than refused. */
+function liveInfo(v: unknown): { live?: DesignDocument['live'] } {
+  if (!isObj(v)) return {};
+  const by = typeof v.editedBy === 'string' ? v.editedBy.trim().slice(0, 100) : '';
+  return { live: { editedBy: by || 'cli' } };
+}
+
 export function validateDocument(data: unknown, opts: { warnings?: string[] } = {}): DesignDocument {
   const d = isObj(data) ? data : null;
   if (!d || !('schemaVersion' in d) || !Array.isArray(d.children) || !d.artboard) {
@@ -562,6 +569,7 @@ export function validateDocument(data: unknown, opts: { warnings?: string[] } = 
       children,
       ...icon,
       ...wf,
+      ...liveInfo(d.live),
     };
   } catch (e) {
     if (e instanceof Invalid) throw new Error(`This project file is damaged at ${e.message}.`, { cause: e });

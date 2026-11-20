@@ -105,9 +105,10 @@ designer-sync version
 
 All bodies are JSON. `kind` is `projects` or `fonts`.
 
-- `GET /api/health` → `{ "ok": true, "projectCount": n, "fontCount": n, "serverTime": ms }`. No key needed.
+- `GET /api/health` → `{ "ok": true, "projectCount": n, "fontCount": n, "events": true, "serverTime": ms }`. No key needed. `events` is present on servers that have the event stream.
 - `GET /api/<kind>` → `{ "items": [Meta], "serverTime": ms }`: id, name, createdAt, updatedAt, deleted, size of every item, tombstones included. No payloads.
 - `GET /api/<kind>/<id>` → the stored record: the Meta fields plus `data` (a project document, or a font).
+- `GET /api/events` → a [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) stream of changes, same auth as the rest. It starts with `retry: 3000` and `event: ready` (`{"serverTime": ms}`), then sends `event: change` with `{"kind", "id", "updatedAt"}` for every applied `PUT` (projects and fonts, deletions included) and a `: heartbeat` comment every 25 s, so Cloudflare Tunnel (which closes a response that is silent for 100 s) keeps it open. Only ids and timestamps: a client fetches what it needs with `GET`. A client too slow to read is dropped (it reconnects and resyncs); at most 256 streams are open at once (`503` beyond that). The app and `designer live` use it to see changes within a second.
 - `PUT /api/<kind>/<id>` with `{ name, createdAt, updatedAt, deleted, base, data }` → `{ "applied": bool, "item": Meta }`. The revision is taken when the id is new or `updatedAt` is strictly greater than the stored one; otherwise `applied` is false and `item` is what the server has. `deleted: true` stores a tombstone and drops `data`. `base` is the `updatedAt` the client last synced for this id. `updatedAt` more than a day in the future is refused (a wrong clock would win every merge).
 
 ## Data on disk
@@ -126,7 +127,7 @@ Files are written atomically (temp file, fsync, rename) with mode 0600, so a cop
 Your projects are only as private as this server, so it refuses to be exposed without a key.
 
 - **Without an API key** (default) it answers only requests that come straight from your network: loopback, private ranges, link-local and `100.64.0.0/10` (Tailscale) peers, and without `Cf-Connecting-IP`, `X-Forwarded-For`, `X-Real-IP` or `Forwarded` headers. Anything through a tunnel or proxy gets `401` with an explanation, and the server prints a warning at startup.
-- **With an API key**, anyone who has it may read and overwrite every project and font, from anywhere. The comparison is constant time. Treat it like a password; if it leaks, make a new one and update the server and every device.
+- **With an API key**, anyone who has it may read and overwrite every project and font, and follow the event stream, from anywhere. The comparison is constant time. Treat it like a password; if it leaks, make a new one and update the server and every device.
 - CORS allows any origin by default (the key is what protects the data). Set `ALLOWED_ORIGINS` to accept your copy of the app only.
 - Don't put Cloudflare Access (a login page) in front of the hostname: the app makes background requests and cannot log in.
 

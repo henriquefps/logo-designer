@@ -8,6 +8,7 @@ import { CliButton, SyncButton } from './TopBarButtons';
 import { StatusBar } from './StatusBar';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
+import { LiveIndicator } from './LiveIndicator';
 
 export function DesktopLayout() {
   return (
@@ -22,6 +23,7 @@ export function DesktopLayout() {
         </div>
         <div className="flex items-center justify-end gap-1">
           <CliButton />
+          <LiveIndicator />
           <SyncButton />
           <ThemeMenu />
         </div>

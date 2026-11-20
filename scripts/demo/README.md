@@ -14,6 +14,10 @@ DEMO_URL=http://localhost:5173/ bun run demo   # against an app that is already 
 DEMO_OUT=/some/dir bun run demo                # another output folder
 ```
 
+Scenario `07-edicao-ao-vivo` (live editing) also needs Go: it builds and starts a real `designer-sync`,
+runs `designer live` on a file and edits that file from the scenario (as an agent would), then stops both
+in `teardown()`. The same pieces back `bun run e2e:live` (`scripts/live-e2e.ts`, helpers in `lib/live.ts`).
+
 Needs ffmpeg on the PATH and Playwright's Chromium (`bunx playwright install chromium`). Output:
 1280 × 840 (the app at 1280 × 800 plus the 40 px caption bar), H.264, 25 fps, a few hundred KB per
 video. `demo-out/` is git-ignored; the raw `.webm` stays next to each MP4, and a failing scenario

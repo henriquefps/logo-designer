@@ -137,6 +137,17 @@ function StatusBlock() {
   const last = useSyncStore((s) => s.lastSyncedAt);
   const pending = useSyncStore((s) => s.pending);
   const conflicts = useSyncStore((s) => s.conflicts);
+  const stream = useSyncStore((s) => s.stream);
+  const streamText =
+    stream === 'open'
+      ? 'Live updates: on (changes from other devices and the CLI arrive at once)'
+      : stream === 'unsupported'
+        ? 'Live updates: this server is older and has no event stream; checking every 30 s'
+        : stream === 'auth'
+          ? null
+          : stream === 'connecting'
+            ? 'Live updates: connecting… (checking every 30 s meanwhile)'
+            : null;
 
   let icon = <CloudSlashIcon className="size-5 shrink-0 text-muted-foreground" />;
   let title = 'Sync is off';
@@ -169,6 +180,11 @@ function StatusBlock() {
       <p className="text-[0.8125rem] text-muted-foreground" title={last ? fullDate(last) : undefined}>
         {last ? `Last sync ${relativeDate(last)}, ${new Date(last).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Never synced from this device'}
       </p>
+      {status !== 'off' && streamText && (
+        <p className="text-[0.8125rem] text-muted-foreground" data-testid="sync-stream">
+          {streamText}
+        </p>
+      )}
       {conflicts > 0 && (
         <p className="text-[0.8125rem] text-muted-foreground">
           {conflicts} {conflicts === 1 ? 'project was' : 'projects were'} edited on two devices: the newer edit won and the other is kept as a “conflicted copy” in Projects.

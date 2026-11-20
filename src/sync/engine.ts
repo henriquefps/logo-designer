@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import { validateDocument } from '@/io/projectFile';
 import { loadDocument, loadProjectList } from '@/store/persistence';
 import { useProjectsStore } from '@/store/useProjectsStore';
+import { useDocStore } from '@/store/useDocStore';
 import { readUploadData, listUploads, saveUpload, deleteUpload, type UploadedFace } from '@/fonts/uploads';
 import { reloadUploads } from '@/fonts/store';
 import { SyncError, getItem, listItems, putItem, type Connection, type Kind } from './api';
 import { base64ToBytes, bytesToBase64 } from './base64';
+import { subscribeEvents, type StreamState } from './events';
+import { LIVE_PUSH_DELAY } from './live';
 import { conflictedName, countPending, planSync, type LocalItem, type Step } from './plan';
 import {
   loadKindState,
@@ -28,6 +31,8 @@ interface SyncStoreState {
   pending: number;
   /** Conflicted copies created since this page was opened. */
   conflicts: number;
+  /** The live event stream (`off` while sync is off). */
+  stream: StreamState | 'off';
   setSettings: (patch: Partial<SyncSettings>) => void;
 }
 
@@ -42,6 +47,7 @@ export const useSyncStore = create<SyncStoreState>()((set, get) => {
     lastSyncedAt: loadLastSyncedAt(),
     pending: 0,
     conflicts: 0,
+    stream: 'off',
     setSettings: (patch) => {
       const next = { ...get().settings, ...patch };
       saveSettings(next);
@@ -54,6 +60,9 @@ export const useSyncStore = create<SyncStoreState>()((set, get) => {
 export const isSyncConfigured = () => configured(useSyncStore.getState().settings);
 
 // ---------- one sync cycle ----------
+
+/** `kind:id:updatedAt` of revisions this device pushed: their echo on the event stream needs no sync. */
+const ownPushes = new Set<string>();
 
 class Collector {
   base: Record<string, number | null> = {}; // null = delete
@@ -125,7 +134,11 @@ async function projectStep(conn: Connection, step: Step, base: number | undefine
         base,
         data: doc,
       });
-      if (r.applied) c.setBase(id, r.item.updatedAt);
+      if (r.applied) {
+        c.setBase(id, r.item.updatedAt);
+        if (ownPushes.size > 200) ownPushes.clear();
+        ownPushes.add(`projects:${id}:${r.item.updatedAt}`);
+      }
       return;
     }
     case 'push-delete': {
@@ -281,10 +294,47 @@ export function syncNow(): Promise<void> {
 
 const INTERVAL_MS = 30_000;
 const PUSH_DEBOUNCE_MS = 2_000;
+/** Events often come in bursts (fonts, then projects): one sync for the burst. */
+const EVENT_DEBOUNCE_MS = 50;
 
-/** Pull on start, on focus and every 30 s; push 2 s after the last autosave. Returns a stop function. */
+const activeIsLive = () => {
+  const doc = useDocStore.getState().doc;
+  return !!doc.live && doc.id === useProjectsStore.getState().activeId;
+};
+
+/**
+ * Pull on start, on focus, every 30 s and as soon as the server's event stream says something changed;
+ * push 2 s after the last autosave (≈ 500 ms from the edit for a live project). Returns a stop function.
+ */
 export function startSync(): () => void {
   let debounce: ReturnType<typeof setTimeout> | null = null;
+  let eventTimer: ReturnType<typeof setTimeout> | null = null;
+  let stopStream: (() => void) | null = null;
+  const onEvent = () => {
+    if (eventTimer) clearTimeout(eventTimer);
+    eventTimer = setTimeout(() => void syncNow(), EVENT_DEBOUNCE_MS);
+  };
+  const openStream = () => {
+    stopStream?.();
+    stopStream = null;
+    if (!isSyncConfigured()) {
+      useSyncStore.setState({ stream: 'off' });
+      return;
+    }
+    const { url, apiKey } = useSyncStore.getState().settings;
+    stopStream = subscribeEvents(
+      { url, apiKey },
+      {
+        onOpen: onEvent, // catch up with whatever changed while the stream was down
+        onChange: (e) => {
+          if (ownPushes.delete(`${e.kind}:${e.id}:${e.updatedAt}`)) return;
+          if (e.kind === 'fonts' && !useSyncStore.getState().settings.syncFonts) return;
+          onEvent();
+        },
+        onState: (stream) => useSyncStore.setState({ stream }),
+      },
+    );
+  };
   const soon = (ms: number) => {
     if (!isSyncConfigured()) return;
     if (debounce) clearTimeout(debounce);
@@ -303,19 +353,24 @@ export function startSync(): () => void {
   const unsubProjects = useProjectsStore.subscribe((s, prev) => {
     if (s.projects === prev.projects) return;
     void refreshPending();
-    if (!inFlight) soon(PUSH_DEBOUNCE_MS); // an autosave landed
+    if (!inFlight) soon(activeIsLive() ? LIVE_PUSH_DELAY : PUSH_DEBOUNCE_MS); // an autosave landed
     else rerun = true;
   });
   const unsubSettings = useSyncStore.subscribe((s, prev) => {
     if (s.settings === prev.settings) return;
     failures = 0;
     nextRetryAt = 0;
+    const conn = (x: SyncSettings) => `${configured(x)}|${x.url}|${x.apiKey}`;
+    if (conn(s.settings) !== conn(prev.settings)) openStream();
     soon(300);
   });
 
+  openStream();
   void refreshPending();
   void syncNow();
   return () => {
+    stopStream?.();
+    if (eventTimer) clearTimeout(eventTimer);
     if (debounce) clearTimeout(debounce);
     clearInterval(interval);
     window.removeEventListener('focus', onFocus);

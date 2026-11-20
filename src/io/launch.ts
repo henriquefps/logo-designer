@@ -42,3 +42,41 @@ export async function confirmPendingImport() {
   for (const w of p.warnings) toast.warning(w);
   toast.success(`Imported “${p.doc.name}”`);
 }
+
+/**
+ * `?open-project=<id>` (printed by `designer live`): opens a synced project once this device has it.
+ * Waits up to two minutes for the sync to bring it; does nothing visible when Sync is off but say so.
+ */
+export function handleOpenProjectUrl(syncConfigured: boolean): boolean {
+  const url = new URL(location.href);
+  const id = url.searchParams.get('open-project');
+  if (!id) return false;
+  url.searchParams.delete('open-project');
+  history.replaceState(history.state, '', url.toString());
+  const projects = useProjectsStore;
+  const has = () => projects.getState().projects.some((p) => p.id === id);
+  if (has()) {
+    void projects.getState().open(id);
+    return true;
+  }
+  if (!syncConfigured) {
+    toast.error('This link opens a synced project. Turn on Sync (File → Sync…) with the same server as the CLI, then open it again.', { duration: 15000 });
+    return true;
+  }
+  const waiting = toast.loading('Waiting for the project to sync…');
+  const done = () => {
+    clearTimeout(timeout);
+    unsub();
+    toast.dismiss(waiting);
+  };
+  const unsub = projects.subscribe(() => {
+    if (!has()) return;
+    done();
+    void projects.getState().open(id);
+  });
+  const timeout = setTimeout(() => {
+    done();
+    toast.error('The project did not arrive from the sync server. Is `designer live` still running against the same server?', { duration: 15000 });
+  }, 120_000);
+  return true;
+}

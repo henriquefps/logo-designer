@@ -67,6 +67,7 @@ try {
     }
     const video = page.video();
     await context.close();
+    await scenario.teardown?.().catch((e: unknown) => console.error(`  teardown: ${e instanceof Error ? e.message : String(e)}`));
     const raw = video ? await video.path() : null;
     const startSec = (demo.startedAt ?? 0) / 1000;
     if (raw) {

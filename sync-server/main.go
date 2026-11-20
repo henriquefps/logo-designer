@@ -1,6 +1,6 @@
-// Command designer-sync is the self-hosted sync server for Markdown
-// Previewer: one HTTP endpoint that stores projects and uploaded fonts
-// last-write-wins per id, one JSON file each.
+// Command designer-sync is the self-hosted sync server for Designer: one
+// HTTP endpoint that stores projects and uploaded fonts last-write-wins per
+// id, one JSON file each, and streams change notifications.
 package main
 
 import (
@@ -161,14 +161,16 @@ func serve(args []string, stderr io.Writer) int {
 		return 1
 	}
 
+	api := NewServer(cfg, store, logger)
 	srv := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Port),
-		Handler:           NewServer(cfg, store, logger).Handler(),
+		Handler:           api.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       2 * time.Minute,
 		WriteTimeout:      2 * time.Minute,
 		IdleTimeout:       2 * time.Minute,
 	}
+	srv.RegisterOnShutdown(api.Close) // event streams end so Shutdown does not wait for them
 	ln, err := net.Listen("tcp", srv.Addr)
 	if err != nil {
 		logger.Error("cannot listen", "addr", srv.Addr, "err", err)

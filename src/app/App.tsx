@@ -3,12 +3,12 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DialogHost } from '@/dialogs/DialogHost';
 import { useImportHandlers } from '@/io/useImportHandlers';
-import { handleLaunchUrl } from '@/io/launch';
+import { handleLaunchUrl, handleOpenProjectUrl } from '@/io/launch';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { isFirstVisit } from '@/dialogs/newDocument/welcome';
-import { startSync } from '@/sync/engine';
+import { isSyncConfigured, startSync } from '@/sync/engine';
 import { useTheme } from '@/theme/theme';
 import { PresentMode } from '@/wireframe/canvas/PresentMode';
 import { startIconLoader } from '@/wireframe/iconLoader';
@@ -34,6 +34,8 @@ export function App() {
         if (!unmounted) stopSync = startSync();
         // A #open= / ?import= link asks to import; otherwise, on a first visit, the welcome dialog.
         if (handleLaunchUrl()) return;
+        // ?open-project=<id> (from `designer live`): open a synced project once it arrives.
+        if (handleOpenProjectUrl(isSyncConfigured())) return;
         if (isFirstVisit() && !useEditorStore.getState().dialog) useEditorStore.getState().openDialog('newDocument');
       });
     // A new #open= link pasted into this tab's address bar.

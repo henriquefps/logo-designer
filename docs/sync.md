@@ -46,22 +46,33 @@ Per project, the greater `updatedAt` wins. That is the whole rule. What is cheap
 ### When it syncs
 
 - **Push:** about 2 s after the last autosave (the autosave itself is 600 ms after the edit): the sync dialog and indicator show "N to sync" until it lands.
-- **Pull:** on start, when the tab regains focus or becomes visible, when the browser comes back online, and every 30 s.
+- **Pull:** on start, when the tab regains focus or becomes visible, when the browser comes back online, every 30 s, and **as soon as the server's event stream says a project or font changed** (below).
 - **Offline queue:** there is no separate queue to lose. An edit is pending while a project's `updatedAt` differs from its `base`; a deletion is a tombstone in IndexedDB (`designer-sync`) until the server acknowledges it. Offline, the app shows "Offline · N waiting", keeps working, and retries on its own: every 30 s with exponential backoff up to 5 min after failures, immediately on focus or when back online.
+- **Event stream.** With Sync on, the app keeps `GET /api/events` open (Server-Sent Events over `fetch`, since `EventSource` cannot send the API key). Each change on the server arrives as `{kind, id, updatedAt}` and starts a normal sync cycle (one list request plus the transfer), so another device's edit shows up in about a second instead of up to 30 s. The app ignores the echo of its own pushes. On every (re)connect it syncs once to catch up with what it missed; it reconnects with backoff (1 s → 30 s), and a stream silent for 60 s (the server sends a heartbeat every 25 s) is treated as dead. An older server without the stream answers 404: the app keeps polling every 30 s and the Sync dialog says so ("Live updates: …").
 - A project nobody touched (the empty "Untitled" a new device starts with) is not synced, so a new device does not add empty projects to the others.
 - Deletions are tombstones and are kept forever on the server (about 200 bytes each), so a device that was off for a year cannot resurrect a deleted project.
 
+### Live editing (agent ↔ you)
+
+An agent working on a project file can run **`designer live <project.designer.json>`** ([agents.md](agents.md#live-editing)): you see its changes appear in the app while it works, adjust them, and it sees your adjustments. Nothing changes for people who don't use it.
+
+- **The live mark.** The copy on the server carries `live: { editedBy }` (`"cli"` or `"app:<device id>"`, see [project-format.md](project-format.md#top-level)). For a live project the app saves an edit after 200 ms and pushes 300 ms later (≈ 500 ms from the edit to the server, instead of 600 ms + 2 s), and the top bar shows **Live · the CLI / this device / another device**: who saved the current version. Its popover says how changes arrive and has *Stop live*. Opening a live project (or the app filling in its icons) is not an edit and is never pushed back.
+- **The CLI side.** `designer live` pushes the file, then mirrors both ways until Ctrl+C: it polls the file (150 ms) and pushes each valid save (a broken one is reported and skipped); it listens to the event stream (polling the list every 2 s without one) and writes your edits back to the file, atomically. Its only state is the `updatedAt` both sides last agreed on, in memory. On Ctrl+C it pushes once more without the live mark. If you delete the project in the app, it stops and leaves the file alone.
+- **Conflicts** are today's rules: when the file and the app both changed before either was synced, the newer one wins (the file's modification time against the server's `updatedAt`); the other is kept: as a "conflicted copy" project in the app, or as `<name> (conflicted copy YYYY-MM-DD).designer.json` next to the file, and the server archives whatever it overwrote in `conflicts/`.
+- `designer sync push|pull|list` move one project at a time without the live mark. The CLI reads the server from `--server` or `DESIGNER_SYNC_URL` and the key from `DESIGNER_SYNC_KEY` or `SYNC_API_KEY`, e.g. `skv run designer-sync -- designer live …`.
+- A `?open-project=<id>` link (printed by the CLI) opens that project once this device has it, waiting up to two minutes for the sync to bring it.
+
 ### Security
 
-Same model as `markdown-preview-sync`. Without an API key the server answers only direct requests from loopback, private, link-local and `100.64.0.0/10` (Tailscale) addresses and refuses anything carrying proxy headers (`Cf-Connecting-IP`, `X-Forwarded-For`…), so forgetting the key behind a tunnel exposes nothing. With a key, `Authorization: Bearer <key>` (compared in constant time) is required on `/api/projects` and `/api/fonts`; `/api/health` only returns counts. `ALLOWED_ORIGINS` restricts CORS. No end-to-end encryption: the server owner (you) can read the files, as with the Markdown Previewer's.
+Same model as `markdown-preview-sync`. Without an API key the server answers only direct requests from loopback, private, link-local and `100.64.0.0/10` (Tailscale) addresses and refuses anything carrying proxy headers (`Cf-Connecting-IP`, `X-Forwarded-For`…), so forgetting the key behind a tunnel exposes nothing. With a key, `Authorization: Bearer <key>` (compared in constant time) is required on `/api/projects`, `/api/fonts` and `/api/events`; `/api/health` only returns counts. The event stream follows the same rules (key, LAN-only without one, CORS) and carries only ids and timestamps, never names or content. `ALLOWED_ORIGINS` restricts CORS. No end-to-end encryption: the server owner (you) can read the files, as with the Markdown Previewer's.
 
 The API key lives in the browser's localStorage on each device, like the Markdown Previewer's.
 
 ### Not built
 
-- `designer sync` in the CLI: not trivial (the CLI has no IndexedDB; it would need its own state files), so it is left out. A project file can still be pulled with `curl` from `/api/projects/<id>` (`.data` is a `.designer.json`).
-- Live push from the server (WebSocket/SSE): polling every 30 s plus focus covers the use; the server stays a plain request/response program.
-- Delta sync inside a big project: a changed project is sent whole.
+- Delta sync inside a big project: a changed project is sent whole (also in a live session: fine for wireframes of a few hundred KB).
+- A sync state file for the CLI: `designer live` keeps its state in memory and `designer sync` has none, so a one-off `push` cannot tell "only I changed it" from a conflict; it relies on the server archiving what it overwrites.
+- Live cursors or presence (who is looking at the project): the stream says what changed, not who is there.
 
 ## Running it on a home server (Docker + Cloudflare Tunnel)
 
@@ -137,8 +148,11 @@ On a tailnet nothing is exposed. From an app opened over plain HTTP use `http://
 ## Developing and testing
 
 ```sh
-cd sync-server && go test -race ./...        # server: LWW, tombstones, auth, LAN-only, CORS, limits, archive
-bun run test                                  # includes src/sync/*.test.ts: the merge plan and a two-device model
+cd sync-server && go test -race ./...        # server: LWW, tombstones, auth, LAN-only, CORS, limits, archive, event stream
+bun run test                                  # includes src/sync/*.test.ts (merge plan, event client, engine) and src/cli/sync.test.ts (designer live)
+bun run e2e:live                              # the real thing: designer-sync (Go) + the app in Chromium + designer live
 ```
+
+`bun run e2e:live` (`scripts/live-e2e.ts`) builds and starts `designer-sync`, opens the app in Playwright with Sync on, runs `designer live` on a file and checks: a file edit shows up in the app within ~1 s, an edit in the app is written to the file, both conflict directions keep the losing version, and Ctrl+C clears the Live mark. `bun run demo 07` records the same story as a video.
 
 End to end, with two real browser contexts (Playwright) against a local server: start `designer-sync` on 3051 and `bun run dev`, open the app in two separate contexts, turn Sync on in both and create, edit and delete a project on each side, edit offline on both, and sync a font. `window.__designer.sync` (dev builds only) exposes the engine for such scripts.

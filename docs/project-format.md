@@ -55,6 +55,7 @@ File → Save project file, the `designer` CLI, and read by File → Open projec
 | `children` | [Node](#nodes)[] | **required**; first child is drawn first (bottom of the stack) |
 | `icon` | [Icon settings](#icon-settings) | optional; marks the project as an app icon / favicon |
 | `wireframe` | [Wireframe](#wireframe-documents) | optional; marks the project as a wireframe (not together with `icon`) |
+| `live` | `{ editedBy }` | optional; sync state, not design: present while the project is edited live through the sync server (`designer live`, [`sync.md`](sync.md#live-editing-agent--you)). `editedBy` is who saved this version: `"cli"` or `"app:<device id>"`. Project files written by `designer live` / `sync pull` leave it out; a malformed value is dropped |
 
 ### Artboard
 
