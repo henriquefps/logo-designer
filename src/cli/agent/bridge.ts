@@ -3,7 +3,7 @@
 // claim → job folder with the project mirrored live (the same LiveMirror as `designer live`) → `claude -p` with
 // restricted tools → progress → finish. Presence by heartbeat.
 import { randomUUID } from 'node:crypto';
-import { chmod, mkdir, readdir, readFile, rm, stat, writeFile, appendFile } from 'node:fs/promises';
+import { appendFile, chmod, mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,12 +26,16 @@ const sq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 /**
  * The `designer` the agent runs: a wrapper on its PATH that only passes the allowed commands to this checkout's CLI
- * (a second fence behind Claude Code's permission rules: `designer live`, `sync`, `serve`, … never run).
+ * (a second fence behind Claude Code's permission rules: `designer live`, `sync`, `serve`, … never run), with the
+ * CLI's sandbox root (src/cli/sandbox.ts) baked in, so no prefix or file in the job folder can drop it. It lives
+ * outside the job folder, read-only: the agent's file tools cannot reach it.
  */
-export function designerWrapper(command: string[]): string {
+export function designerWrapper(command: string[], sandboxRoot: string): string {
   return [
     '#!/bin/sh',
     '# Written by `designer agent`: the designer CLI for one job, limited to the commands the agent may run.',
+    `DESIGNER_SANDBOX_ROOT=${sq(sandboxRoot)}`,
+    'export DESIGNER_SANDBOX_ROOT',
     'case "$1" in',
     `  ${[...ALLOWED_DESIGNER, 'help', '--help', '-h'].join('|')}) ;;`,
     '  *) echo "designer $1: not available to the agent (allowed: ' + ALLOWED_DESIGNER.join(', ') + ')" >&2; exit 2 ;;',
@@ -41,10 +45,25 @@ export function designerWrapper(command: string[]): string {
   ].join('\n');
 }
 
-/** How this checkout's CLI is started: the Bun running us (or `bun`) and bin/designer.ts. */
+/**
+ * How this checkout's CLI is started: the Bun running us (or `bun`) and bin/designer.ts. Bun would otherwise read
+ * `bunfig.toml` (preload scripts!), `.env` and `tsconfig.json` from the current folder, which is the job folder the
+ * agent writes; and it must never install packages.
+ */
 export function defaultDesignerCommand(): string[] {
-  return [process.versions.bun ? process.execPath : 'bun', repoFile('bin/designer.ts')];
+  return [
+    process.versions.bun ? process.execPath : 'bun',
+    '--no-install',
+    '--config=/dev/null',
+    '--no-env-file',
+    `--tsconfig-override=${repoFile('tsconfig.json')}`,
+    repoFile('bin/designer.ts'),
+  ];
 }
+
+const JOB_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+/** Where the bridge keeps a job's own files (the designer wrapper, the stream log), next to the job folder. */
+export const BRIDGE_DIR = '.bridge';
 
 /** File names the server gives attachments are kept to a safe basename. */
 export const safeAttachmentName = (name: string, i: number) => {
@@ -252,7 +271,10 @@ export class AgentBridge {
 
   private async runJob(meta: JobMeta, run: Running): Promise<void> {
     const dir = join(this.o.workdir, meta.id);
-    const streamLog = join(this.o.workdir, `${meta.id}.stream.jsonl`);
+    // The agent's cwd is `dir`; its file tools are confined there. Everything the bridge relies on is outside it.
+    const own = join(this.o.workdir, BRIDGE_DIR, meta.id);
+    const binDir = join(own, 'bin');
+    const streamLog = join(own, 'stream.jsonl');
     const mapper = new ProgressMapper();
     let progressChain: Promise<unknown> = Promise.resolve();
     const progress = (l: ProgressLine) => {
@@ -272,12 +294,14 @@ export class AgentBridge {
     this.log(`job ${meta.id} (${meta.type}) claimed`);
     void this.heartbeat();
     try {
+      if (!JOB_ID_RE.test(meta.id)) throw new Error(`Job id “${meta.id}” cannot be a folder name`);
       const job = await getJob(this.o.conn, meta.id);
       await mkdir(join(dir, ATTACHMENTS_DIR), { recursive: true, mode: 0o700 });
-      await mkdir(join(dir, '.bin'), { recursive: true, mode: 0o700 });
-      const wrapper = join(dir, '.bin', 'designer');
-      await writeFile(wrapper, designerWrapper(this.o.designerCommand ?? defaultDesignerCommand()));
-      await chmod(wrapper, 0o700);
+      await mkdir(binDir, { recursive: true, mode: 0o700 });
+      const wrapper = join(binDir, 'designer');
+      await writeFile(wrapper, designerWrapper(this.o.designerCommand ?? defaultDesignerCommand(), await realpath(dir)));
+      await chmod(wrapper, 0o500);
+      await chmod(binDir, 0o500);
       progress({ message: 'Preparing the project', stage: 'start' });
 
       // The project, pulled into the job folder and mirrored live (the same code as `designer live`).
@@ -309,7 +333,7 @@ export class AgentBridge {
         const claude = startClaude({
           bin: this.o.claudeBin,
           cwd: dir,
-          env: agentEnv(this.o.env, join(dir, '.bin')),
+          env: agentEnv(this.o.env, binDir, await realpath(dir)),
           prompt,
           appendSystemPrompt: systemPrompt(skill),
           onEvent: (e) => {
@@ -350,27 +374,32 @@ export class AgentBridge {
     this.log(`job ${meta.id}: ${finish.status}${finish.error ? ` — ${finish.error}` : ''}`);
   }
 
-  /** Job folders (and stream logs) are kept a day for debugging, then deleted. */
+  /** Job folders and the bridge's files of each job (wrapper, stream log) are kept a day for debugging, then deleted. */
   async cleanup(now = Date.now()): Promise<string[]> {
     const removed: string[] = [];
-    let names: string[];
-    try {
-      names = await readdir(this.o.workdir);
-    } catch {
-      return removed;
-    }
-    for (const name of names) {
-      if (name === 'agent-id' || name === this.current?.id || name === `${this.current?.id}.stream.jsonl`) continue;
-      const p = join(this.o.workdir, name);
+    const sweep = async (dir: string, prefix: string) => {
+      let names: string[];
       try {
-        const s = await stat(p);
-        if (now - s.mtimeMs < (this.o.keepMs ?? DAY)) continue;
-        await rm(p, { recursive: true, force: true });
-        removed.push(name);
+        names = await readdir(dir);
       } catch {
-        // gone meanwhile
+        return;
       }
-    }
+      for (const name of names) {
+        if (name === 'agent-id' || name === BRIDGE_DIR || name === this.current?.id) continue;
+        const p = join(dir, name);
+        try {
+          const s = await stat(p);
+          if (now - s.mtimeMs < (this.o.keepMs ?? DAY)) continue;
+          await chmod(join(p, 'bin'), 0o700).catch(() => undefined); // read-only, so its wrapper can be removed
+          await rm(p, { recursive: true, force: true });
+          removed.push(`${prefix}${name}`);
+        } catch {
+          // gone meanwhile
+        }
+      }
+    };
+    await sweep(this.o.workdir, '');
+    await sweep(join(this.o.workdir, BRIDGE_DIR), `${BRIDGE_DIR}/`);
     return removed;
   }
 }

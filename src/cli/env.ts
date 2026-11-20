@@ -1,7 +1,9 @@
 // Headless environment for the `designer` CLI: a DOMParser for the SVG importer (happy-dom) and a
 // fetch that reads bundled font files from disk (catalog URLs are file paths under Bun), so text
 // is measured and outlined exactly like in the app. No React, no stores.
+import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 let ready = false;
 
@@ -26,7 +28,12 @@ export async function setupHeadless() {
     }
     return realFetch(input, init);
   };
-  globalThis.fetch = Object.assign(fileFetch, realFetch) as typeof fetch;
+  // In the agent's sandbox (designer agent): bundled font files only, no network at all.
+  const { sandboxRoot, sandboxFetch } = await import('./sandbox');
+  if (sandboxRoot(process.env)) {
+    const fontsDir = realpathSync(fileURLToPath(new URL('../fonts/files', import.meta.url)));
+    globalThis.fetch = sandboxFetch(fontsDir, async (p) => new Uint8Array(await readFile(p)));
+  } else globalThis.fetch = Object.assign(fileFetch, realFetch) as typeof fetch;
   const { installMeasurer } = await import('@/fonts/measure');
   installMeasurer();
 }

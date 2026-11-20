@@ -58,7 +58,10 @@ describe.skipIf(!hasGo)('designer agent against designer-sync', () => {
 
   afterAll(() => {
     child?.kill();
-    if (dir) rmSync(dir, { recursive: true, force: true });
+    if (dir) {
+      spawnSync('chmod', ['-R', 'u+w', dir]); // the wrappers' folders are read-only
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('runs a next-screen job end to end and a cancel', async () => {

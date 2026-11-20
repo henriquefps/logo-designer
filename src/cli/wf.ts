@@ -2,7 +2,6 @@
 // `wf build` (spec → project, or `--into` an existing one), `wf dump` (project → spec) and
 // `wf components` (the catalog). The work is in src/wireframe/spec; this file is argument handling.
 import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { DesignDocument } from '@/model';
 import { serializeProject, validateDocument } from '@/io/projectFile';
@@ -13,6 +12,7 @@ import { normalizeIconName, registerIcon, takeMissingIcons, ICON_GLYPH_SIZE } fr
 import { materializeDocument } from '@/wireframe/pipeline';
 import type { CliIO } from './main';
 import { WfUsageError, wfViewCommand } from './wfView';
+import { cliPath, SandboxError } from './sandbox';
 
 export const WF_USAGE = `designer wf — wireframe projects from a spec (docs/wireframe-spec.md)
 
@@ -72,8 +72,9 @@ async function read(path: string, io: CliIO): Promise<string> {
     if (!io.stdin) throw new WfUsage('stdin is not available');
     return io.stdin();
   }
+  const file = await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), path, 'read');
   try {
-    return await readFile(resolve(io.cwd ?? process.cwd(), path), 'utf8');
+    return await readFile(file, 'utf8');
   } catch {
     throw new WfUsage(`Cannot read ${path}`);
   }
@@ -100,7 +101,7 @@ async function write(text: string, output: string | undefined, io: CliIO, what: 
     io.out(text.endsWith('\n') ? text.slice(0, -1) : text);
     return;
   }
-  await writeFile(resolve(io.cwd ?? process.cwd(), output), text);
+  await writeFile(await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), output, 'write'), text);
   io.err(`Wrote ${what} to ${output}`);
 }
 
@@ -212,8 +213,11 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
         try {
           return await wfViewCommand(cmd, pos, values, values.output, {
             loadDoc: async (p) => materializeDocument(await loadProject(p, io)),
-            readBytes: async (p) => new Uint8Array(await readFile(resolve(io.cwd ?? process.cwd(), p)).catch(() => { throw new WfUsage(`Cannot read ${p}`); })),
-            write: (p, b) => writeFile(resolve(io.cwd ?? process.cwd(), p), b),
+            readBytes: async (p) => {
+              const file = await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), p, 'read');
+              return new Uint8Array(await readFile(file).catch(() => { throw new WfUsage(`Cannot read ${p}`); }));
+            },
+            write: async (p, b) => writeFile(await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), p, 'write'), b),
             err: io.err,
           });
         } catch (e) {
@@ -227,6 +231,10 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
     if (e instanceof WfUsage) {
       io.err(`${e.message}\n\nRun \`designer wf help\` for usage.`);
       return 2;
+    }
+    if (e instanceof SandboxError) {
+      io.err(e.message);
+      return 1;
     }
     if (e instanceof SpecError) {
       io.err(`Error: the spec has ${e.issues.length} problem${e.issues.length === 1 ? '' : 's'}:\n${e.issues.map((i) => `  ${i.path ? `${i.path}: ` : ''}${i.message}`).join('\n')}`);

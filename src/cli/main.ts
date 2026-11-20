@@ -25,6 +25,7 @@ import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type 
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 import { wfMain } from './wf';
 import { AgentSetupError, runAgent } from './agent';
+import { cliPath, cliSvg, SANDBOX_COMMANDS, SandboxError, sandboxRoot } from './sandbox';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -185,8 +186,9 @@ async function readInput(path: string, io: CliIO): Promise<string> {
     if (!io.stdin) throw new UsageError('stdin is not available');
     return io.stdin();
   }
+  const file = await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), path, 'read');
   try {
-    return await readFile(resolve(io.cwd ?? process.cwd(), path), 'utf8');
+    return await readFile(file, 'utf8');
   } catch {
     throw new UsageError(`Cannot read ${path}`);
   }
@@ -198,7 +200,7 @@ async function emit(text: string | Uint8Array, output: string | undefined, io: C
     io.out(text.endsWith('\n') ? text.slice(0, -1) : text);
     return;
   }
-  await writeFile(resolve(io.cwd ?? process.cwd(), output), text);
+  await writeFile(await cliPath(io.env ?? process.env, io.cwd ?? process.cwd(), output, 'write'), text);
   io.err(`Wrote ${what} to ${output}`);
 }
 
@@ -626,13 +628,14 @@ async function wireframePng(path: string, doc: DesignDocument, values: Values, o
   const cwd = io.cwd ?? process.cwd();
   const single = frames.length === 1 && !!output && /\.png$/i.test(output);
   const dir = single ? null : (output ?? path.replace(/(\.designer)?\.json$/i, '') + '-screens');
-  if (dir) await mkdir(resolve(cwd, dir), { recursive: true });
+  const env = io.env ?? process.env;
+  if (dir) await mkdir(await cliPath(env, cwd, dir, 'write'), { recursive: true });
   for (const f of frames) {
     const { svg } = await exportSvg(doc, { scope: 'screen', screenId: f.id });
     const width = Math.round(size ?? f.screen.width);
-    const png = new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
+    const png = new Resvg(cliSvg(env, svg), { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
     const target = single ? output! : join(dir!, screenFile(f, 'png'));
-    await writeFile(resolve(cwd, target), new Uint8Array(png));
+    await writeFile(await cliPath(env, cwd, target, 'write'), new Uint8Array(png));
     io.err(`Wrote ${f.name} (${f.screen.platform}, ${width} px wide) to ${target}`);
   }
   return 0;
@@ -646,6 +649,16 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
     io.out(USAGE);
     return cmd ? 0 : 1;
+  }
+  // The agent's sandbox (designer agent): only its commands, whatever started the CLI.
+  try {
+    if (sandboxRoot(io.env ?? process.env) && !SANDBOX_COMMANDS.includes(cmd)) {
+      io.err(`designer ${cmd}: not available in the agent's sandbox (allowed: ${SANDBOX_COMMANDS.filter((c) => !c.startsWith('-')).join(', ')})`);
+      return 2;
+    }
+  } catch (e) {
+    io.err(e instanceof Error ? e.message : String(e));
+    return 2;
   }
   if (cmd === 'wf') return wfMain(rest, io);
   let values: Values;
@@ -754,7 +767,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         warnSkippedReferences(doc, io);
         const { svg } = await exportSvg(doc);
         const { Resvg } = await import('@resvg/resvg-js');
-        const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
+        const png = new Resvg(cliSvg(io.env ?? process.env, svg), { fitTo: { mode: 'width', value: Math.round(size) }, font: { loadSystemFonts: false } }).render().asPng();
         const out = output ?? path.replace(/(\.designer)?\.(json|svg)$/i, '') + `-${Math.round(size)}.png`;
         await emit(new Uint8Array(png), out, io, 'PNG');
         return 0;
@@ -997,7 +1010,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         throw new UsageError(`Unknown command “${cmd}”`);
     }
   } catch (e) {
-    if (e instanceof AgentSetupError) {
+    if (e instanceof AgentSetupError || e instanceof SandboxError) {
       io.err(e.message);
       return 1;
     }

@@ -24,7 +24,7 @@ let prompt = '';
 for await (const chunk of process.stdin) prompt += chunk;
 writeFileSync(
   '.fake-claude.json',
-  JSON.stringify({ args, prompt, cwd: process.cwd(), key: process.env.DESIGNER_SYNC_KEY ?? null, url: process.env.DESIGNER_SYNC_URL ?? null, path0: (process.env.PATH ?? '').split(':')[0] }),
+  JSON.stringify({ args, prompt, cwd: process.cwd(), key: process.env.DESIGNER_SYNC_KEY ?? null, url: process.env.DESIGNER_SYNC_URL ?? null, path0: (process.env.PATH ?? '').split(':')[0], sandbox: process.env.DESIGNER_SANDBOX_ROOT ?? null }),
 );
 const emit = (e) => process.stdout.write(`${JSON.stringify(e)}\n`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

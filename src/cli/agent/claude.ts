@@ -46,11 +46,15 @@ export function claudeArgs(appendSystemPrompt: string): string[] {
   ];
 }
 
-/** The environment of the agent: ours without the sync secrets, with the job's `designer` wrapper first on PATH. */
-export function agentEnv(env: NodeJS.ProcessEnv, binDir: string): NodeJS.ProcessEnv {
+/**
+ * The environment of the agent: ours without the sync secrets, with the job's `designer` wrapper first on PATH and
+ * the CLI's sandbox root set (the wrapper sets it too).
+ */
+export function agentEnv(env: NodeJS.ProcessEnv, binDir: string, sandboxRoot: string): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = { ...env };
   for (const k of SECRET_ENV) delete out[k];
   out.PATH = `${binDir}${env.PATH ? `:${env.PATH}` : ''}`;
+  out.DESIGNER_SANDBOX_ROOT = sandboxRoot;
   return out;
 }
 
