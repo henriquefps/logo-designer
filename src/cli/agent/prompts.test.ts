@@ -73,6 +73,9 @@ describe('prompt templates', () => {
     expect(p).toContain('wf compare attachments/shot.png');
     // Phase 4 end-to-end run: the agent built a second round and finished without looking at its compare.
     expect(p).toContain('After your last build, run the compare once more and look at it before you finish');
+    // Phase 4 end-to-end run: `wf dump … && cat spec.json` printed 37 KB; Claude Code saved it outside the job folder,
+    // where the agent's Read is refused, and the agent lost turns on it.
+    expect(p).toContain('with the Read tool; never print them with shell commands');
     // The summary goes into a small panel: short and plain (the real ones were several paragraphs with lists).
     expect(p).toContain('plain text, at most 3 sentences, no lists or headings');
     expect(stable(p, doc)).toMatchSnapshot();
@@ -87,7 +90,7 @@ describe('prompt templates', () => {
   it('request', () => {
     const p = renderPrompt({ type: 'request', input: { text: 'Add an empty state to "My trips"' } }, ctx([], 'request'));
     // Phase 4 end-to-end run: a request edited a "current" screen in place; now the change goes to a "changed" copy.
-    expect(p).toContain('Screens with status "current" record the app as it is today: never change them.');
+    expect(p).toContain('Screens with status "current" record the app as it is today: never change their content (notes on them are fine');
     expect(stable(p, doc)).toMatchSnapshot();
   });
 

@@ -8,7 +8,7 @@ import { joinParts, PROJECT_FILE, quoteData, rules, screenList, type PromptConte
  * add a search field to Galeria (current), the agent edited it in place and the record of today's app was gone.
  */
 export const CURRENT_RULE =
-  `Screens with status "current" record the app as it is today: never change them. When the request changes such a screen, add the changed version as a new screen with status "changed", named after it with a suffix in the project's language (e.g. "Configurações (nova)"), placed after it in the spec, and with the same platform; screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.`;
+  `Screens with status "current" record the app as it is today: never change their content (notes on them are fine: a note describes the app). When the request changes such a screen, make the change on its "changed" version: the screen named after it with a suffix (e.g. "Configurações (nova)"), if the project has one; otherwise add it, a new screen with status "changed", named after the current one with a suffix in the project's language, placed after it in the spec, same platform. Screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.`;
 
 export interface RequestJob {
   input: RequestInput;

@@ -95,6 +95,7 @@ export function rules(maxRounds: number, extra: string[] = []): string {
   const list = [
     `Work only in this folder. ${PROJECT_FILE} is live: every change to it appears in the person's app within a second, so they watch you work.`,
     `The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.`,
+    `Look at files (${SPEC_FILE}, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.`,
     `Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.`,
     `Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.`,
     `Before every build, run \`designer wf dump ${PROJECT_FILE} --no-geometry -o ${SPEC_FILE}\` and make your changes on that fresh dump: the person may be editing the project at the same time.`,
