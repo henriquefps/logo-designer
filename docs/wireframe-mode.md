@@ -431,6 +431,28 @@ and size. The library panel lists them under **My components** for inserting on 
 ("Shared: Top bar …") and refers to it by name in each screen. R4's repeat template may be a shared
 component.
 
+#### As built (shared components)
+
+- Code map: `docs/architecture.md` → Shared components. Screenshot: `docs/screenshots/wireframe-shared-components.png`.
+- **Master storage**: `wireframe.symbols[].content`, a group in the master's own id space, never on the canvas. Its
+  `layout` (minus size) and children are shared; its `layout.size` / `layoutItem` are only a new instance's defaults.
+- **Instances are materialized**: real children, ids `<instance id>~s~<master id>`, so bounds, hit testing, export, present
+  mode and the CLI need nothing special. The content is editable like a group's (double-click to enter, one level per
+  double-click); position, size, visibility and the root's name are per instance. What the layout computes inside an
+  instance (positions in stacks, sizes of laid-out pieces) is not content, so instances of different widths stay in sync.
+- **Make component** (Object menu, context menu, ⌥⇧K, or Properties → Shared component on a group / container): a name
+  prompt with the container's own name, else its first label. **Detach** (⌥⌘B, Properties) leaves plain content.
+  **My components** is the first section of the library: preview, name, rename, delete (asks first when instances exist;
+  they become plain content), click or drag to insert like a library component.
+- ⌘D / Alt-drag / paste of an instance stay linked (same master); their flows follow. Pasted into a document without
+  that master, an instance becomes a plain group.
+- **Flows inside an instance**: a flow from an element inside an instance belongs to that instance's node only (the
+  other instances don't get it). It survives edits made through other instances; deleting the element (in any instance)
+  deletes it everywhere and the flow with it.
+- A repeat template may be an instance: its copies follow the master. A master may contain other shared components;
+  never itself.
+- Export for AI: README "Shared components" (each once: its tree and where it is used); screens say "Shared: Trip card".
+
 ### Export additions
 
 README gets a **Flow** section (a list "Settings → Language (from "Language" row)" and a Mermaid
