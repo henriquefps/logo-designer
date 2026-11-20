@@ -39,7 +39,7 @@ import {
 import { getComponent } from './library/registry';
 import { checkProp, partsOf, resolveProps, type AnyComponentDef, type ComponentPart, type PropSpec } from './library/types';
 import { addScreen, frameOf, frameRect, frames, variantsOf } from './screens';
-import { instancePrefix } from './symbols';
+import { defaultSymbolName, instancePrefix } from './symbols';
 import { deepEqual } from './repeat';
 import { noteRect, notesOf } from './notes';
 import { distanceToRoute, routeFlows, type FlowRoute, type RouteOptions, type RouteRequest } from './routing';
@@ -374,7 +374,7 @@ const LABEL_PROPS = ['label', 'title', 'text', 'message'];
 
 /**
  * What the element says, for naming the screen it opens: a part's label ("Arquivos"), a component's label / title /
- * text, a text's content, else the node name.
+ * text, a text's content, a container's first label inside (a custom card), else the node name.
  */
 export function flowSourceLabel(doc: DocLike, nodeId: Id, part?: string): string {
   const n = findNode(asDoc(doc), nodeId);
@@ -392,6 +392,12 @@ export function flowSourceLabel(doc: DocLike, nodeId: Id, part?: string): string
     }
   }
   if (n.type === 'text' && n.text.trim()) return n.text.replace(/\s+/g, ' ').trim();
+  // A container or group (a custom card): its own name when the user gave one, else the first label inside, never
+  // a generic "Card container".
+  if (n.type === 'group' && !n.component) {
+    const label = defaultSymbolName(n);
+    if (label !== 'Component') return label;
+  }
   return n.name.trim();
 }
 
