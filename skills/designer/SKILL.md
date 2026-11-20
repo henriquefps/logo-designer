@@ -1,6 +1,6 @@
 ---
 name: designer
-description: Create and edit vector artwork (logos, app icon glyphs, illustrations, badges, banners) as Designer projects (designer.hfps.dev, an Illustrator-style SVG editor) that a person can open and keep editing, using the `designer` CLI instead of driving the browser. Use when asked to draw or redesign a logo, icon, glyph or SVG that someone will want to adjust by hand, to hand artwork over "in the Designer", to read or change a `.designer.json` file, or to turn an existing SVG into an editable project.
+description: Create and edit vector artwork (logos, app icon glyphs, illustrations, badges, banners) and app wireframes (screens, flows, notes) as Designer projects (designer.hfps.dev, an Illustrator-style SVG editor with a wireframe mode) that a person can open and keep editing, using the `designer` CLI instead of driving the browser. Use when asked to draw or redesign a logo, icon, glyph or SVG that someone will want to adjust by hand, to wireframe an app or turn app screenshots into wireframes, to hand artwork or screens over "in the Designer", to read or change a `.designer.json` file, to turn an existing SVG into an editable project, or to build an app from a Designer "Export for AI" package.
 ---
 
 # Designer for agents
@@ -88,3 +88,81 @@ Below, `designer` means either form.
   the Designer's numbers are a port of its `build-icons.mjs`. Export for that script with
   `designer to-svg <project> --glyph -o scripts/glyph.svg`, or skip it with `designer icons`.
 - Several concepts = several files, one project each, named so the person can tell them apart.
+
+## Wireframes
+
+**Wireframe mode vs a logo document.** Screens of an app (phone/tablet/desktop frames, lists, bars, buttons,
+flows between screens, notes on behaviour) are a **wireframe project**, built from library components. A logo,
+icon, illustration or anything drawn is a normal document (above). Never draw UI with paths, and never put a
+logo in a wireframe as more than an `image` placeholder.
+
+Reference: [docs/wireframe-spec.md](https://github.com/henriquefps/logo-designer/blob/main/docs/wireframe-spec.md)
+(the spec format, with a complete example), the "Wireframes from the CLI" and "Live editing" sections of
+[docs/agents.md](https://github.com/henriquefps/logo-designer/blob/main/docs/agents.md).
+
+### Write a spec, not a project
+
+You write a small JSON **spec**; `designer wf build` turns it into the project through the app's own pipeline
+(layout, components, shared components, repeat). Nothing to position by hand.
+
+- `designer wf components` (once per session; `designer wf components list-row` for one) lists every kind with
+  its props, defaults, options and an example. Use only those kinds and props; `wf build` rejects anything else
+  with the spec path and a "did you mean".
+- A screen: `{ "name": "Settings", "status": "current", "platform": "phone", "root": [ …nodes ] }`. A node is a
+  component (`{ "list-row": { "title": "Language", "trailing": "value", "value": "English" } }`, short forms
+  `{ "heading": "Settings" }`, `{ "tabs": ["A", "B"] }`), a stack (`{ "vstack": […], "gap": 8 }`, `hstack`, `grid`
+  with `columns`), or a shared component (`{ "use": "Tab bar" }`, defined once under `components`).
+- Lists and galleries: one item with `"repeat": N` on its container, not N copies. Anything on several screens
+  (tab bar, a card): a shared component.
+- `"opens": "Other screen"` on a node draws a flow; `"note": "…"` attaches a note; `"status"` is `current`
+  (as the app is), `changed` (proposed change) or `new`. Write a note wherever behaviour cannot be drawn
+  (what a tap does besides navigating, loading/empty/error states, gestures, conditions).
+
+### Screenshot → wireframe
+
+1. **Look at the screenshot** (open the image) and list its parts top to bottom: bars, sections, rows, controls,
+   grids. Map each to a library component from the catalog. **Never trace shapes or copy pixel positions**: a
+   wireframe states structure and content; spacing comes from the layout.
+2. Write the spec with the real texts and states (which tab is selected, toggles on/off, values).
+3. `designer wf build app.spec.json -o app.designer.json` (later: `--into app.designer.json`). Fix what the
+   errors name.
+4. `designer wf compare shot.png app.designer.json --screen "<name>" --overlay 50 -o cmp.png` and **look at the
+   image**: missing or extra rows, order, wrong component, wrong selection, heights far off (the overlay panel
+   shows drift). Lo-fi is expected: greys, no icons' exact shapes, no colours.
+5. Fix the spec, build `--into`, compare again. Stop when every element of the screenshot has its component and
+   the order and proportions match; usually 2–3 rounds.
+6. Several screens: add the flows and notes, then `designer wf sheet app.designer.json --notes -o sheet.png`
+   and look at the whole flow (names, status badges, arrows) before handing over.
+
+### Live, so the person watches
+
+For a working session, run live editing instead of handing a file over at the end (wireframes with screenshots
+are MBs; links are not the way):
+
+```sh
+skv run designer-sync -- designer live app.designer.json &   # or DESIGNER_SYNC_URL + DESIGNER_SYNC_KEY
+```
+
+Give the person the printed `?open-project=` link once (or tell them it is in their projects with Sync on).
+Every `wf build --into` then appears in their app within a second. **They may edit too**: before each build,
+`designer wf dump app.designer.json --no-geometry -o app.spec.json` and merge their changes into your spec
+(their moves and resizes survive `--into` anyway). Stop `live` with Ctrl+C (SIGINT) when done.
+Without a sync server: `designer open app.designer.json` (big files go through a local `?import=` by
+themselves).
+
+### Receiving an "Export for AI" package
+
+When you are given `<project>-for-ai.zip` (or its folder) to **build the app**:
+
+1. Read `README.md` first: the screen list with platform and status, how to read the files, the shared
+   components and the flow map (with a Mermaid graph).
+2. For each screen read `screens/<slug>.md` (the component tree top to bottom, per platform) **and** look at
+   `screens/<slug>.<platform>.png`. Status tells you the job: `current` = exists, leave it; `changed` = modify the
+   existing screen; `new` = add it.
+3. Build in the target app's own stack and design system (wireframes are greyscale and low fidelity: no colours,
+   fonts or exact sizes to copy). "List of N × (…)" is one item rendered from data; "Shared: X" is one reusable
+   component; "pinned to bottom" / "floating" are real placement.
+4. Wire navigation from the "→ opens X" lines and the Flow section; implement every "Note:" (they are
+   requirements, not comments) and ask when one is ambiguous.
+5. `project.designer.json` is the editable source: `designer wf dump` it for an exact, machine-readable tree.
+
