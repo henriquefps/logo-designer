@@ -485,6 +485,15 @@ traverse, write through the draft. The pipeline is pure (no React, no stores): t
 - `import.meta.glob` in the CLI: Bun does not expand it, so `bin/designer.ts` installs `src/cli/globPlugin.ts`
   first, which rewrites the eager form in files named `registry.ts`. Keep new registries in a `registry.ts` file.
 
+### Wireframe spec (`src/wireframe/spec/`)
+
+The agent-facing format ([`wireframe-spec.md`](wireframe-spec.md)): `parseSpec` (all problems at once, spec paths) →
+`buildFromSpec(spec, existing?)` builds the nodes the app would (instances with full props, `defaultLayout` stacks,
+`materializeChildren` for shared instances, `createScreenFrame`, `defaultPlacement`, notes) and runs
+`materializeDocument` twice (once to resolve paths and place notes, once at the end); `dumpToSpec(doc, { geometry? })`
+writes it back, leaving out defaults and layout-computed geometry (`common.ts` holds the rules both sides share).
+`catalog.ts` and `schema.ts` read the component registry at run time. CLI: `src/cli/wf.ts` (`designer wf …`).
+
 ### Notes (`src/wireframe/notes.ts`)
 
 A note is a top-level `group` with `note: { text, target? }`; the `notes` step (order 150) generates its children

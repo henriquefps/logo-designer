@@ -1,0 +1,48 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Hoard",
+  "components": [
+    {
+      "name": "Tab bar",
+      "content": {
+        "vstack": [{ "bottom-navigation": { "labels": ["Gallery", "Albums", "Settings"], "selected": 3 } }],
+        "position": "pinned-bottom"
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "Settings",
+      "status": "changed",
+      "platform": "phone",
+      "root": [
+        { "top-app-bar": { "title": "Settings", "leading": "none", "actions": 0 } },
+        { "section-header": "SERVER" },
+        { "list-row": { "title": "Server address", "subtitle": "hoard.hfps.dev", "trailing": "chevron" }, "id": "row-server", "opens": "Server" },
+        { "list-row": { "title": "Status", "trailing": "value", "value": "Connected" } },
+        { "section-header": "BACKUP" },
+        { "list-row": { "title": "Back up automatically", "trailing": "toggle", "checked": true } },
+        { "list-row": { "title": "Only on Wi-Fi", "subtitle": "Saves mobile data", "trailing": "toggle", "checked": false }, "note": "Hidden when automatic backup is off" },
+        { "radio-group": { "label": "Upload quality", "options": ["Original", "High (2048 px)", "Data saver"], "selected": 1 } },
+        { "section-header": "ACCOUNT" },
+        { "list-row": { "title": "Language", "trailing": "value", "value": "English" } },
+        { "button": { "label": "Sign out", "variant": "secondary" } },
+        { "use": "Tab bar" }
+      ]
+    },
+    {
+      "name": "Server",
+      "status": "new",
+      "root": [
+        { "top-app-bar": { "title": "Server", "leading": "back", "actions": 0 } },
+        { "text-field": { "label": "Address", "placeholder": "https://…" } },
+        { "text-field": { "label": "API key", "placeholder": "Paste the key" } },
+        { "button": { "label": "Connect", "variant": "primary" }, "width": "fill" },
+        { "use": "Tab bar" }
+      ]
+    }
+  ],
+  "flows": [{ "from": "Server/Connect", "to": "Settings", "label": "Saved" }],
+  "notes": [{ "text": "Show a spinner in the Status row while connecting", "on": "Settings/Status" }]
+}

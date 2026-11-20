@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // Generates public/schema/designer-project.schema.json from the TS types (src/io/projectFileTypes.ts →
-// src/model/types.ts). Fields the importer fills in when missing are made optional, so a minimal
+// src/model/types.ts), and public/schema/wireframe-spec.schema.json from the wireframe spec module and the
+// component registry (src/wireframe/spec/schema.ts). Fields the importer fills in when missing are made optional, so a minimal
 // hand-written file validates. Run: `bun run schema` (or `bun run schema --check` in CI).
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -86,18 +87,33 @@ export function generateSchema(): string {
   return JSON.stringify(out, null, 2) + '\n';
 }
 
+/** The wireframe spec schema (src/wireframe/spec/schema.ts). Needs the component registry, so the glob loader first under Bun. */
+export const SPEC_OUT = resolve(root, 'public/schema/wireframe-spec.schema.json');
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const next = generateSchema();
+  const { installGlobPlugin } = await import('../src/cli/globPlugin.ts');
+  installGlobPlugin();
+  const { wireframeSpecSchemaText } = await import('../src/wireframe/spec/schema.ts');
+  const files: [string, string, string][] = [
+    [OUT, generateSchema(), 'public/schema/designer-project.schema.json'],
+    [SPEC_OUT, wireframeSpecSchemaText(), 'public/schema/wireframe-spec.schema.json'],
+  ];
   if (process.argv.includes('--check')) {
-    const cur = await readFile(OUT, 'utf8').catch(() => '');
-    if (cur !== next) {
-      console.error('public/schema/designer-project.schema.json is out of date: run `bun run schema`.');
-      process.exit(1);
+    let stale = false;
+    for (const [path, next, name] of files) {
+      const cur = await readFile(path, 'utf8').catch(() => '');
+      if (cur !== next) {
+        console.error(`${name} is out of date: run \`bun run schema\`.`);
+        stale = true;
+      }
     }
-    console.log('schema up to date');
+    if (stale) process.exit(1);
+    console.log('schemas up to date');
   } else {
-    await mkdir(dirname(OUT), { recursive: true });
-    await writeFile(OUT, next);
-    console.log(`Wrote ${OUT}`);
+    for (const [path, next] of files) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, next);
+      console.log(`Wrote ${path}`);
+    }
   }
 }
