@@ -34,11 +34,12 @@ export async function createIconDocument(preset: IconPreset, options: IconDocume
   const doc = useDocStore.getState().doc;
   const next: DesignDocument = {
     ...doc,
-    name: !wanted?.trim() && pristine && doc.name !== 'Untitled' ? doc.name : name,
+    name: !wanted?.trim() && pristine && !doc.icon && !doc.wireframe && doc.name !== 'Untitled' ? doc.name : name,
     artboard: { ...doc.artboard, width: def.size, height: def.size, background: { kind: 'none' } },
     icon,
     updatedAt: Date.now(),
   };
+  delete next.wireframe; // an empty wireframe document reused (it has no screens left)
   // A fresh document: replace it without an undo step, then save it right away.
   useDocStore.getState().load(next);
   useEditorStore.getState().setPanelTab('properties');

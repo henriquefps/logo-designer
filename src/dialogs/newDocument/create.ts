@@ -12,10 +12,13 @@ export async function createFreeDocument(o: FreeOptions) {
   const ds = useDocStore.getState();
   const pristine = ds.doc.children.length === 0 && ds.past.length === 0 && ds.future.length === 0;
   if (pristine) {
-    // The empty document opened on first visit: just size (and name) it.
-    ds.load({ ...ds.doc, ...(name ? { name } : {}), artboard: { ...ds.doc.artboard, width, height }, updatedAt: Date.now() });
+    // An empty, untouched document (the one opened on first visit, or an empty icon just made): size
+    // and name it, and drop another mode's marker. Its name is kept only if it was a free project too.
+    const { icon, wireframe, ...base } = ds.doc;
+    const next = { ...base, name: name || (icon || wireframe ? 'Untitled' : ds.doc.name), artboard: { ...ds.doc.artboard, width, height }, updatedAt: Date.now() };
+    ds.load(next);
     useEditorStore.getState().fitRect({ x: 0, y: 0, width, height });
-    if (name) await useProjectsStore.getState().rename(ds.doc.id, name);
+    if (next.name !== ds.doc.name) await useProjectsStore.getState().rename(next.id, next.name);
     await useProjectsStore.getState().flush();
   } else {
     await useProjectsStore.getState().create(name || 'Untitled', { width, height });

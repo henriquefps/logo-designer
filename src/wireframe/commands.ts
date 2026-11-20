@@ -29,7 +29,7 @@ export async function createWireframeDocument(options: { name?: string; platform
   const pristine = ds.doc.children.length === 0 && ds.past.length === 0 && ds.future.length === 0;
   if (!pristine) await useProjectsStore.getState().create(wanted || 'Wireframe');
   const doc = useDocStore.getState().doc;
-  const name = wanted || (pristine && doc.name !== 'Untitled' ? doc.name : 'Wireframe');
+  const name = wanted || (pristine && !doc.icon && !doc.wireframe && doc.name !== 'Untitled' ? doc.name : 'Wireframe');
   const next = newWireframeDocument(doc, name, options.platform ?? 'phone');
   // A fresh document: replace it without an undo step (load runs the pipeline), then save it.
   useDocStore.getState().load(next);
