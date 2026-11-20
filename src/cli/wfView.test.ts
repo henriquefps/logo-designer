@@ -137,6 +137,18 @@ describe('sheet layout', () => {
     expect(withNotes.notes[0].target).toBeDefined();
   });
 
+  it('a note connector goes around the screens in between, like the canvas', () => {
+    const doc = fixture();
+    // A note left of Home attached to the Language row (on Settings, below Home): the straight line crosses Home.
+    const d = structuredClone(doc);
+    addNote(d, { text: 'Far away', target: 'r-lang', x: -300, y: 100 });
+    const L = sheetLayout(structuredClone(materializeDocument(d)), { ...defaults, notes: true });
+    const far = L.notes.find((n) => n.note.note.text === 'Far away')!;
+    expect(far.connector!.length).toBeGreaterThan(2);
+    const home = L.frames.find((f) => f.name === 'Home')!.rect;
+    for (let i = 1; i < far.connector!.length; i++) expect(segmentHitsRect(far.connector![i - 1], far.connector![i], home)).toBe(false);
+  });
+
   it('a platform without frames is an error', () => {
     expect(() => sheetLayout(fixture(), { ...defaults, platform: 'desktop' })).toThrow(/no screen desktop/);
   });

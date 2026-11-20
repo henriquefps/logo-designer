@@ -23,6 +23,10 @@ export interface RouteRequest {
   from: number;
   /** Index in `frames` of the target frame. */
   to: number;
+  /** Leaves from any of the source's four sides (a note's connector), not only left / right. */
+  anySide?: boolean;
+  /** The point inside the target frame the route heads for (a note's target): the end port is aligned with it, not with the source. */
+  aim?: Vec;
 }
 
 export interface FlowRoute {
@@ -135,7 +139,14 @@ function startPorts(req: RouteRequest, obstacles: readonly Rect[], c: number): P
   const f = req.from >= 0 ? obstacles[req.from] : null;
   const cx = s.x + s.width / 2;
   const cy = s.y + s.height / 2;
-  const cand: { at: Vec; dir: number }[] = req.vertical
+  const cand: { at: Vec; dir: number }[] = req.anySide
+    ? [
+        { at: { x: right(s), y: cy }, dir: 0 },
+        { at: { x: s.x, y: cy }, dir: 1 },
+        { at: { x: cx, y: bottom(s) }, dir: 2 },
+        { at: { x: cx, y: s.y }, dir: 3 },
+      ]
+    : req.vertical
     ? [
         { at: { x: cx, y: s.y }, dir: 3 },
         { at: { x: cx, y: bottom(s) }, dir: 2 },
@@ -524,7 +535,7 @@ export function routeOne(req: RouteRequest, frames: readonly Rect[], opts: Route
   if (req.from === req.to) return loopRoute(req.source, t, c);
   const starts = startPorts(req, obstacles, c);
   const from = starts[0]?.at ?? { x: req.source.x + req.source.width / 2, y: req.source.y + req.source.height / 2 };
-  const ends = endPorts(t, obstacles[req.to], req.to, obstacles, from, c);
+  const ends = endPorts(t, obstacles[req.to], req.to, obstacles, req.aim ?? from, c);
   const points = search(obstacles, opts.notes ?? [], starts, ends, c, busy);
   if (points && points.length >= 2) return { points, dir: dirOf(points[points.length - 2], points[points.length - 1]) };
   // Every way is closed (frames overlap): the shortest dog-leg, over whatever is there.

@@ -22,6 +22,7 @@ import {
   type SceneNode,
   type Vec,
 } from '@/model';
+import { routeOne, segmentHitsRect } from './routing';
 import { frameOf, frameRect, frames } from './screens';
 import { WF } from './style';
 
@@ -208,6 +209,74 @@ export function connectorOf(doc: DocLike, note: NoteNode): { from: Vec; to: Vec 
   const nc = { x: n.x + n.width / 2, y: n.y + n.height / 2 };
   const tc = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
   return { from: edgePoint(n, tc), to: edgePoint(t, nc) };
+}
+
+export interface ConnectorOptions {
+  /** Document units kept clear above every frame (its name strip), as for flow arrows (`canvasLabelBand`). Default 0. */
+  band?: number;
+  /** Only these frames count (`wf sheet --platform`); default every visible frame. */
+  shown?: (frameId: Id) => boolean;
+}
+
+/** Memo per frozen document state (the canvas re-renders on every pointer move and view change). */
+const connectorMemo = new WeakMap<object, { key: string; out: Map<Id, Vec[] | null> }[]>();
+
+/**
+ * The connector of a note as a polyline (document space), or null like `connectorOf`. A straight line when it crosses
+ * no screen other than the target's own; otherwise routed around the screens like a flow arrow (routing.ts: frames are
+ * hard obstacles grown by `band`, other notes soft), entering the target's screen from a side and running to the
+ * target, so a connector never cuts through the screen next to the note's.
+ */
+export function connectorPoints(doc: DocLike, note: NoteNode, opts: ConnectorOptions = {}): Vec[] | null {
+  const frozen = Object.isFrozen(doc.children);
+  const key = `${opts.band ?? 0}`;
+  let memo: Map<Id, Vec[] | null> | undefined;
+  if (frozen && !opts.shown) {
+    const list = connectorMemo.get(doc.children) ?? [];
+    if (!connectorMemo.has(doc.children)) connectorMemo.set(doc.children, list);
+    let hit = list.find((m) => m.key === key);
+    if (!hit) {
+      hit = { key, out: new Map() };
+      list.unshift(hit);
+      if (list.length > 4) list.pop();
+    }
+    memo = hit.out;
+    if (memo.has(note.id)) return memo.get(note.id)!;
+  }
+  const out = computeConnector(doc, note, opts);
+  memo?.set(note.id, out);
+  return out;
+}
+
+function computeConnector(doc: DocLike, note: NoteNode, opts: ConnectorOptions): Vec[] | null {
+  const c = connectorOf(doc, note);
+  if (!c) return null;
+  const band = opts.band ?? 0;
+  const shown = frames(doc).filter((f) => f.visible && (!opts.shown || opts.shown(f.id)));
+  const rects = shown.map(frameRect);
+  const own = frameOf(doc, note.note.target!);
+  const to = own ? shown.findIndex((f) => f.id === own.id) : -1;
+  const n = noteRect(note);
+  const grown = (r: Rect) => ({ x: r.x, y: r.y - band, width: r.width, height: r.height + band });
+  // A note lying over a screen (other than its target's) cannot be routed out of it: keep the straight line.
+  const under = rects.findIndex((r, i) => i !== to && rectsIntersect(r, n));
+  const crosses = rects.some((r, i) => i !== to && segmentHitsRect(c.from, c.to, grown(r)));
+  if (to < 0 || under >= 0 || !crosses) return [c.from, c.to];
+  const t = targetRect(doc, note.note.target!)!;
+  const aim = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
+  const others = notesOf(doc).filter((x) => x.id !== note.id && x.visible).map(noteRect);
+  const route = routeOne({ source: n, from: -1, to, anySide: true, aim }, rects, { band, notes: others, clearance: 24 });
+  const pts = route.points.slice();
+  const end = pts[pts.length - 1];
+  // From the screen's edge to the target: straight in along the entry direction, then onto the target's edge.
+  const horizontal = Math.abs(route.dir.x) > 0;
+  const inside = horizontal
+    ? { x: route.dir.x > 0 ? t.x : t.x + t.width, y: end.y }
+    : { x: end.x, y: route.dir.y > 0 ? t.y : t.y + t.height };
+  const aligned = horizontal ? end.y >= t.y && end.y <= t.y + t.height : end.x >= t.x && end.x <= t.x + t.width;
+  const last = aligned ? inside : edgePoint(t, end);
+  if (Math.abs(last.x - end.x) > 0.5 || Math.abs(last.y - end.y) > 0.5) pts.push(last);
+  return pts;
 }
 
 /** Where the ray from the centre of `r` towards `p` leaves `r` (`p` itself when it is inside). */

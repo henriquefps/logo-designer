@@ -12,7 +12,7 @@ import { placeLabels, routePath } from '@/wireframe/routing';
 import { arrowHead } from '@/wireframe/canvas/arrowHead';
 import { labelLayout, labelWidth } from '@/wireframe/canvas/labels';
 import { frameRect, screenSlug } from '@/wireframe/screens';
-import { noteRect, notesOf, type NoteNode } from '@/wireframe/notes';
+import { connectorPoints, noteRect, notesOf, type NoteNode } from '@/wireframe/notes';
 import { WF } from '@/wireframe/style';
 import { framesFor, parsePlatform } from './wireframe';
 
@@ -114,6 +114,8 @@ export interface SheetNote {
   rect: Rect;
   /** The attached element, in output px (absent: a free note). */
   target?: Rect;
+  /** The connector from the note to it, in output px: routed around the other screens like a flow arrow. */
+  connector?: Vec[];
 }
 
 export interface SheetLayout {
@@ -171,7 +173,9 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
       arrows.map((a) => (a.flow.label ? { width: (textWidth(a.flow.label, 400, labelSize) + labelSize * 1.6) / scale, height: (labelSize * 2) / scale } : null)),
       avoid,
     );
-    return { arrows, spots };
+    const band = (strip + labelSize * 0.3) / scale;
+    const connectors = noteList.map((n) => connectorPoints(doc, n, { band, shown: (id) => shownIds.has(id) }));
+    return { arrows, spots, connectors };
   };
   let solved = solveScale(maxX - minX, maxY - minY, 0, args.scale, args.max);
   let routed = route(solved.scale, solved.labelSize, solved.strip);
@@ -179,6 +183,7 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
     const pad = solved.labelSize / solved.scale;
     const pts = routed.arrows.flatMap((a) => a.route.points);
     routed.spots.forEach((p) => p && pts.push(p));
+    routed.connectors.forEach((c) => c && pts.push(...c));
     if (!pts.length) break;
     const nx0 = Math.min(minX, ...pts.map((p) => p.x - pad));
     const nx1 = Math.max(maxX, ...pts.map((p) => p.x + pad));
@@ -215,9 +220,10 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
     ...(a.flow.label ? { label: a.flow.label, labelAt: pt(routed.spots[i]!) } : {}),
   }));
 
-  const notes: SheetNote[] = noteList.map((note) => {
+  const notes: SheetNote[] = noteList.map((note, i) => {
     const t = note.note.target ? (findNode(doc, note.note.target) ? worldBounds(doc, note.note.target) : null) : null;
-    return { note, rect: px(noteRect(note)), ...(t ? { target: px(t) } : {}) };
+    const c = routed.connectors[i];
+    return { note, rect: px(noteRect(note)), ...(t ? { target: px(t) } : {}), ...(t && c ? { connector: c.map(pt) } : {}) };
   });
 
   const width = Math.ceil(2 * margin + docW * scale);
@@ -367,10 +373,8 @@ export async function renderSheet(doc: DesignDocument, args: SheetArgs): Promise
 
   // Notes sit under the frames (like the canvas), their connectors under the notes.
   for (const n of L.notes) {
-    if (!n.target) continue;
-    const a = { x: n.rect.x + n.rect.width / 2, y: n.rect.y + n.rect.height / 2 };
-    const b = { x: n.target.x + n.target.width / 2, y: n.target.y + n.target.height / 2 };
-    out.push(`<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" stroke="${WF.noteLine}" stroke-width="${f(Math.max(1, s / 10))}" stroke-dasharray="${f(s / 3)} ${f(s / 4)}"/>`);
+    if (!n.connector) continue;
+    out.push(`<path d="${routePath(n.connector, s * 0.5)}" fill="none" stroke="${WF.noteLine}" stroke-width="${f(Math.max(1, s / 10))}" stroke-linejoin="round" stroke-dasharray="${f(s / 3)} ${f(s / 4)}"/>`);
   }
 
   for (const fr of L.frames) {
