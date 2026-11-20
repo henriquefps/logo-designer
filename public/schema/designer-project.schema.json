@@ -49,6 +49,10 @@
         "wireframe": {
           "$ref": "#/definitions/WireframeDocInfo",
           "description": "Present only on wireframe documents."
+        },
+        "live": {
+          "$ref": "#/definitions/LiveInfo",
+          "description": "Present while the project is edited live (`designer live`, docs/sync.md): changes go through the sync server within about a second."
         }
       },
       "required": [
@@ -1311,6 +1315,19 @@
         "content"
       ],
       "description": "A shared component (user component, phase 2): a piece the user built from a group or container, used on several screens. The master lives here, not on the canvas; instances are groups with `symbol: { id }` whose children are materialized copies of `content.children`."
+    },
+    "LiveInfo": {
+      "type": "object",
+      "properties": {
+        "editedBy": {
+          "type": "string",
+          "description": "Who saved the current version: `\"cli\"` (the `designer` CLI) or `\"app:<device id>\"`."
+        }
+      },
+      "required": [
+        "editedBy"
+      ],
+      "description": "Live editing mark (docs/sync.md → Live editing)."
     }
   }
 }

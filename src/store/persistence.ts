@@ -7,6 +7,8 @@ export interface ProjectMeta {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** Live editing: who saved this version (`LiveInfo.editedBy`); absent when the project is not live. */
+  live?: string;
 }
 
 const META_KEY = 'projects';
@@ -56,6 +58,7 @@ export const metaOf = (doc: DesignDocument): ProjectMeta => ({
   name: doc.name,
   createdAt: doc.createdAt,
   updatedAt: doc.updatedAt,
+  ...(doc.live ? { live: doc.live.editedBy } : {}),
 });
 
 // File handles (File System Access API) of projects saved in place: `file:<projectId>`.

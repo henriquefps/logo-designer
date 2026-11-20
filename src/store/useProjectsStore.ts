@@ -12,7 +12,8 @@ import {
   setActiveProjectId,
   type ProjectMeta,
 } from './persistence';
-import { recordDeletion } from '@/sync/state';
+import { deviceId, recordDeletion } from '@/sync/state';
+import { appEditor, LIVE_AUTOSAVE_DELAY } from '@/sync/live';
 import { useDocStore } from './useDocStore';
 import { useEditorStore } from './useEditorStore';
 import { fitTarget } from '@/wireframe/view';
@@ -44,10 +45,14 @@ interface ProjectsState {
   addConflictedCopy: (doc: DesignDocument, name: string) => Promise<Id>;
   /** Saves the active document now (cancels a pending autosave). */
   flush: () => Promise<void>;
+  /** Live editing: turns the active project's `live` mark off (saved and synced like an edit). */
+  stopLive: () => void;
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let unsubscribe: (() => void) | null = null;
+/** True while a pulled version is loaded into the editor: that is not an edit, so it must not autosave (and push back). */
+let loadingRemote = false;
 
 function upsert(list: ProjectMeta[], meta: ProjectMeta) {
   return [meta, ...list.filter((p) => p.id !== meta.id)].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -72,6 +77,8 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     const doc = useDocStore.getState().doc;
     if (!activeId || doc.id !== activeId) return;
     const toSave: DesignDocument = { ...doc, updatedAt: Date.now() };
+    // A live project records who saved this version, for the Live indicator on every side.
+    if (doc.live) toSave.live = { editedBy: appEditor(deviceId()) };
     set({ saveState: 'saving' });
     try {
       await saveDocument(toSave);
@@ -87,11 +94,11 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
   const watch = () => {
     unsubscribe?.();
     unsubscribe = useDocStore.subscribe((s, prev) => {
-      if (s.version === prev.version || s.txn) return;
+      if (s.version === prev.version || s.txn || loadingRemote) return;
       if (s.doc.id !== get().activeId) return;
       if (timer) clearTimeout(timer);
       set({ saveState: 'pending' });
-      timer = setTimeout(() => void save(), AUTOSAVE_DELAY);
+      timer = setTimeout(() => void save(), s.doc.live ? LIVE_AUTOSAVE_DELAY : AUTOSAVE_DELAY);
     });
   };
 
@@ -215,8 +222,15 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       await saveProjectList(projects);
       set({ projects });
       if (active) {
-        useDocStore.getState().load(incoming);
-        useEditorStore.getState().setSelection([]);
+        loadingRemote = true;
+        try {
+          useDocStore.getState().load(incoming);
+        } finally {
+          loadingRemote = false;
+        }
+        // Keep the selection on nodes that still exist: in a live session the agent's edits land while you work.
+        const sel = useEditorStore.getState().selection.filter((id) => useDocStore.getState().findNode(id));
+        useEditorStore.getState().setSelection(sel);
       }
       return true;
     },
@@ -232,6 +246,15 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
 
     flush: async () => {
       if (timer) await save();
+    },
+
+    stopLive: () => {
+      useDocStore.setState((s) => {
+        if (!s.doc.live) return s;
+        const doc = { ...s.doc };
+        delete doc.live;
+        return { doc, version: s.version + 1 };
+      });
     },
   };
 });

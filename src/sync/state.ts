@@ -96,3 +96,21 @@ export function recordDeletion(kind: Kind, id: string, at = Date.now()): Promise
     s.tombstones[id] = at;
   }).catch(() => undefined);
 }
+
+const DEVICE_KEY = 'designer.sync.device';
+let device: string | null = null;
+
+/** A random id for this browser, to tell "this device" from "another device" in the Live indicator. */
+export function deviceId(): string {
+  if (device) return device;
+  try {
+    device = localStorage.getItem(DEVICE_KEY);
+    if (!device) {
+      device = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      localStorage.setItem(DEVICE_KEY, device);
+    }
+  } catch {
+    device ??= Math.random().toString(36).slice(2, 10);
+  }
+  return device;
+}

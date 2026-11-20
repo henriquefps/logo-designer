@@ -21,6 +21,7 @@ import type { IconColourMode } from '@/model';
 import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings } from './presets';
 import { aiPackageFiles, aiProjectSlug, aiZip } from '@/wireframe/aiExport';
 import { materializeDocument } from '@/wireframe/pipeline';
+import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 
 export interface CliIO {
@@ -34,6 +35,10 @@ export interface CliIO {
   openUrl?: (url: string) => Promise<boolean>;
   /** Reads stdin when a path is `-`. */
   stdin?: () => Promise<string>;
+  /** Environment for `live` / `sync` (DESIGNER_SYNC_URL, DESIGNER_SYNC_KEY, SYNC_API_KEY); default process.env. */
+  env?: SyncEnv;
+  /** Stops `designer live` (tests); by default Ctrl+C / SIGTERM. */
+  signal?: AbortSignal;
 }
 
 class UsageError extends Error {}
@@ -104,6 +109,17 @@ Usage: designer <command> [options]
                                               (several files, or no GUI: like present)
   present <files…> [--port 8765] [--no-open]  local gallery page (preview + "Open in Designer" per file);
                                               keeps running until Ctrl+C
+  live <project> [--server URL]               live editing through your sync server: pushes the file now, then
+                                              mirrors both ways until Ctrl+C (file edits are pushed within a second,
+                                              edits made in the app are written back to the file; conflicts keep the
+                                              losing version as a "conflicted copy" file). Server: --server or
+                                              DESIGNER_SYNC_URL; key: DESIGNER_SYNC_KEY or SYNC_API_KEY
+                                              (skv run designer-sync -- designer live …)
+  sync push <project> [--server URL]          upload a project file once (same server and key as live)
+  sync pull <project|id> [-o file] [--server URL]
+                                              download a project: into its file (by the file's id) or, for an id,
+                                              into -o / <name>.designer.json
+  sync list [--json] [--server URL]           projects on the server (id, last change, size, name)
 
 Without -o, project/SVG output goes to stdout. Docs: docs/agents.md, docs/project-format.md.
 `;
@@ -138,6 +154,7 @@ const COMMON: ParseArgsConfig['options'] = {
   screen: { type: 'string' },
   dir: { type: 'string' },
   platform: { type: 'string' },
+  server: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -872,11 +889,37 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         io.out(`Opened '${doc.name}' in Designer — confirm the import in the browser.`);
         return 0;
       }
+      case 'live': {
+        const path = resolve(io.cwd ?? process.cwd(), requireArg(pos, 'project file'));
+        const conn = connectionFrom(str(values, 'server'), io.env ?? process.env);
+        let signal = io.signal;
+        if (!signal) {
+          const ctrl = new AbortController();
+          process.once('SIGINT', () => ctrl.abort());
+          process.once('SIGTERM', () => ctrl.abort());
+          signal = ctrl.signal;
+        }
+        return await runLive(path, conn, origin, io, signal);
+      }
+      case 'sync': {
+        const [sub, target] = pos;
+        const conn = connectionFrom(str(values, 'server'), io.env ?? process.env);
+        const cwd = io.cwd ?? process.cwd();
+        if (sub === 'list') return await syncList(conn, io, !!values.json);
+        if (!target) throw new UsageError('Usage: designer sync push <project> | sync pull <project|id> [-o file] | sync list');
+        if (sub === 'push') return await syncPush(resolve(cwd, target), conn, origin, io);
+        if (sub === 'pull') {
+          const local = resolve(cwd, target);
+          const isFile = await readFile(local).then(() => true, () => false);
+          return await syncPull(isFile ? local : target, output ? resolve(cwd, output) : undefined, conn, io, cwd);
+        }
+        throw new UsageError(`Unknown sync command “${sub ?? ''}” (push, pull, list)`);
+      }
       default:
         throw new UsageError(`Unknown command “${cmd}”`);
     }
   } catch (e) {
-    if (e instanceof UsageError) {
+    if (e instanceof UsageError || e instanceof SyncUsage) {
       io.err(`${e.message}\n\nRun \`designer help\` for usage.`);
       return 2;
     }

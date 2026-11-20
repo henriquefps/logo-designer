@@ -13,6 +13,7 @@ import { ProjectTitle } from './ProjectTitle';
 import { SyncButton } from './TopBarButtons';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
+import { LiveIndicator } from './LiveIndicator';
 
 /** Phones: full-screen canvas, compact top bar, bottom tool strip, panels in a bottom Sheet. */
 export function MobileLayout() {
@@ -47,6 +48,7 @@ export function MobileLayout() {
         <Button variant="ghost" size="icon" aria-label="Redo" disabled={!canRedo} onClick={() => runAction('edit.redo')}>
           <ArrowArcRightIcon />
         </Button>
+        <LiveIndicator />
         <SyncButton />
         <ThemeMenu />
         <Button variant="ghost" size="icon" aria-label="Panels" onClick={() => setOpen(true)}>
