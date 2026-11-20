@@ -15,7 +15,8 @@
     "designer": "bun bin/designer.ts",
     "schema": "bun scripts/gen-schema.ts",
     "demo": "node scripts/demo/run.ts",
-    "e2e:live": "node scripts/live-e2e.ts"
+    "e2e:live": "node scripts/live-e2e.ts",
+    "e2e:agent-app": "node scripts/agent-app-e2e.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

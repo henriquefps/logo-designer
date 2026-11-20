@@ -47,6 +47,8 @@ interface ProjectsState {
   flush: () => Promise<void>;
   /** Live editing: turns the active project's `live` mark off (saved and synced like an edit). */
   stopLive: () => void;
+  /** Live editing from the app (before sending an agent job): marks the active project live and saves it now. */
+  markLive: () => Promise<void>;
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -262,6 +264,14 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
         delete doc.live;
         return { doc, version: s.version + 1 };
       });
+    },
+
+    markLive: async () => {
+      if (!useDocStore.getState().doc.live) {
+        // Not an undoable edit; saved right away (the autosave skips a live document without history).
+        useDocStore.setState((s) => ({ doc: { ...s.doc, live: { editedBy: appEditor(deviceId()) } }, version: s.version + 1 }));
+      }
+      await save();
     },
   };
 });

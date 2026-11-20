@@ -803,6 +803,15 @@ user's own Claude Code login: one person's subscription, for that person's own p
   changes" (restores the project as it was when the job started, from a snapshot taken at send).
 - Henrique can keep editing while the agent works (live editing rules apply); the panel warns that
   edits on the same screen may be overwritten.
+- **Built** (`src/agent/`, `src/dialogs/agentJob/`): the presence is in the status bar (a sparkle icon in the phone
+  top bar), wireframe documents only. Every entry point opens one small dialog (what the job is about, an optional
+  hint, Send); a pasted or dropped screenshot gets platform (guessed from the image's shape), name and hint, and
+  "Place as reference image" keeps today's import. **Ask the agent…** is Edit → Ask the agent… and **Mod+K**; it
+  stays enabled so the shortcut always answers, and its dialog says why it cannot send. The job panel floats at
+  the canvas's bottom right, can be hidden (the status popover shows it again) and drops finished jobs after
+  24 h; "Undo the agent's changes" restores the snapshot as one edit (Edit → Undo brings the agent's version
+  back), keeping the project's name and live mark. Checked by `bun run e2e:agent-app` (screenshots:
+  `docs/screenshots/agent/`).
 
 ### Phase 4 workstreams
 

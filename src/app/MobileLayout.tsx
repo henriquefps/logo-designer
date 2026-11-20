@@ -14,6 +14,8 @@ import { SyncButton } from './TopBarButtons';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
 import { LiveIndicator } from './LiveIndicator';
+import { AgentStatus } from '@/agent/ui/AgentStatus';
+import { JobPanel } from '@/agent/ui/JobPanel';
 
 /** Phones: full-screen canvas, compact top bar, bottom tool strip, panels in a bottom Sheet. */
 export function MobileLayout() {
@@ -49,6 +51,7 @@ export function MobileLayout() {
           <ArrowArcRightIcon />
         </Button>
         <LiveIndicator />
+        <AgentStatus compact />
         <SyncButton />
         <ThemeMenu />
         <Button variant="ghost" size="icon" aria-label="Panels" onClick={() => setOpen(true)}>
@@ -57,6 +60,7 @@ export function MobileLayout() {
       </header>
       <main className="relative min-h-0 flex-1 overflow-hidden border-y">
         <CanvasView />
+        <JobPanel />
       </main>
       <nav className="shrink-0 bg-background py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-center gap-1 px-2">

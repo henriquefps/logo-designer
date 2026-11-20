@@ -8,6 +8,7 @@ import { reloadUploads } from '@/fonts/store';
 import { SyncError, getItem, listItems, putItem, type Connection, type Kind } from './api';
 import { base64ToBytes, bytesToBase64 } from './base64';
 import { subscribeEvents, type StreamState } from './events';
+import type { AgentsEvent, JobEvent } from './jobs';
 import { LIVE_PUSH_DELAY } from './live';
 import { conflictedName, countPending, planSync, type LocalItem, type Step } from './plan';
 import {
@@ -58,6 +59,20 @@ export const useSyncStore = create<SyncStoreState>()((set, get) => {
 });
 
 export const isSyncConfigured = () => configured(useSyncStore.getState().settings);
+
+/** The connection to use now, or null while sync is off. */
+export const syncConnection = (): Connection | null => {
+  const { settings } = useSyncStore.getState();
+  return configured(settings) ? { url: settings.url, apiKey: settings.apiKey } : null;
+};
+
+/** Listeners for the stream's job and agent presence events (src/agent) and for each (re)connect. */
+type StreamListener = { onJob?: (e: JobEvent) => void; onAgents?: (e: AgentsEvent) => void; onOpen?: () => void };
+const streamListeners = new Set<StreamListener>();
+export function onSyncStream(l: StreamListener): () => void {
+  streamListeners.add(l);
+  return () => void streamListeners.delete(l);
+}
 
 // ---------- one sync cycle ----------
 
@@ -325,7 +340,16 @@ export function startSync(): () => void {
     stopStream = subscribeEvents(
       { url, apiKey },
       {
-        onOpen: onEvent, // catch up with whatever changed while the stream was down
+        onOpen: () => {
+          onEvent(); // catch up with whatever changed while the stream was down
+          for (const l of streamListeners) l.onOpen?.();
+        },
+        onJob: (e) => {
+          for (const l of streamListeners) l.onJob?.(e);
+        },
+        onAgents: (e) => {
+          for (const l of streamListeners) l.onAgents?.(e);
+        },
         onChange: (e) => {
           if (ownPushes.delete(`${e.kind}:${e.id}:${e.updatedAt}`)) return;
           if (e.kind === 'fonts' && !useSyncStore.getState().settings.syncFonts) return;

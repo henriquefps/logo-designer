@@ -9,6 +9,7 @@ import { StatusBar } from './StatusBar';
 import { ToolBar } from './ToolBar';
 import { PaintSwatches } from './PaintSwatches';
 import { LiveIndicator } from './LiveIndicator';
+import { JobPanel } from '@/agent/ui/JobPanel';
 
 export function DesktopLayout() {
   return (
@@ -39,8 +40,9 @@ export function DesktopLayout() {
           <div className="shrink-0 border-b">
             <OptionsBar />
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1">
             <CanvasView />
+            <JobPanel />
           </div>
           <div className="shrink-0 border-t">
             <StatusBar />

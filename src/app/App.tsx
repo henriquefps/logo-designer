@@ -9,6 +9,7 @@ import { useProjectsStore } from '@/store/useProjectsStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { isFirstVisit } from '@/dialogs/newDocument/welcome';
 import { isSyncConfigured, startSync } from '@/sync/engine';
+import { startAgent } from '@/agent/agentStore';
 import { useTheme } from '@/theme/theme';
 import { PresentMode } from '@/wireframe/canvas/PresentMode';
 import { startIconLoader } from '@/wireframe/iconLoader';
@@ -25,6 +26,7 @@ export function App() {
   useEffect(() => startIconLoader(), []);
   useEffect(() => {
     let stopSync: (() => void) | null = null;
+    let stopAgent: (() => void) | null = null;
     let unmounted = false;
     void useProjectsStore
       .getState()
@@ -32,6 +34,8 @@ export function App() {
       .then(() => {
         // Pull on start, focus and every 30 s, push after autosaves (does nothing until Sync is turned on).
         if (!unmounted) stopSync = startSync();
+        // Agent presence and this project's jobs (phase 4), through the same server and event stream.
+        if (!unmounted) stopAgent = startAgent();
         // A #open= / ?import= link asks to import; otherwise, on a first visit, the welcome dialog.
         if (handleLaunchUrl()) return;
         // ?open-project=<id> (from `designer live`): open a synced project once it arrives.
@@ -48,6 +52,7 @@ export function App() {
     return () => {
       unmounted = true;
       stopSync?.();
+      stopAgent?.();
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('hashchange', onHash);
       document.removeEventListener('visibilitychange', onVisibility);

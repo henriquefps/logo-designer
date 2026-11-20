@@ -72,6 +72,7 @@ Phase 4 of the wireframe mode ([wireframe-mode.md](wireframe-mode.md#phase-4-ai-
 - **Time rules.** A running job whose agent sent nothing for 2 minutes becomes `failed` ("agent went away"); the server sweeps every 15 s and on every request. Only the newest 200 jobs are kept; attachments go 24 h after a job finishes.
 - **Private.** Same rules as fonts: the key (or the local network when there is none) on every route, files 0600, never in `/api/health` (which only says `jobs: true`).
 - **Client.** `src/sync/jobs.ts` is the typed client used by the app and by `designer agent` (browser and Bun): one function per route (`createJob`, `listJobs`, `claimJob`, `reportProgress`, `finishJob`, `cancelJob`, `sendHeartbeat`, `listAgents`, `getAttachment`…) and `onJob` / `onAgents` callbacks on `subscribeEvents`. Route and field details: [sync-server/README.md](../sync-server/README.md#jobs-agent-requests).
+- **App.** `src/agent/`: presence (`GET /api/agents` every 15 s and on `agents` events), the open project's jobs (`listJobs` on open and on `jobs` events, `getJob` for the full log), and sending: flush the project to the server, mark it live, snapshot it in IndexedDB (`designer-agent`, newest 20) for *Undo the agent's changes*, then `createJob`. See [wireframe-mode.md](wireframe-mode.md#the-app) and the screenshots in [`docs/screenshots/agent/`](screenshots/agent/).
 
 ### Security
 
@@ -161,6 +162,7 @@ On a tailnet nothing is exposed. From an app opened over plain HTTP use `http://
 ```sh
 cd sync-server && go test -race ./...        # server: LWW, tombstones, auth, LAN-only, CORS, limits, archive, event stream, jobs (claim race, retention, dead agents)
 bun run test                                  # includes src/sync/*.test.ts (merge plan, event client, engine, jobs client; `jobs.server.test.ts` runs it against the real Go server when Go is installed) and src/cli/sync.test.ts (designer live)
+bun run e2e:agent-app                         # the app's agent UI in Chromium against the fake server (E2E_SERVER=go: the real one)
 bun run e2e:live                              # the real thing: designer-sync (Go) + the app in Chromium + designer live
 ```
 

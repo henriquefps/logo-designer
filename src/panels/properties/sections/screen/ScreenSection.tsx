@@ -1,5 +1,5 @@
-import { CopySimpleIcon } from '@phosphor-icons/react';
-import { isScreenNode, platformDef, SCREEN_PLATFORMS, type ScreenPlatform, type ScreenStatus } from '@/model';
+import { CopySimpleIcon, SparkleIcon } from '@phosphor-icons/react';
+import { isScreenNode, platformDef, SCREEN_PLATFORMS, type ScreenNode, type ScreenPlatform, type ScreenStatus } from '@/model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +8,10 @@ import { duplicateSelectedScreenAs, setScreenPlatform } from '@/wireframe/comman
 import { freePlatforms } from '@/wireframe/screens';
 import { SCREEN_STATUSES, STATUS_LABELS, screenStatus } from '@/wireframe/flows';
 import { setScreenStatusCommand } from '@/wireframe/flowCommands';
+import { usePresence } from '@/agent/agentStore';
+import { openAgentDialog } from '@/agent/commands';
+import { availability } from '@/agent/jobs';
+import { WhyDisabled } from '@/agent/ui/Unavailable';
 import { NumberField } from '../../../shared/NumberField';
 import { FieldRow, Section } from '../../../shared/Section';
 import type { SelectionContext } from '../../types';
@@ -15,11 +19,16 @@ import type { SelectionContext } from '../../types';
 export function ScreenSection({ ctx }: { ctx: SelectionContext }) {
   const frame = ctx.nodes[0];
   if (!isScreenNode(frame)) return null;
+  return <ScreenFields ctx={ctx} frame={frame} />;
+}
+
+function ScreenFields({ ctx, frame }: { ctx: SelectionContext; frame: ScreenNode }) {
   const { screen } = frame;
   const def = platformDef(screen.platform);
   const free = freePlatforms(ctx.doc, screen.screenId);
   const variants = ctx.doc.children.filter((n) => isScreenNode(n) && n.screen.screenId === screen.screenId).length;
   const ds = useDocStore.getState();
+  const ai = availability(usePresence(), { wireframe: true });
   const rename = (name: string) => {
     if (name.trim() && name.trim() !== frame.name) ds.updateNode(frame.id, { name: name.trim() }, { label: 'Rename screen' });
   };
@@ -98,6 +107,14 @@ export function ScreenSection({ ctx }: { ctx: SelectionContext }) {
               <CopySimpleIcon data-icon="inline-start" />
               Duplicate as {platformDef(p).label.toLowerCase()}
             </Button>
+          ))}
+          {free.map((p) => (
+            <WhyDisabled key={`ai-${p}`} reason={ai.ok ? null : ai.reason}>
+              <Button size="sm" variant="outline" disabled={!ai.ok} onClick={() => openAgentDialog({ kind: 'adapt', frameId: frame.id, to: p })}>
+                <SparkleIcon data-icon="inline-start" />
+                Adapt to {platformDef(p).label.toLowerCase()} with AI
+              </Button>
+            </WhyDisabled>
           ))}
         </div>
       )}
