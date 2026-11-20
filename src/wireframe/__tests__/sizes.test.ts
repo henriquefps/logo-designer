@@ -9,6 +9,7 @@ import { newInstance } from '../instances';
 import { defaultScreenLayout } from '../layout';
 import { materializeDocument } from '../pipeline';
 import { addScreen } from '../screens';
+import { containerPreset, newContainer } from '../containers';
 
 const s = () => useDocStore.getState();
 const inst = (id: string, kind: string, props: Record<string, unknown> = {}, item?: LayoutItemInfo): ComponentNode => ({
@@ -120,6 +121,24 @@ describe('R1: the card follows its height (the reported bug)', () => {
     s().load(wireframe([inst('c', 'card', {}, { height: 'fill' })]));
     expect(size('c').height).toBeGreaterThan(500);
     expect(outlineH('c')).toBe(size('c').height);
+  });
+
+  it('an image can be made shorter than its ratio, also inside a card container (found recording the overview)', () => {
+    // Dragging an image's bottom handle up stored the height, but the layout kept the ratio's height: a silent no-op.
+    s().load(wireframe([inst('i', 'image', { ratio: '16:9' })]));
+    const natural = size('i').height;
+    resizeTo('i', null, 100);
+    expect(n('i').layoutItem?.height).toBe(100);
+    expect(size('i').height).toBe(100);
+    const card = { ...newContainer(containerPreset('card')!, { x: 0, y: 0 }, 342), id: 'card' } as GroupNode;
+    card.children = [inst('j', 'image', { ratio: '16:9' })];
+    s().load(wireframe([card]));
+    resizeTo('j', null, 90);
+    expect(size('j').height).toBe(90);
+    expect(size('j').height).toBeLessThan(natural);
+    // Never thinner than a strip (plus the caption).
+    resizeTo('j', null, 2);
+    expect(size('j').height).toBe(24);
   });
 
   it('a box shorter than the content never cuts it: the card keeps its natural height', () => {
