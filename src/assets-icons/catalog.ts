@@ -26,10 +26,29 @@ export function matchesQuery(name: string, query: string): boolean {
   return name.toLowerCase().replace(/[\s_:-]+/g, '').includes(q);
 }
 
+/**
+ * A Lucide icon under an older or alternative name (`Filter` → `Funnel`, `CheckCircle` → `CircleCheckBig`):
+ * lucide-react exports them, but its `icons` map (the picker's list) has only the current names. Agents and
+ * older files use them, so they resolve instead of drawing a placeholder.
+ */
+async function lucideAlias(name: string): Promise<IconComponent | undefined> {
+  if (!/^[A-Z][A-Za-z0-9]*$/.test(name) || name.endsWith('Icon') || name.startsWith('Lucide')) return undefined;
+  const m = (await import('lucide-react')) as unknown as Record<string, unknown>;
+  const c = m[name];
+  return c && (typeof c === 'object' || typeof c === 'function') && name !== 'Icon' ? (c as IconComponent) : undefined;
+}
+
+/** Every name a Lucide icon answers to, current and aliases, kebab-case ("arrow-up-right", "filter"), for suggestions. */
+export async function lucideNames(): Promise<string[]> {
+  const m = (await import('lucide-react')) as unknown as Record<string, unknown>;
+  const names = Object.keys(m).filter((k) => /^[A-Z][A-Za-z0-9]*$/.test(k) && k !== 'Icon' && !k.endsWith('Icon') && !k.startsWith('Lucide'));
+  return [...new Set(names.map(kebab))];
+}
+
 /** SVG markup of a bundled icon (rendered with React, so it always matches the preview). */
 export async function bundledSvg(name: string): Promise<string> {
   const [map, { renderToStaticMarkup }] = await Promise.all([loadLucide(), import('react-dom/server')]);
-  const Comp = map[name];
+  const Comp = map[name] ?? (await lucideAlias(name));
   if (!Comp) throw new Error(`Unknown icon ${name}`);
   return renderToStaticMarkup(createElement(Comp, {}));
 }

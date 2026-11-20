@@ -108,4 +108,23 @@ describe('designer wf', () => {
     expect(cat.components[0].example).toEqual({ 'list-row': { title: 'Title', leading: 'none', trailing: 'chevron' } });
     expect((await cli('wf', 'components', 'nope')).code).toBe(1);
   });
+
+  it('build: Lucide aliases draw their icon; an unknown icon name is a warning with suggestions', async () => {
+    // Regression (phase 3 e2e run): "filter" (Lucide's old name for Funnel) silently drew a dashed placeholder,
+    // in the CLI and in the app, because only the current names were looked up.
+    const icons = (names: string[]) => ({ screens: [{ name: 'Icons', root: names.map((icon) => ({ icon: { icon } })) }] });
+    await writeFile(join(dir, 'icons.json'), JSON.stringify(icons(['filter', 'check-circle', 'funnel', 'trash-2'])));
+    const ok = await cli('wf', 'build', 'icons.json', '-o', 'icons.designer.json');
+    expect(ok.code).toBe(0);
+    expect(ok.err).not.toContain('warning');
+    const placeholders = JSON.stringify(await json('icons.designer.json')).match(/"name":"icon\?:/g) ?? [];
+    expect(placeholders).toHaveLength(0);
+
+    await writeFile(join(dir, 'typo.json'), JSON.stringify(icons(['fliter', 'smartfone-x'])));
+    const typo = await cli('wf', 'build', 'typo.json', '-o', 'typo.designer.json');
+    expect(typo.code).toBe(0);
+    expect(typo.err).toContain('warning: icon "fliter" is not a Lucide icon, so it is drawn as a placeholder (did you mean "filter"?)');
+    expect(typo.err).toMatch(/warning: icon "smartfone-x" is not a Lucide icon, so it is drawn as a placeholder; names: https:\/\/lucide\.dev\/icons/);
+  });
 });
+

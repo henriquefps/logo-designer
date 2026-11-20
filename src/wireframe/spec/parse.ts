@@ -48,7 +48,7 @@ export function primaryListProp(def: AnyComponentDef): string | undefined {
 }
 
 /** Levenshtein distance ≤ 2 suggestions, for "did you mean". */
-function suggest(word: string, options: readonly string[]): string {
+export function suggest(word: string, options: readonly string[]): string {
   const d = (a: string, b: string) => {
     const m = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
     for (let j = 1; j <= b.length; j++) m[0][j] = j;
