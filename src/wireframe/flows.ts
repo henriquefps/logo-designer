@@ -41,6 +41,8 @@ import { checkProp, partsOf, resolveProps, type AnyComponentDef, type ComponentP
 import { addScreen, frameOf, frameRect, frames, variantsOf } from './screens';
 import { instancePrefix } from './symbols';
 import { deepEqual } from './repeat';
+import { noteRect, notesOf } from './notes';
+import { distanceToRoute, routeFlows, type FlowRoute, type RouteOptions, type RouteRequest } from './routing';
 import { plain } from './types';
 
 type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
@@ -110,7 +112,7 @@ export function partAt(doc: DocLike, id: Id, p: Vec): ComponentPart | null {
   return null;
 }
 
-/** True when other parts of the node share part `key`'s row (tabs side by side): its handle and arrow leave from its top. */
+/** True when other parts of the node share part `key`'s row (tabs side by side): its handle sits on its top and its arrow leaves vertically (top or bottom). */
 export function partInRow(doc: DocLike, id: Id, key: string): boolean {
   const parts = partsOfId(doc, id);
   const me = parts.find((p) => p.key === key);
@@ -435,125 +437,147 @@ export function localizeSharedFlows(doc: DocLike, symbol: Id, instances?: readon
 
 // ---------- arrow geometry (document space) ----------
 
-export interface FlowCurve {
-  /** Cubic Bézier: start, two controls, end. */
-  points: [Vec, Vec, Vec, Vec];
-  /** Unit direction of the curve at its end (the arrowhead's direction). */
-  dir: Vec;
+/** One arrow of a flow: from canvas node `source` (a shared flow has one per instance), routed around the frames. */
+export interface FlowArrow {
+  flow: WireframeFlow;
+  source: Id;
+  route: FlowRoute;
 }
 
-/** Keeps the end point this far from a frame's corners. */
-const EDGE_INSET = 24;
-const clamp = (v: number, lo: number, hi: number) => (hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
-
-/**
- * The curve of a flow from a source rectangle to a target frame rectangle. `fromTop`: the source is a part in a row
- * (a tab of a bottom navigation): the curve leaves from its top centre, upwards, so it does not run along the row.
- */
-export function curveBetween(s: Rect, t: Rect, fromTop = false): FlowCurve {
-  const sc = { x: s.x + s.width / 2, y: s.y + s.height / 2 };
-  const tc = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
-  const right = tc.x >= sc.x;
-  const start = fromTop ? { x: sc.x, y: s.y } : { x: right ? s.x + s.width : s.x, y: sc.y };
-  const out = fromTop ? { x: 0, y: -1 } : { x: right ? 1 : -1, y: 0 };
-  let end: Vec;
-  let dir: Vec;
-  if (t.x >= start.x) {
-    end = { x: t.x, y: clamp(start.y, t.y + EDGE_INSET, t.y + t.height - EDGE_INSET) };
-    dir = { x: 1, y: 0 };
-  } else if (t.x + t.width <= start.x) {
-    end = { x: t.x + t.width, y: clamp(start.y, t.y + EDGE_INSET, t.y + t.height - EDGE_INSET) };
-    dir = { x: -1, y: 0 };
-  } else if (t.y >= start.y) {
-    end = { x: clamp(start.x, t.x + EDGE_INSET, t.x + t.width - EDGE_INSET), y: t.y };
-    dir = { x: 0, y: 1 };
-  } else if (t.y + t.height <= start.y) {
-    end = { x: clamp(start.x, t.x + EDGE_INSET, t.x + t.width - EDGE_INSET), y: t.y + t.height };
-    dir = { x: 0, y: -1 };
-  } else {
-    // The source is inside the target (a flow to its own screen): out to the frame's nearest side.
-    end = right ? { x: t.x + t.width, y: start.y } : { x: t.x, y: start.y };
-    dir = { x: -out.x, y: 0 };
-    const k = Math.max(40, Math.abs(end.x - start.x) / 2);
-    const bulge = 60;
-    return { points: [start, { x: start.x + out.x * k, y: start.y - bulge }, { x: end.x + out.x * bulge, y: end.y - bulge }, end], dir };
-  }
-  const dist = Math.hypot(end.x - start.x, end.y - start.y);
-  const k = Math.max(40, dist / 2.5);
-  return { points: [start, { x: start.x + out.x * k, y: start.y + out.y * k }, { x: end.x - dir.x * k, y: end.y - dir.y * k }, end], dir };
+export interface FlowLayoutOptions {
+  /** A shared flow draws from the instance containing a node of the selection (see `flowArrows`). */
+  selection?: readonly Id[];
+  /** One arrow per instance for shared flows. */
+  all?: boolean;
+  /** Only these frames are drawn (`wf sheet --platform`): arrows to or from others are dropped, others are no obstacles. */
+  shown?: (f: ScreenNode) => boolean;
+  /** Notes are soft obstacles (default true). */
+  notes?: boolean;
+  /** Document units kept clear above each frame for its name (see `canvasLabelBand`). Default 0. */
+  band?: number;
+  /** Document units per screen px: scales the spacing between arrows sharing a lane. Default 1. */
+  unit?: number;
 }
+
+export interface FlowLayout {
+  arrows: FlowArrow[];
+  /** What labels must not cover: the frames (with their name strips) and the notes. */
+  avoid: Rect[];
+}
+
+/** The name strip above a frame on the canvas, in document units at `zoom`, in steps (so routes are cached across small zooms). */
+export function canvasLabelBand(zoom: number): number {
+  return 30 / 2 ** Math.floor(Math.log2(Math.max(zoom, 1 / 64)));
+}
+
+/** Document units per screen px at `zoom`, in the same steps as `canvasLabelBand`. */
+export const canvasUnit = (zoom: number): number => 1 / 2 ** Math.floor(Math.log2(Math.max(zoom, 1 / 64)));
+
+/** The canvas's routing options at `zoom` (the overlay, arrow picking and the arrow editor share them). */
+export const canvasArrowOptions = (zoom: number, selection?: readonly Id[]): FlowLayoutOptions => ({ selection, band: canvasLabelBand(zoom), unit: canvasUnit(zoom) });
 
 /** Where a flow starts on canvas node `source`: its part's rectangle, else the node's bounds (document space). */
 export function flowSourceRect(doc: DocLike, source: Id, part?: string): Rect | null {
   return part !== undefined ? (partWorldRect(doc, source, part) ?? worldBounds(asDoc(doc), source)) : worldBounds(asDoc(doc), source);
 }
 
-/**
- * The arrows of a flow, each from the source (or its part) to the nearest edge of the target frame. Hidden ends draw
- * nothing. A shared flow (defined in a master) is one link: it draws one arrow, from the instance that contains a
- * node of `selection` when there is one, else from the first instance that is not on the screen it opens (a tab
- * bar's own tab would point at its own screen); `all` draws one per instance.
- */
-export function flowCurves(doc: DocLike, flow: WireframeFlow, opts: { selection?: readonly Id[]; all?: boolean } = {}): { source: Id; curve: FlowCurve }[] {
-  const out: { source: Id; curve: FlowCurve }[] = [];
-  let sources = flowSources(doc, flow);
-  if (flow.symbol && !opts.all && sources.length > 1) {
-    const picked = opts.selection?.length ? sources.find((id) => opts.selection!.some((sel) => { const ref = masterRef(doc, id); return !!ref && (sel === ref.instance || sel.startsWith(instancePrefix(ref.instance))); })) : undefined;
-    sources = picked ? [picked] : sources;
-  }
-  for (const id of sources) {
-    const loc = locate(asDoc(doc), id);
-    if (!loc || !loc.node.visible || loc.ancestors.some((a) => !a.visible)) continue;
-    const origin = frameOf(doc, id);
-    const target = flowTarget(doc, flow, origin);
-    if (!target || !target.visible) continue;
-    if (flow.symbol && origin && origin.screen.screenId === flow.to) continue;
-    const s = flowSourceRect(doc, id, flow.part);
-    if (s) out.push({ source: id, curve: curveBetween(s, frameRect(target), flow.part !== undefined && partInRow(doc, id, flow.part)) });
-    if (flow.symbol && !opts.all) break;
+interface Pending {
+  flow: WireframeFlow;
+  source: Id;
+  req: RouteRequest;
+}
+
+/** The arrows to draw, before routing: visible ends only, one per shared flow unless `all`. */
+function pendingArrows(doc: DocLike, opts: FlowLayoutOptions, frameIndex: Map<Id, number>): Pending[] {
+  const out: Pending[] = [];
+  for (const flow of flowsOf(doc)) {
+    let sources = flowSources(doc, flow);
+    if (flow.symbol && !opts.all && sources.length > 1) {
+      const picked = opts.selection?.length ? sources.find((id) => opts.selection!.some((sel) => { const ref = masterRef(doc, id); return !!ref && (sel === ref.instance || sel.startsWith(instancePrefix(ref.instance))); })) : undefined;
+      sources = picked ? [picked] : sources;
+    }
+    for (const id of sources) {
+      const loc = locate(asDoc(doc), id);
+      if (!loc || !loc.node.visible || loc.ancestors.some((a) => !a.visible)) continue;
+      const origin = frameOf(doc, id);
+      const target = flowTarget(doc, flow, origin);
+      if (!target || !target.visible) continue;
+      if (flow.symbol && origin && origin.screen.screenId === flow.to) continue;
+      const to = frameIndex.get(target.id);
+      const from = origin ? frameIndex.get(origin.id) : undefined;
+      if (to === undefined || (origin && from === undefined)) continue;
+      const s = flowSourceRect(doc, id, flow.part);
+      if (s) out.push({ flow, source: id, req: { source: s, from: from ?? -1, to, vertical: flow.part !== undefined && partInRow(doc, id, flow.part) } });
+      if (flow.symbol && !opts.all) break;
+    }
   }
   return out;
 }
 
-/** The (first) arrow of a flow, or null when either end is missing or hidden. */
-export const flowCurve = (doc: DocLike, flow: WireframeFlow): FlowCurve | null => flowCurves(doc, flow)[0]?.curve ?? null;
+const rectKey = (r: Rect) => `${Math.round(r.x * 10)},${Math.round(r.y * 10)},${Math.round(r.width * 10)},${Math.round(r.height * 10)}`;
 
-/** A point on a cubic Bézier. */
-export function bezierAt([a, b, c, d]: readonly [Vec, Vec, Vec, Vec], t: number): Vec {
-  const u = 1 - t;
-  const k0 = u * u * u;
-  const k1 = 3 * u * u * t;
-  const k2 = 3 * u * t * t;
-  const k3 = t * t * t;
-  return { x: k0 * a.x + k1 * b.x + k2 * c.x + k3 * d.x, y: k0 * a.y + k1 * b.y + k2 * c.y + k3 * d.y };
-}
+/** The last routed sets (routing depends on every arrow): a drag that moves no arrow end costs a key compare. */
+const layoutCache: { key: string; routes: FlowRoute[] }[] = [];
+const LAYOUT_CACHE = 4;
+/** Whole layouts per document tree (and wireframe info), for repeated calls on an unchanged document. */
+const docLayouts = new WeakMap<object, { wireframe: unknown; key: string; layout: FlowLayout }[]>();
 
-function distToSegment(p: Vec, a: Vec, b: Vec): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len = dx * dx + dy * dy;
-  const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
+/**
+ * Every arrow of the document, routed around the frames (src/wireframe/routing.ts): one per flow (shared flows: from
+ * the instance containing a node of `selection`, else the first instance not on the screen it opens; `all`: one per
+ * instance). Hidden ends draw nothing. Memoized per layout.
+ */
+export function flowLayout(doc: DocLike, opts: FlowLayoutOptions = {}): FlowLayout {
+  const shownFrames = frames(doc).filter((f) => f.visible && (!opts.shown || opts.shown(f)));
+  const frameIndex = new Map(shownFrames.map((f, i) => [f.id, i]));
+  const rects = shownFrames.map(frameRect);
+  const noteRects = opts.notes === false ? [] : notesOf(doc).filter((n) => n.visible).map(noteRect);
+  const band = opts.band ?? 0;
+  const unit = opts.unit ?? 1;
+  const ropts: RouteOptions = { band, notes: noteRects, clearance: Math.max(24, 12 * unit), gap: Math.min(10 * unit, 40) };
+  const avoid = [...rects.map((r) => ({ x: r.x, y: r.y - band, width: r.width, height: r.height + band })), ...noteRects];
+  // The same document state and options (pointer moves, re-renders): the same layout. Only for frozen (store)
+  // documents: plain ones (the CLI, tests) can change in place under the same arrays.
+  const frozen = Object.isFrozen(doc.children);
+  const sel = flowsOf(doc).some((f) => f.symbol) ? (opts.selection ?? []).join(',') : '';
+  const optsKey = `${band}|${unit}|${opts.notes !== false}|${!!opts.all}|${sel}|${shownFrames.map((f) => f.id).join(',')}`;
+  const memo = frozen ? docLayouts.get(doc.children) : undefined;
+  const known = memo?.find((m) => m.wireframe === doc.wireframe && m.key === optsKey);
+  if (known) return known.layout;
+  const remember = (layout: FlowLayout) => {
+    const list = memo ?? [];
+    list.unshift({ wireframe: doc.wireframe, key: optsKey, layout });
+    if (list.length > 4) list.pop();
+    if (!memo && frozen) docLayouts.set(doc.children, list);
+    return layout;
+  };
 
-/** Distance from `p` to a flow curve (sampled). */
-export function distanceToCurve(curve: FlowCurve, p: Vec): number {
-  let best = Infinity;
-  let prev = curve.points[0];
-  for (let i = 1; i <= 32; i++) {
-    const q = bezierAt(curve.points, i / 32);
-    best = Math.min(best, distToSegment(p, prev, q));
-    prev = q;
+  const pending = pendingArrows(doc, opts, frameIndex);
+  if (!pending.length) return remember({ arrows: [], avoid });
+
+  const key = `${band}|${unit}|${rects.map(rectKey).join(';')}|${noteRects.map(rectKey).join(';')}#${pending.map((p) => `${rectKey(p.req.source)}>${p.req.from}>${p.req.to}${p.req.vertical ? 'v' : ''}`).join('|')}`;
+  let hit = layoutCache.find((c) => c.key === key);
+  if (!hit) {
+    hit = { key, routes: routeFlows(pending.map((p) => p.req), rects, ropts) };
+    layoutCache.unshift(hit);
+    if (layoutCache.length > LAYOUT_CACHE) layoutCache.pop();
   }
-  return best;
+  const routes = hit.routes;
+  return remember({ arrows: pending.map((p, i) => ({ flow: p.flow, source: p.source, route: routes[i] })), avoid });
 }
 
-/** The flow whose arrow passes within `tolerance` (document units) of `p`, the last drawn first (`selection`: see `flowCurves`). */
-export function flowAt(doc: DocLike, p: Vec, tolerance: number, selection?: readonly Id[]): Id | null {
-  const list = flowsOf(doc);
-  for (let i = list.length - 1; i >= 0; i--) {
-    for (const { curve } of flowCurves(doc, list[i], { selection })) if (distanceToCurve(curve, p) <= tolerance) return list[i].id;
-  }
+/** The arrows of one flow (see `flowLayout`). */
+export function flowArrows(doc: DocLike, flow: Pick<WireframeFlow, 'id'>, opts: FlowLayoutOptions = {}): FlowArrow[] {
+  return flowLayout(doc, opts).arrows.filter((a) => a.flow.id === flow.id);
+}
+
+/** The (first) arrow's route of a flow, or null when either end is missing or hidden. */
+export const flowRoute = (doc: DocLike, flow: Pick<WireframeFlow, 'id'>, opts: FlowLayoutOptions = {}): FlowRoute | null => flowArrows(doc, flow, opts)[0]?.route ?? null;
+
+/** The flow whose arrow passes within `tolerance` (document units) of `p`, the last drawn first. */
+export function flowAt(doc: DocLike, p: Vec, tolerance: number, opts: FlowLayoutOptions = {}): Id | null {
+  const { arrows } = flowLayout(doc, opts);
+  for (let i = arrows.length - 1; i >= 0; i--) if (distanceToRoute(arrows[i].route, p) <= tolerance) return arrows[i].flow.id;
   return null;
 }
 

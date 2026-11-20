@@ -13,8 +13,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDocStore } from '@/store/useDocStore';
+import { useEditorStore } from '@/store/useEditorStore';
 import { useView } from '@/canvas/overlays/useView';
-import { bezierAt, flowCurve, flowSourceLabel } from '../flows';
+import { canvasArrowOptions, flowRoute, flowSourceLabel } from '../flows';
+import { routeMidpoint } from '../routing';
 import { logicalScreen } from '../screens';
 import { canvasOrigin } from './arrowHead';
 import { usePresence } from '@/agent/agentStore';
@@ -120,16 +122,17 @@ export function FlowDropMenu() {
 export function FlowEditor() {
   const selected = useFlowStore((s) => s.selected);
   const doc = useDocStore((s) => s.doc);
-  const { toScreen } = useView();
+  const { toScreen, zoom } = useView();
+  const selection = useEditorStore((s) => s.selection);
   const flow = selected ? doc.wireframe?.flows?.find((f) => f.id === selected) : undefined;
   // The flow went away (undo, its source deleted): drop the selection.
   useEffect(() => {
     if (selected && !flow) selectFlow(null);
   }, [selected, flow]);
   if (!flow) return null;
-  const c = flowCurve(doc, flow);
-  if (!c) return null;
-  const mid = toScreen(bezierAt(c.points, 0.5));
+  const route = flowRoute(doc, flow, canvasArrowOptions(zoom, selection));
+  if (!route) return null;
+  const mid = toScreen(routeMidpoint(route.points));
   const origin = canvasOrigin();
   const target = logicalScreen(doc, flow.to)?.name ?? 'screen';
   return (

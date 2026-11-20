@@ -6,10 +6,8 @@ import { useDocStore } from '@/store/useDocStore';
 import {
   addFlow,
   canFlowFrom,
-  curveBetween,
-  distanceToCurve,
   flowAt,
-  flowCurve,
+  flowRoute,
   flowSource,
   flowSourceLabel,
   flowsFrom,
@@ -133,11 +131,12 @@ describe('target resolution', () => {
     expect(flowTarget(doc, { from: 'row', to: 'missing' })).toBeNull();
   });
 
-  it('draws a curve from the element to the nearest edge of the target frame', () => {
+  it('draws an arrow from the element to the nearest edge of the target frame', () => {
     const { doc, language } = structuredClone(fixture());
     addFlow(doc, 'row', screenIdOf(doc, language));
-    const c = flowCurve(doc, flowsOf(doc)[0])!;
-    const [start, , , end] = c.points;
+    const c = flowRoute(doc, flowsOf(doc)[0])!;
+    const start = c.points[0];
+    const end = c.points[c.points.length - 1];
     expect(start.x).toBeCloseTo(390, 0); // the row spans the phone frame (edge to edge)
     expect(end.x).toBe(600); // left edge of Language
     expect(c.dir).toEqual({ x: 1, y: 0 });
@@ -145,17 +144,7 @@ describe('target resolution', () => {
     expect(flowAt(doc, { x: end.x, y: end.y + 200 }, 2)).toBeNull();
     // Hidden source: no arrow.
     (findNode(doc, 'row') as GroupNode).visible = false;
-    expect(flowCurve(doc, flowsOf(doc)[0])).toBeNull();
-  });
-
-  it('enters from the side facing the source (left, right, top, bottom)', () => {
-    const s0 = { x: 0, y: 0, width: 100, height: 40 };
-    expect(curveBetween(s0, { x: 300, y: -200, width: 390, height: 844 }).dir).toEqual({ x: 1, y: 0 });
-    expect(curveBetween(s0, { x: -800, y: 0, width: 390, height: 844 }).dir).toEqual({ x: -1, y: 0 });
-    expect(curveBetween(s0, { x: -100, y: 400, width: 390, height: 844 }).dir).toEqual({ x: 0, y: 1 });
-    expect(curveBetween(s0, { x: -100, y: -1000, width: 390, height: 844 }).dir).toEqual({ x: 0, y: -1 });
-    const c = curveBetween(s0, { x: 300, y: -200, width: 390, height: 844 });
-    expect(distanceToCurve(c, c.points[0])).toBeCloseTo(0);
+    expect(flowRoute(doc, flowsOf(doc)[0])).toBeNull();
   });
 
   it('frameAt finds the frame under a point', () => {

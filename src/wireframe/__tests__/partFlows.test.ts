@@ -9,7 +9,7 @@ import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { aiMarkdown } from '../aiExport';
 import { setComponentProp } from '../componentCommands';
-import { addFlow, flowCurves, flowSources, flowsAt, flowsOf, newScreenFromFlow, partAt, partsOfId, partWorldRect, remapPartKey } from '../flows';
+import { addFlow, flowArrows, flowSources, flowsAt, flowsOf, newScreenFromFlow, partAt, partsOfId, partWorldRect, remapPartKey } from '../flows';
 import { getComponent } from '../library/registry';
 import { materializeDocument } from '../pipeline';
 import { follow, hotspots, startPresent } from '../present';
@@ -66,11 +66,11 @@ describe('parts', () => {
   it('flows start at the part: arrows and hotspots use its rectangle', () => {
     const doc = navProject();
     const tabsFlow = flowsOf(doc).find((f) => f.from === 'tabs')!;
-    const [arrow] = flowCurves(doc, tabsFlow);
+    const [arrow] = flowArrows(doc, tabsFlow);
     const r = partWorldRect(doc, 'tabs', 'item:1')!;
-    // Tabs side by side: from the top of the tab.
-    expect(arrow.curve.points[0].x).toBeCloseTo(r.x + r.width / 2);
-    expect(arrow.curve.points[0].y).toBeCloseTo(r.y);
+    // Tabs side by side: from the top or bottom centre of the tab.
+    expect(arrow.route.points[0].x).toBeCloseTo(r.x + r.width / 2);
+    expect([r.y, r.y + r.height].some((y) => Math.abs(arrow.route.points[0].y - y) < 1e-6)).toBe(true);
   });
 
   it('addFlow checks the part, New screen is named after the part', () => {
@@ -168,21 +168,27 @@ describe('links defined once in a shared component', () => {
   it('arrows: one link, one arrow (from the selected instance, else the first not on the screen it opens)', () => {
     const doc = navProject();
     const files = flowsOf(doc).find((f) => f.symbol && f.part === 'item:1')!;
-    expect(flowCurves(doc, files, { all: true }).map((c) => c.source).sort()).toEqual(['A', 'G', 'S'].map(navOn).sort());
-    expect(flowCurves(doc, files).map((c) => c.source)).toEqual([navOn('G')]);
-    expect(flowCurves(doc, files, { selection: ['tabbar-S'] }).map((c) => c.source)).toEqual([navOn('S')]);
-    expect(flowCurves(doc, files, { selection: [navOn('A')] }).map((c) => c.source)).toEqual([navOn('A')]);
+    expect(flowArrows(doc, files, { all: true }).map((c) => c.source).sort()).toEqual(['A', 'G', 'S'].map(navOn).sort());
+    expect(flowArrows(doc, files).map((c) => c.source)).toEqual([navOn('G')]);
+    expect(flowArrows(doc, files, { selection: ['tabbar-S'] }).map((c) => c.source)).toEqual([navOn('S')]);
+    expect(flowArrows(doc, files, { selection: [navOn('A')] }).map((c) => c.source)).toEqual([navOn('A')]);
     const gallery = flowsOf(doc).find((f) => f.symbol && f.part === 'item:0')!;
-    expect(flowCurves(doc, gallery).map((c) => c.source)).toEqual([navOn('F')]);
+    expect(flowArrows(doc, gallery).map((c) => c.source)).toEqual([navOn('F')]);
   });
 
-  it('a tab in a row: its arrow leaves from the top of the tab, not along the bar', () => {
+  it('a tab in a row: its arrow leaves vertically from the tab (top or bottom), not along the bar', () => {
     const doc = navProject();
     const files = flowsOf(doc).find((f) => f.symbol && f.part === 'item:1')!;
-    const [{ curve }] = flowCurves(doc, files);
+    const [{ route }] = flowArrows(doc, files);
     const r = partWorldRect(doc, NAV, 'item:1')!;
-    expect(curve.points[0]).toEqual({ x: r.x + r.width / 2, y: r.y });
-    expect(curve.points[1].y).toBeLessThan(r.y);
+    const [p0, p1] = route.points;
+    expect(p0.x).toBeCloseTo(r.x + r.width / 2);
+    expect(p1.x).toBeCloseTo(p0.x);
+    if (Math.abs(p0.y - r.y) < 1e-6) expect(p1.y).toBeLessThan(r.y);
+    else {
+      expect(p0.y).toBeCloseTo(r.y + r.height);
+      expect(p1.y).toBeGreaterThan(p0.y);
+    }
   });
 
   it('a new instance gets the links with no work', () => {
