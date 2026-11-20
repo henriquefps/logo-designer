@@ -11,7 +11,7 @@ export function fontLineWidth(font: LoadedFont, line: string, node: TextNode, r:
   return lineWidthFrom(
     glyphs.length,
     (i) => font.advance(glyphs[i], coords) * s,
-    (i) => font.kerning(glyphs[i], glyphs[i + 1]) * s,
+    (i) => font.kerning(glyphs[i], glyphs[i + 1], coords) * s,
     node.letterSpacing,
   );
 }

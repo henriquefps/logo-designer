@@ -1,5 +1,7 @@
 import type opentype from 'opentype.js';
-import { readGposKerning, type KernFn } from './kerning';
+import { contoursToCommands, normalizeCoords, openVariableGlyf, readAvar } from './gvar';
+import { readHvarAdvance } from './itemVarStore';
+import { findTable, readGposKerning, type KernFn } from './kerning';
 import type { FontMetrics, FontStyle, WeightRange } from './types';
 
 /**
@@ -38,9 +40,6 @@ export async function toParsable(buf: ArrayBuffer): Promise<ArrayBuffer> {
   return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
 }
 
-interface VariationApi {
-  getTransform: (glyph: opentype.Glyph, coords: Record<string, number>) => opentype.Glyph;
-}
 type FvarAxis = { tag: string; minValue: number; defaultValue: number; maxValue: number };
 
 export interface LoadedFont {
@@ -51,7 +50,8 @@ export interface LoadedFont {
   /** Advance (font units) of a glyph at the given variation. */
   advance: (glyph: opentype.Glyph, coords?: Record<string, number>) => number;
   glyphFor: (char: string) => opentype.Glyph;
-  kerning: (left: opentype.Glyph, right: opentype.Glyph) => number;
+  /** Pair kerning (font units) at the given variation. */
+  kerning: (left: opentype.Glyph, right: opentype.Glyph, coords?: Record<string, number>) => number;
   /** Glyph outline at the given variation, in font units (y up). */
   glyphPath: (glyph: opentype.Glyph, x: number, y: number, fontSize: number, coords?: Record<string, number>) => opentype.Path;
 }
@@ -69,19 +69,37 @@ export function readMetrics(ot: OtFont): FontMetrics {
 
 export function wrapFont(ot: OtFont, sfnt: ArrayBuffer): LoadedFont {
   const axes = ((ot.tables.fvar as { axes?: FvarAxis[] } | undefined)?.axes ?? []) as FvarAxis[];
-  const variation = (ot as unknown as { variation?: VariationApi }).variation;
-  const hasHvar = !!(ot.tables as Record<string, unknown>).hvar;
   const kern = readGposKerning(sfnt);
+  // opentype.js applies gvar deltas wrongly for many glyphs; variable TrueType outlines are read by ./gvar.
+  const varGlyf = axes.length ? openVariableGlyf(sfnt, axes) : null;
+  const view = new DataView(sfnt);
+  const avar = axes.length ? readAvar(view) : null;
+  const hvar = axes.length ? readHvarAdvance(sfnt) : null;
+  const hmtx = findTable(view, 'hmtx');
+  const hhea = findTable(view, 'hhea');
+  const longMetrics = hhea ? view.getUint16(hhea[0] + 34) : 0;
+  /** Default-master advance straight from hmtx (opentype.js mutates its glyph objects when varying them). */
+  const baseAdvance = (glyph: opentype.Glyph) => {
+    if (!hmtx || !longMetrics) return glyph.advanceWidth ?? 0;
+    return view.getUint16(hmtx[0] + Math.min(glyph.index, longMetrics - 1) * 4);
+  };
   const advCache = new Map<string, number>();
   const glyphCache = new Map<string, opentype.Glyph>();
+  const normCache = new Map<string, number[]>();
+  const normFor = (c: Record<string, number>) => {
+    const k = coordsKey(c);
+    let n = normCache.get(k);
+    if (!n) normCache.set(k, (n = normalizeCoords(axes, avar, c)));
+    return n;
+  };
   const coordsKey = (c?: Record<string, number>) => (c ? Object.entries(c).map(([k, v]) => `${k}=${v}`).join(',') : '');
 
   const advance = (glyph: opentype.Glyph, coords?: Record<string, number>) => {
-    if (!axes.length || !hasHvar || !variation || !coords) return glyph.advanceWidth ?? 0;
+    if (!hvar || !coords) return glyph.advanceWidth ?? 0;
     const k = `${glyph.index}|${coordsKey(coords)}`;
     let a = advCache.get(k);
     if (a === undefined) {
-      a = variation.getTransform(glyph, coords).advanceWidth ?? 0;
+      a = baseAdvance(glyph) + hvar(glyph.index, normFor(coords));
       advCache.set(k, a);
     }
     return a;
@@ -101,8 +119,10 @@ export function wrapFont(ot: OtFont, sfnt: ArrayBuffer): LoadedFont {
       }
       return g;
     },
-    kerning: (l, r) => (kern ? kern(l.index, r.index) : ot.getKerningValue(l, r)),
+    kerning: (l, r, coords) => (kern ? kern(l.index, r.index, coords && axes.length ? normFor(coords) : undefined) : ot.getKerningValue(l, r)),
     glyphPath: (glyph, x, y, fontSize, coords) => {
+      const contours = coords && varGlyf ? varGlyf(glyph.index, coords) : null;
+      if (contours) return { commands: contoursToCommands(contours, ot.unitsPerEm, x, y, fontSize) } as unknown as opentype.Path;
       const opts = coords && axes.length ? ({ variation: coords } as unknown as opentype.RenderOptions) : undefined;
       return glyph.getPath(x, y, fontSize, opts, ot);
     },
