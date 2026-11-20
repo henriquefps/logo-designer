@@ -158,7 +158,7 @@ export function dumpToSpec(doc: DesignDocument, opts: DumpOptions = {}): Wirefra
       return nameCount.get(s.name.toLowerCase()) === 1 ? s.name : s.id;
     },
   };
-  const spec: WireframeSpec = { $schema: SPEC_SCHEMA_URL, version: SPEC_VERSION, name: doc.name, screens: [] };
+  const spec: WireframeSpec = { $schema: SPEC_SCHEMA_URL, version: SPEC_VERSION, name: doc.name, ...(symbols.length ? { components: [] } : {}), screens: [] };
   if (symbols.length) {
     spec.components = symbols.map((s): SpecComponent => {
       const content = dumpNode(s.content, ctx, false)!;

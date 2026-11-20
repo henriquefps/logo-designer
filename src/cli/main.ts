@@ -22,6 +22,7 @@ import { ICON_PRESETS, ICON_SHAPES, isIconPreset, parsePreset, type IconSettings
 import { aiPackageFiles, aiProjectSlug, aiZip } from '@/wireframe/aiExport';
 import { materializeDocument } from '@/wireframe/pipeline';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
+import { wfMain } from './wf';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -70,6 +71,10 @@ Usage: designer <command> [options]
                                               writes that file
   to-svg <wireframe> [--screen N] [--platform P] [-o file]
                                               one screen frame (clipped, white) or, without --screen, every screen
+  wf build|dump|components …                  wireframes as a spec (screens as a tree of library components):
+                                              build a project from one (or --into an existing one, by id),
+                                              dump a project to one, list the component catalog.
+                                              \`designer wf help\`; docs/wireframe-spec.md
   export-ai <wireframe> [-o out.zip | --dir folder]
                                               the Export for AI package: README.md, screens/<slug>.md (component
                                               tree of every variant, notes), screens/<slug>.<platform>.png and
@@ -579,6 +584,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     io.out(USAGE);
     return cmd ? 0 : 1;
   }
+  if (cmd === 'wf') return wfMain(rest, io);
   let values: Values;
   let pos: string[];
   try {

@@ -150,6 +150,18 @@ describe('build --into', () => {
     expect(r.summary).toMatchObject({ added: 1, removed: 1 });
   });
 
+  it('removing a node a flow and a note point at drops the flow and detaches the note (like a delete in the app)', () => {
+    const p = settingsProject();
+    const spec = viaJson(p);
+    spec.screens[0].root = spec.screens[0].root.filter((n: { id: string }) => n.id !== 'row-language');
+    const r = buildFromSpec(spec, p);
+    expect(r.doc.wireframe!.flows).toBeUndefined();
+    const note = r.doc.children.find((c) => c.type === 'group' && c.note?.text.startsWith('Opens'));
+    expect(note).toBeDefined();
+    expect((note as GroupNode).note!.target).toBeUndefined();
+    expect(r.warnings).toEqual([expect.stringMatching(/^flows\[0\]: its source row-language was removed/), expect.stringMatching(/^notes\[0\]: the node it was attached to \(row-language\) was removed/)]);
+  });
+
   it('a hand-written spec without ids updates the matching nodes in place (same parent, same index, same kind)', () => {
     const p = settingsProject();
     const spec = {

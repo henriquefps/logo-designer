@@ -12,6 +12,7 @@
 import {
   createDocument,
   createGroup,
+  findNode,
   newId,
   platformDef,
   walk,
@@ -486,7 +487,13 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
     const prevFlow = (id !== undefined ? oldFlows.find((f) => f.id === id) : undefined) ?? oldFlows.find((f) => f.from === src && f.to === target.id);
     flows.push({ id: id ?? prevFlow?.id ?? newId('f'), from: src, to: target.id, ...(label ? { label } : {}) });
   };
+  /** A reference to a node this build removed (it was in the project, the spec dropped it): like a delete in the app, its flows go and its notes detach. */
+  const removedRef = (ref: string) => ctx.prev.has(ref) && !findNode(doc, ref);
   for (const f of spec.flows ?? []) {
+    if (removedRef(f.from)) {
+      ctx.warnings.push(`${f.path}: its source ${f.from} was removed, so the flow is dropped`);
+      continue;
+    }
     const from = r.resolve(f.from, `${f.path}.from`);
     if (from) addFlow(from, f.to, `${f.path}.to`, f.id, f.label);
   }
@@ -516,7 +523,9 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
     });
   };
   for (const n of spec.notes ?? []) {
-    const target = n.on !== undefined ? r.resolve(n.on, `${n.path}.on`) : undefined;
+    const gone = n.on !== undefined && removedRef(n.on);
+    if (gone) ctx.warnings.push(`${n.path}: the node it was attached to (${n.on}) was removed; the note stays, detached`);
+    const target = n.on !== undefined && !gone ? r.resolve(n.on, `${n.path}.on`) : undefined;
     if (target === null) continue;
     addNote(n.text, target, n);
   }
