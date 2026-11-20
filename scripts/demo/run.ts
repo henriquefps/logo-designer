@@ -5,7 +5,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { Demo } from './lib/demo.ts';
-import { duration, encodeMp4 } from './lib/encode.ts';
+import { spawnSync } from 'node:child_process';
+import { duration, encodeMp4, videoTime } from './lib/encode.ts';
+import { overlayOptions } from './lib/hfps.ts';
 import { installOverlay } from './lib/overlay.ts';
 import type { Scenario } from './lib/scenario.ts';
 import { startApp } from './lib/server.ts';
@@ -41,18 +43,21 @@ try {
     const scenario = (await import(join(here, 'scenarios', file))).default as Scenario;
     const rawDir = join(outDir, '.raw', scenario.name);
     rmSync(rawDir, { recursive: true, force: true });
+    const width = scenario.video?.width ?? WIDTH;
+    const caption = scenario.video?.captionHeight ?? CAPTION;
+    const height = (scenario.video?.appHeight ?? APP_HEIGHT) + caption;
     const context = await browser.newContext({
-      viewport: { width: WIDTH, height: APP_HEIGHT + CAPTION },
+      viewport: { width, height },
       deviceScaleFactor: 1,
       permissions: ['clipboard-read', 'clipboard-write'],
-      recordVideo: { dir: rawDir, size: { width: WIDTH, height: APP_HEIGHT + CAPTION } },
+      recordVideo: { dir: rawDir, size: { width, height } },
     });
-    await context.addInitScript(installOverlay, { captionHeight: CAPTION });
+    await context.addInitScript(installOverlay, overlayOptions(caption, scenario.video?.palette));
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));
-    const demo = new Demo({ page, captionHeight: CAPTION, fast: true });
+    const demo = new Demo({ page, captionHeight: caption, fast: true });
     const t0 = Date.now();
     let error: unknown = null;
     try {
@@ -77,13 +82,12 @@ try {
       const speed = demo.speedSegments.map((x) => ({ start: x.start / 1000, end: x.end / 1000, factor: x.factor }));
       encodeMp4({ input: webm, output: mp4, start: startSec, fps: FPS, speed });
       const kb = Math.round(statSync(mp4).size / 1024);
+      const at = (ms: number) => videoTime(ms / 1000, startSec, speed);
+      if (demo.posters.length) {
+        const png = join(outDir, `${scenario.name}-poster.png`);
+        spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', at(demo.posters[0]).toFixed(2), '-i', mp4, '-frames:v', '1', png], { stdio: 'inherit' });
+      }
       if (demo.chapters.length) {
-        // Video time of each chapter card: the cut setup and the sped-up parts before it taken out.
-        const at = (ms: number) => {
-          let t = ms / 1000 - startSec;
-          for (const s of speed) if (s.start < ms / 1000) t -= (Math.min(s.end, ms / 1000) - s.start) * (1 - 1 / s.factor);
-          return t;
-        };
         const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
         const lines = demo.chapters.map((c) => `${fmt(at(c.at))}  ${c.num ? `${c.num}. ` : ''}${c.title}`);
         writeFileSync(join(outDir, `${scenario.name}.chapters.txt`), `${lines.join('\n')}\n`);
