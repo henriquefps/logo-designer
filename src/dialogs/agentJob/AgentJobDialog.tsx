@@ -48,9 +48,24 @@ function useImageInfo(file: File | null) {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => setInfo({ file, url, size: { width: img.naturalWidth, height: img.naturalHeight } });
+    let live = true;
+    let settled = false;
+    // A cleaned-up effect (React runs effects twice in development) neither sets its URL as the preview nor revokes it
+    // while its image is still loading (that load failed with ERR_FILE_NOT_FOUND in the console).
+    img.onload = () => {
+      settled = true;
+      if (live) setInfo({ file, url, size: { width: img.naturalWidth, height: img.naturalHeight } });
+      else URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      settled = true;
+      if (!live) URL.revokeObjectURL(url);
+    };
     img.src = url;
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      live = false;
+      if (settled) URL.revokeObjectURL(url);
+    };
   }, [file]);
   return info && info.file === file ? { url: info.url, size: info.size } : { url: null, size: null };
 }
