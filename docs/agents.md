@@ -162,6 +162,8 @@ bun run designer wf build hoard.spec.json --into hoard.designer.json
   longer lists is removed. `build(dump(p))` gives `p` back.
 - Lucide icons (`"icon": "heart"`) are drawn by the CLI too; Iconify ones (`"ph:heart"`) show a placeholder until
   the app opens the file.
+- While Henrique watches: run [`designer live`](#live-editing) on the project; every `wf build --into` then shows
+  up in his app within a second, and his edits are written back to the file (`wf dump` it before the next build).
 - Then `export-ai` packages the result for the agent that builds the app.
 
 ## Live editing
