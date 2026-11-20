@@ -300,7 +300,7 @@ export class AgentBridge {
         path,
         origin: this.o.origin,
         fetch: this.o.fetch,
-        log: (s) => this.log(`job ${meta.id}: ${s.replace(/^\S+ /, '')}`),
+        log: (s) => this.log(`job ${meta.id}: ${s.replace(/^\d{1,2}[:.]\d{2}[:.]\d{2}(\s?[AaPp]\.?[Mm]\.?)?\s/, '')}`),
         ...this.o.mirror,
       });
       await mirror.start();

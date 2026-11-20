@@ -106,6 +106,9 @@ export class ProgressMapper {
 
 /** The finish summary: the agent's last message as one paragraph (the app shows it under the job). */
 export function summaryOf(text: string | undefined, max = 1500): string {
-  const s = (text ?? '').replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  const s = (text ?? '')
+    .replace(/\*\*|__|`/g, '') // Markdown emphasis and code marks: the app shows plain text
+    .replace(/\s+/g, ' ')
+    .trim();
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }

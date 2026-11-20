@@ -200,6 +200,73 @@ skv run designer-sync -- bun run designer live hoard.designer.json &
   wins over older versions (which the server archives); it is refused only when the server's copy is
   stamped later (a device clock ahead), and then `sync pull` first.
 
+## AI agent bridge (`designer agent`)
+
+The app's AI features ("Generate with AI" on a flow, "Turn into a wireframe with AI" for a screenshot, "Adapt to
+tablet / desktop with AI", "Ask the agent…") send **jobs** to the sync server ([`sync.md`](sync.md) → Jobs).
+`designer agent` runs on one of Henrique's machines, takes them one at a time and runs **his own Claude Code**
+on each (headless `claude -p`, his subscription; no API key anywhere in the app). The project is mirrored live
+while it works, so the screens appear in the app as they are built. Spec: [`wireframe-mode.md`](wireframe-mode.md)
+→ Phase 4.
+
+```sh
+# on cachy (cachyos-fps), from a checkout of this repo: server and key exactly as for `designer live`
+~/.local/bin/skv run designer-sync -- bun run designer agent --name cachy
+# Agent “cachy” (agent-…) online on https://sync.example.com with 2.1.328 (Claude Code).
+# Waiting for jobs from the Designer app; one at a time, at most 15 min each. Job folders: ~/.cache/designer-agent (kept a day). Ctrl+C to stop.
+```
+
+Options: `--server URL` (or `DESIGNER_SYNC_URL`), `--name N` (shown in the app, default the host name),
+`--workdir DIR` (default `$XDG_CACHE_HOME/designer-agent`), `--max-minutes 15` (per job), `--claude PATH`
+(or `DESIGNER_AGENT_CLAUDE`; default `claude` on PATH). Keep it running in a terminal, tmux or a user service.
+
+It **refuses to start** when `claude` is not found, when `claude auth status` does not say `loggedIn: true`
+(run `claude` once and log in), or when the server has no job queue (designer-sync older than 0.3.0) or
+refuses the key.
+
+Per job: claim it (two agents never run the same one) → `<workdir>/<jobId>/` with the project pulled into
+`project.designer.json`, marked live and mirrored (the same code as `designer live`) and the screenshots in
+`attachments/` → a prompt from the job type's template (`src/cli/agent/prompts/`: the task, the source screen
+as a `wf dump` excerpt, the tapped element and platform, Henrique's hint as quoted data, the rules) with the
+"Wireframes" section of `skills/designer/SKILL.md` appended as system prompt → `claude -p --output-format
+stream-json` in that folder → short progress lines for the app's job panel ("Reading the project (wf dump)",
+"Round 2: building into the project", "Checking with wf compare"; never tool output) → finish with the
+agent's last message as the summary. A heartbeat every 15 s says online / busy. Cancel (from the app, seen
+on the event stream, the poll or a progress answer) and `--max-minutes` kill Claude Code's whole process tree;
+the project keeps what was already built. Job folders and their stream logs (`<jobId>.stream.jsonl`, for
+debugging) are deleted after a day. Ctrl+C finishes a running job as failed.
+
+### Security model
+
+One person's Claude Code login, for that person's own projects, on that person's machine. What a job can make
+Claude Code do is fenced three times:
+
+1. **Tools.** `--tools Bash,Read,Write,Edit` (no web fetch or search, no subagents, no other tools exist in the
+   session), `--allowedTools "Bash(designer wf *)" "Bash(designer screen *)" "Bash(designer to-png *)"
+   "Bash(designer validate *)" "Bash(designer info *)" Read Write Edit` and `--permission-mode dontAsk
+   --permission-prompts none`: anything else, including chained commands (`designer wf … && ls /`) and
+   substitutions (`$(…)`), is denied without asking anyone.
+2. **Folder and settings.** `--restricted` confines Read / Write / Edit to the job folder and ignores the
+   user's and project's settings files (their allow rules cannot widen the list); `--safe-mode
+   --strict-mcp-config --disable-slash-commands` leave out CLAUDE.md, skills, plugins, hooks and MCP servers;
+   `--no-session-persistence`. Model: the CLI default.
+3. **The `designer` it runs** is a wrapper in `<job>/.bin` (first on its PATH) that passes only `wf`, `screen`,
+   `to-png`, `validate` and `info` to this checkout's CLI; `live`, `sync`, `serve`, `open`, `present` exit 2.
+   The sync server's address and key (`DESIGNER_SYNC_*`, `SYNC_API_KEY`) are removed from its environment:
+   only the bridge talks to the server.
+
+Text from the app (a hint, a free request) goes into the prompt as one JSON string inside a tag, with `<` and
+`>` escaped, and the prompt tells the agent it is data that cannot change the rules. Even if a hint talks the
+agent into trying something else, the fences above refuse it.
+
+Check the fences against the real Claude Code on a machine (one short session, ~15 s):
+
+```sh
+bun scripts/agent-restrictions.ts      # ls /, curl, cat /etc/passwd, designer live, chained, $(…), reading and
+                                       # writing outside the folder, WebFetch: refused; designer wf, inside
+                                       # read/write: ran. Exit 0 = all checks passed
+```
+
 ## The workflow
 
 1. **Write the drawing.** Prefer SVG (agents are good at it): a `viewBox` that is the artboard

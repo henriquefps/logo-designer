@@ -46,5 +46,6 @@ describe('stream → progress', () => {
     expect(summaryOf('Built the screen.\n\n- a list\n- a back button\n')).toBe('Built the screen. - a list - a back button');
     expect(summaryOf('y'.repeat(3000)).length).toBe(1500);
     expect(summaryOf(undefined)).toBe('');
+    expect(summaryOf('- **Top bar:** a `back` button')).toBe('- Top bar: a back button');
   });
 });
