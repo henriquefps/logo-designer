@@ -162,7 +162,16 @@ Text metrics come from the fonts module (`src/fonts/measure.ts` installs `setTex
   matching, synthetic italic) shared by `TextRenderer`, the measurer, the inline editor and outlines.
 - `outline.ts` → **`textToPaths(node): Promise<SceneNode>`** (group of glyph paths with the text's
   transform; one compound path when the paint is a gradient). Exporters call this.
-- `kerning.ts` reads GPOS pair kerning directly (opentype.js 2 skips extension lookups).
+- `kerning.ts` reads GPOS pair kerning directly (opentype.js 2 skips extension lookups) including the
+  per-weight kerning deltas of variable fonts (GDEF item variation store; pair-set device offsets are
+  relative to the PairSet). `itemVarStore.ts` reads HVAR advances unrounded. `gvar.ts` reads variable
+  TrueType outlines (glyf + gvar + avar, IUP, composites): opentype.js 2 applies gvar deltas wrongly
+  for many glyphs and rounds every advance, which made CLI renders differ from the browser (Inter "D"
+  at 600, accents, letter gaps). CFF2 and anything `gvar.ts` can't read fall back to opentype.js.
+- Rendering fidelity is tested against the browser: `fonts/__tests__/browserFidelity.test.ts` compares
+  glyph positions and ink of the CLI path (outlines + resvg) with Chromium numbers stored in
+  `fixtures/browser-render.json` (`bun scripts/fonts/gen-render-fixture.ts` regenerates them);
+  `gvar.test.ts` compares outlines with fontTools (`python3 -I scripts/fonts/gen-gvar-fixture.py`).
 - Text tool (`tools/text/`): click = point text, the editor is a textarea portaled into the canvas and
   transformed to match; `session.ts` keeps one undo step per edit. Select double-click edits text.
 

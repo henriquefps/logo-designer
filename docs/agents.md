@@ -61,7 +61,10 @@ production. Without `-o`, projects and SVGs go to stdout; `-` reads the SVG from
 
 The CLI runs the app's own code (`src/model`, `src/io`, the fonts module) with a DOM shim
 (happy-dom), so a file that passes `designer validate` opens in the app, and `to-svg` matches the
-app's File → Export.
+app's File → Export. Text is outlined with the same code the canvas measures with, and a test
+(`src/fonts/__tests__/browserFidelity.test.ts`) keeps `to-png` / `export-ai` renders within a fraction of a
+pixel and a few percent of ink of what the app (Chromium) draws, for Inter 400–700 and letter spacing up
+to 0.14 em.
 
 ## App icon colours: one colour by default, full colour when asked
 

@@ -514,6 +514,13 @@ app (same font files and weights, same letter spacing and kerning). A visual reg
 a fixed set of texts (weights 400–700, letter spacing 0 / 0.05 / 0.14 em, mixed words) through the
 CLI and compares against the app's SVG text layout within a tolerance.
 
+**Done (A4).** Cause: opentype.js 2.0 applied the variable font's `gvar` deltas wrongly for many
+glyphs (Inter "D", comma, accented letters at non-default weights came out as thin or distorted
+shapes, which read as "lighter weight" and as gaps next to them), rounded every HVAR advance (up to
+a pixel of drift per word), and ignored the per-weight GPOS kerning deltas. `src/fonts/gvar.ts`,
+`itemVarStore.ts` and `kerning.ts` now read these tables per the spec; the test compares with
+Chromium (≤ 0.15 px per glyph, ≤ 3 % ink) and fontTools (≤ 1 font unit).
+
 ### A5. Live editing (agent ↔ Henrique, through the sync server)
 
 Henrique sees the screens appear while the agent works and can adjust them in the middle; the agent
