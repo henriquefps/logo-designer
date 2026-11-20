@@ -151,3 +151,17 @@ export async function copyImageToClipboard(page: Page, file: string): Promise<vo
 
 /** A screen's name label on the canvas, also when it is cut with "…" at a small zoom. */
 export const frameLabel = screenLabel;
+
+/**
+ * Clicks a screen's frame by its name (found in the document, not by the label, which is cut with "…" at a small zoom
+ * and then matches several screens), near its bottom where a frame is usually empty: that selects the screen.
+ */
+export async function clickScreen(demo: Demo, name: string, fy = 0.94): Promise<void> {
+  const id = await demo.page.evaluate((n) => {
+    const d = (window as unknown as { __designer: { useDocStore: { getState(): { doc: { children: { id: string; screen?: { screenId: string } }[]; wireframe?: { screens: { id: string; name: string }[] } } } } } }).__designer.useDocStore.getState().doc;
+    const s = d.wireframe?.screens.find((x) => x.name === n);
+    return d.children.find((c) => c.screen && c.screen.screenId === s?.id)?.id ?? null;
+  }, name);
+  if (!id) throw new Error(`no screen “${name}”`);
+  await demo.click(demo.page.locator(`[data-slot="canvas"] [data-node-id="${id}"]`).first(), { fx: 0.5, fy });
+}

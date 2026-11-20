@@ -810,7 +810,8 @@ user's own Claude Code login: one person's subscription, for that person's own p
   stays enabled so the shortcut always answers, and its dialog says why it cannot send. The job panel floats at
   the canvas's bottom right, can be hidden (the status popover shows it again) and drops finished jobs after
   24 h; "Undo the agent's changes" restores the snapshot as one edit (Edit → Undo brings the agent's version
-  back), keeping the project's name and live mark. Checked by `bun run e2e:agent-app` (screenshots:
+  back), keeping the project's name and live mark. Only the newest job of the project offers it (restoring an
+  older job's snapshot would also throw away the later jobs' work); dismissed and undone rows survive a reload. Checked by `bun run e2e:agent-app` (screenshots:
   `docs/screenshots/agent/`).
 
 ### Phase 4 workstreams
@@ -824,6 +825,51 @@ user's own Claude Code login: one person's subscription, for that person's own p
    server in tests).
 4. **End to end + demo videos** (after 1–3): local server + bridge running real Claude Code + app in
    Playwright; each feature once; videos; bugs fixed.
+
+### Phase 4 end-to-end run (workstream 4, 2026-11-20)
+
+Run on cachyos-fps as Henrique uses it: a local designer-sync built from `sync-server/` with an API key, `designer
+agent` running the real Claude Code 2.1 (logged in, CLI default model), the app (`vite`) in Playwright with Sync on
+(`node scripts/demo/watch-live.ts <dir> --agent`). Each feature once through the UI, then again in the videos
+(`scripts/demo/scenarios/11`–`15`). Times are from Send to the first change of the project in the app and to the
+job's end; rounds are `wf build --into` runs.
+
+| Feature | First change | Total | Rounds | Result |
+|---|---|---|---|---|
+| Paste the Hoard Settings screenshot → Turn into a wireframe with AI | 17.6 s (videos: 17.0, 41.8) | 34 s (24.8, 65.1) | 2 | Every part of the screenshot as a library component, in order, real texts and states (radio 1,1 GB, checkbox on); rows a bit taller than the original and "Sincronizar agora" as a full-width button instead of trailing. Good. |
+| Flow from the "Backup do celular" row → Generate with AI, hint "pastas incluídas, progresso, botão para fazer backup agora" | 14.4 s (14.3, 17.7) | 20 s (19.3, 24.6) | 1 | Followed the hint (progress, folders with toggles, Fazer backup agora, options), same style as Settings, back link to Configurações added. Good. |
+| Screen section → Adapt to tablet with AI | 3.8 s, the frame copy (1.5–1.9) | 34 s (21–38) | 1 | Two columns, same content and states, phone frame untouched. Correct but plain: no master-detail (the screen has none to make). |
+| Ask the agent… "add a search field to the top of the Galeria screen and an empty state for no results" | 19 s (18.7–26.3) | 29 s (26.6–43.0) | 1 | Search field under the title, empty state as its own screen with flows both ways. In the first run it edited the current Galeria in place; now it proposes "Galeria (nova)" (changed) and keeps the current one. |
+
+Checked too: **cancel** mid-job (Cancel → the bridge kills Claude Code's tree within a second, the row says
+Cancelled, nothing half-built, the live mark cleared); **two jobs** sent back to back run in order (the second
+waits as "Waiting for the agent"); **agent offline** (bridge stopped → within 45 s "Agent offline", Generate with
+AI disabled with the tooltip, Ask the agent… says why); the **live mark** is cleared after every job; **Undo**.
+Screenshots: `docs/screenshots/agent-e2e/`. Henrique's benchmark (the whole Settings screen reorganized by one
+request): [`agents.md`](agents.md) → Benchmark.
+
+Found and fixed (each with a regression test or e2e check):
+
+- Every `designer` command the agent ran printed Bun's "Internal error: directory mismatch" (from
+  `--tsconfig-override`): dropped; a test runs the real CLI next to a hostile `tsconfig.json`/`bunfig.toml`/`.env`.
+- `wf build` placed a new screen on top of the notes beside the last one: notes now count as taken space.
+- The job panel showed the agent's multi-paragraph summary in full, over the canvas: clamped to 4 lines with
+  More / Less; the prompt asks for at most 3 plain sentences.
+- Undo on an older job wiped the later jobs' screens: offered for the newest job only. Dismissed rows came back
+  after a reload: kept per device.
+- The paste dialog's preview revoked a blob URL still loading (a console error on every paste in development).
+- The platform guess: the Hoard screenshots (1080 × 2243) did default to Phone; the "Desktop" seen in the app
+  e2e screenshot was its 1440 × 900 image, correctly desktop. The thresholds now fit real devices (10:16 tablets
+  were "phone", iPad landscape "desktop"), with tests on real sizes.
+- Prompt templates (`src/cli/agent/prompts/`): a short plain summary; for screenshots, look at the last compare
+  before finishing (it skipped it); files are read with Read, never printed (a 37 KB `cat` was saved where the
+  agent could not read it back); start each round from a fresh dump and never dump between the edits and the build
+  (the old wording contradicted itself); requests keep "current" screens intact and propose a "changed" version with
+  a note (notes on current screens are fine), move content verbatim, and give every new screen a way back.
+
+Open: Claude Code runs its built-in read-only commands (`grep`, `sed -n`, `cat` …) on job-folder files although
+they are not in the allow list (refused outside the folder; see `agents.md` → Security model). The presence goes
+"offline" only after the 45 s window when the bridge stops (no goodbye in the protocol).
 
 ## Quality bar
 

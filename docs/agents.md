@@ -288,6 +288,35 @@ bun scripts/agent-restrictions.ts
 # designer wf, build --into, inside Read/Write run. Exit 0 = all checks passed
 ```
 
+### Benchmark: Hoard's Settings, reorganized
+
+The test that decides whether the agent is good (Henrique's): the WHOLE Hoard Settings screen as one tall phone
+screen with status current (12 sections, 89 items, paired-server state; items of other states in a note;
+`scripts/demo/fixtures/hoard-benchmark/`, made by `make-current.ts` from Hoard 2.7.1's code) and his request,
+word for word, in **Ask the agent…**:
+
+> Esse menu de configurações está muito longo, tem muitos itens misturados. Organize em várias entradas, várias
+> seções, por exemplo uma entrada de servidor, uma de gerenciamento de dados, e assim por diante, cada uma com a
+> sua tela, na versão celular.
+
+Pass criteria: (1) every item exactly once across the new screens, nothing invented; (2) a short menu, ~4–7 entries,
+list rows with a chevron, sensible groups; (3) one phone sub-screen per entry, top bar with title and back, the
+original's component kinds; (4) entry → sub-screen and back → menu, working in Present; (5) the current screen
+stays current, the menu is "changed", sub-screens "new"; (6) `designer validate` and Export for AI coherent;
+(7) no manual fixing, reasonable time.
+
+```sh
+# the run, recorded (real agent, local server; sped-up waits): video + project, sheet, coverage, export in BENCH_OUT
+HOARD_SHOTS=… BENCH_OUT=/tmp/bench bun run demo 15
+# criterion 1 and the structure of 2–5 on any project: before × after, item by item
+bun scripts/benchmark-coverage.ts /tmp/bench/hoard-benchmark.designer.json
+```
+
+Results (2026-11-20): attempt 1 lost one help text (shortened), invented one label and gave no sub-screen a way
+back; the `request` template then got "move content verbatim", "a way back from every new screen" and "a note on
+the changed version naming what it replaces". Attempts 2–4 pass all seven: 89/89 items, 7–8 entries, ~55 s, one
+build round. Details, the attempts table and the files: `~/designer-demos/2026-11-20-fase4/benchmark/README.md`.
+
 ## The workflow
 
 1. **Write the drawing.** Prefer SVG (agents are good at it): a `viewBox` that is the artboard
