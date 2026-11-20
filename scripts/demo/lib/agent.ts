@@ -22,6 +22,51 @@ export interface AgentSession {
 /** Where the Hoard screenshots are (HOARD_SHOTS, else ~/designer-demos/inputs/hoard). */
 export const hoardShots = () => resolve(process.env.HOARD_SHOTS ?? join(process.env.HOME ?? '', 'designer-demos/inputs/hoard'));
 
+export interface AgentBackend {
+  server: SyncServer;
+  agent: AgentProcess;
+  apiKey: string;
+  work: string;
+  stop(): Promise<void>;
+}
+
+/**
+ * Setup (cut from the video) without a project: a server with a key, the agent, Sync on in the app (the welcome dialog
+ * already seen), the app reloaded and the agent online in the status bar once a wireframe is open.
+ */
+export async function startAgentBackend(demo: Demo, root: string): Promise<AgentBackend> {
+  const { page } = demo;
+  const work = process.env.DEMO_E2E_DIR ? resolve(process.env.DEMO_E2E_DIR) : mkdtempSync(join(tmpdir(), 'designer-demo-agent-'));
+  mkdirSync(work, { recursive: true });
+  const apiKey = randomBytes(32).toString('hex');
+  const server = await startSyncServer(root, join(work, '.sync-server'), { apiKey });
+  const agent = await startAgent(root, { server: server.url, apiKey, workdir: join(work, 'agent'), cwd: work, maxMinutes: 30 });
+  await page.evaluate(
+    ([u, k]) => {
+      localStorage.setItem('designer.sync', JSON.stringify({ enabled: true, url: u, apiKey: k, syncFonts: false }));
+      localStorage.setItem('designer.welcomed', '1');
+    },
+    [server.url, apiKey],
+  );
+  await page.reload();
+  return {
+    server,
+    agent,
+    apiKey,
+    work,
+    stop: async () => {
+      await agent.stop();
+      server.stop();
+    },
+  };
+}
+
+/** Waits until the status bar shows the agent online (wireframe documents only). */
+export async function waitAgentOnline(page: Page): Promise<void> {
+  await page.getByTestId('agent-status').first().waitFor({ timeout: 30_000 });
+  await waitUntil('the agent online in the app', async () => (await page.getByTestId('agent-status').first().getAttribute('data-presence')) === 'online', 30_000);
+}
+
 /**
  * Setup (cut from the video): server, agent, the project from `spec` (a fixture, built with the CLI) pushed to the
  * server, Sync on in the app with the key, the project open, the agent online in the status bar.
@@ -93,11 +138,21 @@ export interface JobRun {
  * Waits for the newest job to finish, sped up ×`factor` in the video, with the bridge's progress in the terminal
  * strip (`designer agent` output, as on Henrique's machine). Returns timings measured in the app.
  */
-export async function waitForAgent(demo: Demo, session: AgentSession, factor: number, opts: { label?: string; timeoutMs?: number } = {}): Promise<JobRun> {
+export async function waitForAgent(
+  demo: Demo,
+  session: Pick<AgentSession, 'agent'> & Partial<Pick<AgentSession, 'server' | 'apiKey'>>,
+  factor: number,
+  opts: { label?: string; timeoutMs?: number; jobId?: string } = {},
+): Promise<JobRun> {
   const { page } = demo;
   const row = newestRow(page);
-  await row.waitFor();
-  const id = (await row.getAttribute('data-job-id'))!;
+  // With the job's id (read before the panel was hidden) the status comes from the server: the panel may be hidden.
+  const id = opts.jobId ?? (await row.waitFor().then(() => row.getAttribute('data-job-id')))!;
+  const statusOf = async () => {
+    if (!opts.jobId || !session.server) return row.getAttribute('data-status');
+    const r = await fetch(`${session.server.url}/api/jobs/${encodeURIComponent(id)}`, { headers: session.apiKey ? { Authorization: `Bearer ${session.apiKey}` } : {} });
+    return r.ok ? ((await r.json()) as { status: string }).status : null;
+  };
   const sig = () => page.evaluate(() => {
     const d = (window as unknown as { __designer: { useDocStore: { getState(): { doc: { children: unknown; wireframe: unknown } } } } }).__designer.useDocStore.getState().doc;
     return JSON.stringify([d.children, d.wireframe]);
@@ -109,7 +164,7 @@ export async function waitForAgent(demo: Demo, session: AgentSession, factor: nu
   let shown = 0;
   const status = await demo.speedUp(factor, async () => {
     for (;;) {
-      const st = await row.getAttribute('data-status');
+      const st = await statusOf();
       if (firstChangeMs === null && (await sig()) !== base) firstChangeMs = Date.now() - t0;
       const lines = bridgeLines(session.agent, id);
       if (lines.length !== shown) {
@@ -123,7 +178,7 @@ export async function waitForAgent(demo: Demo, session: AgentSession, factor: nu
   });
   const run = { id, firstChangeMs, totalMs: Date.now() - t0, status };
   console.log(`  job ${id}: ${status}, first change ${firstChangeMs === null ? '—' : `${(firstChangeMs / 1000).toFixed(1)} s`}, total ${(run.totalMs / 1000).toFixed(1)} s`);
-  if (status !== 'done') throw new Error(`the agent's job ended ${status}: ${await row.innerText()}`);
+  if (status !== 'done') throw new Error(`the agent's job ended ${status}: ${await row.innerText().catch(() => '')}`);
   return run;
 }
 

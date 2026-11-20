@@ -1,6 +1,6 @@
 // bun run demo [name…]: records the scenarios in scripts/demo/scenarios (all, or the ones whose
 // file name contains one of the arguments) into demo-out/<name>.mp4. See scripts/demo/README.md.
-import { mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -77,6 +77,18 @@ try {
       const speed = demo.speedSegments.map((x) => ({ start: x.start / 1000, end: x.end / 1000, factor: x.factor }));
       encodeMp4({ input: webm, output: mp4, start: startSec, fps: FPS, speed });
       const kb = Math.round(statSync(mp4).size / 1024);
+      if (demo.chapters.length) {
+        // Video time of each chapter card: the cut setup and the sped-up parts before it taken out.
+        const at = (ms: number) => {
+          let t = ms / 1000 - startSec;
+          for (const s of speed) if (s.start < ms / 1000) t -= (Math.min(s.end, ms / 1000) - s.start) * (1 - 1 / s.factor);
+          return t;
+        };
+        const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        const lines = demo.chapters.map((c) => `${fmt(at(c.at))}  ${c.num ? `${c.num}. ` : ''}${c.title}`);
+        writeFileSync(join(outDir, `${scenario.name}.chapters.txt`), `${lines.join('\n')}\n`);
+        console.log(lines.map((l) => `  ${l}`).join('\n'));
+      }
       console.log(`${scenario.name}.mp4  ${duration(mp4).toFixed(1)} s  ${kb} KB  (recorded in ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
     }
     rmSync(rawDir, { recursive: true, force: true });

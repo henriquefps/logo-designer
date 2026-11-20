@@ -529,7 +529,8 @@ A note is a top-level `group` with `note: { text, target? }`; the `notes` step (
 (a sticky rect and the wrapped text, ids `<note id>~0/1`; accent colours `WF.note*` in `style.ts`), keeps it
 unscaled/unrotated and, on settle/load, clears a `target` whose node is gone. `adopt` skips notes, so they stay
 on the canvas over screens. The connector line is an overlay (`wireframe/canvas/NoteConnectors`, from
-`connectorOf`), so it follows both ends and is in no export; screen exports only write the frame, whole-canvas
+`connectorPoints`: `connectorOf`'s straight segment, or a route from `routing.ts` → `routeOne` with `anySide` / `aim`
+when it would cross another screen; memoized per frozen document and band), so it follows both ends and is in no export; screen exports only write the frame, whole-canvas
 export includes the notes. `notesFor(doc)` → `{ noteId, text, targetId?, screenId?, frameId? }[]` is for the AI
 export (`screenId` = logical screen of the frame containing the target). App: Note tool **K** (click a node =
 attached note next to it, empty canvas or Shift = free note), Object menu / context menu **Add note** on a selected
