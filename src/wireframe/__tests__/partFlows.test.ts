@@ -117,12 +117,13 @@ describe('remapping part flows when the list changes', () => {
     doc = s().doc;
     expect(keyTo(doc, 'Albums')).toBe('item:2');
     expect(comp(doc, navOn('A')).component.resolved).toEqual({ selected: 3 });
-    // Removal: Settings goes, and its link with it; the Settings screen falls back to the first tab.
+    // Removal: Settings goes, and its link with it; the Settings screen now keeps the tab of the screen that opens it
+    // (Gallery's back button opens Settings: Gallery).
     await setComponentProp(navOn('S'), 'labels', ['Files', 'Gallery', 'Photos']);
     doc = s().doc;
     expect(keyTo(doc, 'Settings')).toBeUndefined();
     expect(flowsOf(doc).filter((f) => f.symbol)).toHaveLength(3);
-    expect(comp(doc, navOn('S')).component.resolved).toBeUndefined();
+    expect(comp(doc, navOn('S')).component.resolved).toEqual({ selected: 2 });
     // Undo puts the flow back with the tab.
     s().undo();
     expect(keyTo(s().doc, 'Settings')).toBe('item:3');
@@ -247,8 +248,10 @@ describe('selected: "auto"', () => {
 
   it('without a link to the screen, the first item; a number keeps the old fixed behaviour', () => {
     const doc = navProject();
-    expect(comp(doc, 'tabs').component.resolved).toBeUndefined(); // Photos / Videos: nothing opens Gallery
+    // Photos / Videos: Videos opens Files, whose tab bar opens Gallery, so Videos (flows walked backwards).
+    expect(comp(doc, 'tabs').component.resolved).toEqual({ selected: 2 });
     const d2 = materializeDocument({ ...doc, wireframe: { ...doc.wireframe!, flows: flowsOf(doc).filter((f) => !f.symbol) } });
+    expect(comp(d2, 'tabs').component.resolved).toBeUndefined(); // without the tab bar's links nothing opens Gallery
     expect(comp(d2, navOn('F')).component.resolved).toBeUndefined();
     expect(selectedCentre(d2, navOn('F'))).toBeCloseTo(97.5 / 2);
     s().load(doc);
@@ -274,7 +277,7 @@ describe('export for AI', () => {
     expect(md.readme).toContain('- Gallery → Files (from "Files" in the bottom navigation)');
     expect(md.readme).not.toContain('- Files → Files');
     const gallery = md.screens.find((x) => x.name === 'Gallery')!.markdown;
-    expect(gallery).toContain('- Tabs: Photos (selected); Videos → opens Files');
+    expect(gallery).toContain('- Tabs: Photos; Videos (selected) → opens Files');
     expect(gallery).toMatch(/- Top app bar "Gallery", leading back button → opens Settings \("Back to settings"\), actions: Search, Share\S* → opens Albums/);
     expect(gallery).toContain('- Shared: Tab bar');
     expect(gallery).not.toContain('opens Gallery');
