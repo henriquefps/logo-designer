@@ -6,18 +6,24 @@
  * Only the first value record's xAdvance is used (what browsers apply for horizontal Latin text).
  */
 
-export type KernFn = (left: number, right: number) => number;
+import { readItemVarStore, type DeltaFn } from './itemVarStore';
+
+/** Kerning in font units; `norm` (normalized axis coordinates) applies the font's variation deltas. */
+export type KernFn = (left: number, right: number, norm?: number[]) => number;
 
 interface Subtable {
   coverage: Map<number, number>;
   format: 1 | 2;
   // format 1: per coverage index, second glyph -> xAdvance
   pairSets?: Map<number, number>[];
+  /** Variation delta indexes (outer * 65536 + inner) for the same pairs, where the font has them. */
+  pairDevs?: Map<number, number>[];
   // format 2
   classDef1?: Map<number, number>;
   classDef2?: Map<number, number>;
   class2Count?: number;
   classValues?: Int16Array; // class1 * class2Count + class2
+  classDevs?: Map<number, number>; // same index -> outer * 65536 + inner
 }
 
 const VALUE_FIELD_BITS = 8; // bits 0..7 of a ValueFormat each add one uint16
@@ -35,6 +41,17 @@ function xAdvanceOffset(format: number): number {
   if (format & 0x0001) off += 2; // xPlacement
   if (format & 0x0002) off += 2; // yPlacement
   return off;
+}
+
+/** Variation index of the xAdvance device table of a value record at `rec`, or -1. */
+function xAdvanceDevice(v: DataView, rec: number, format: number, subtable: number): number {
+  if (!(format & 0x0040)) return -1;
+  let off = 0;
+  for (let b = 0; b < 6; b++) if (format & (1 << b)) off += 2;
+  const dev = v.getUint16(rec + off);
+  if (!dev) return -1;
+  const d = subtable + dev;
+  return v.getUint16(d + 4) === 0x8000 ? v.getUint16(d) * 65536 + v.getUint16(d + 2) : -1;
 }
 
 /** Finds a table in an sfnt (TrueType/OpenType) font. Returns [offset, length] or null. */
@@ -98,18 +115,23 @@ function readPairPos(v: DataView, off: number): Subtable | null {
   if (posFormat === 1) {
     const count = v.getUint16(off + 8);
     const pairSets: Map<number, number>[] = [];
+    const pairDevs: Map<number, number>[] = [];
     for (let i = 0; i < count; i++) {
       const ps = off + v.getUint16(off + 10 + i * 2);
       const pairs = new Map<number, number>();
+      const devs = new Map<number, number>();
       const n = v.getUint16(ps);
       const rec = 2 + s1 + s2;
       for (let j = 0; j < n; j++) {
         const r = ps + 2 + j * rec;
-        if (xa >= 0) pairs.set(v.getUint16(r), v.getInt16(r + 2 + xa));
+        const dev = xAdvanceDevice(v, r + 2, vf1, ps); // pair set records are relative to their PairSet table
+        if (xa >= 0 || dev >= 0) pairs.set(v.getUint16(r), xa >= 0 ? v.getInt16(r + 2 + xa) : 0);
+        if (dev >= 0) devs.set(v.getUint16(r), dev);
       }
       pairSets.push(pairs);
+      pairDevs.push(devs);
     }
-    return { coverage, format: 1, pairSets };
+    return { coverage, format: 1, pairSets, pairDevs };
   }
   if (posFormat === 2) {
     const classDef1 = readClassDef(v, off + v.getUint16(off + 8));
@@ -118,29 +140,37 @@ function readPairPos(v: DataView, off: number): Subtable | null {
     const class2Count = v.getUint16(off + 14);
     const classValues = new Int16Array(class1Count * class2Count);
     const rec = s1 + s2;
-    if (xa >= 0) {
-      for (let c1 = 0; c1 < class1Count; c1++) {
-        for (let c2 = 0; c2 < class2Count; c2++) {
-          const r = off + 16 + (c1 * class2Count + c2) * rec;
-          classValues[c1 * class2Count + c2] = v.getInt16(r + xa);
-        }
+    const classDevs = new Map<number, number>();
+    for (let c1 = 0; c1 < class1Count; c1++) {
+      for (let c2 = 0; c2 < class2Count; c2++) {
+        const r = off + 16 + (c1 * class2Count + c2) * rec;
+        if (xa >= 0) classValues[c1 * class2Count + c2] = v.getInt16(r + xa);
+        const dev = xAdvanceDevice(v, r, vf1, off);
+        if (dev >= 0) classDevs.set(c1 * class2Count + c2, dev);
       }
     }
-    return { coverage, format: 2, classDef1, classDef2, class2Count, classValues };
+    return { coverage, format: 2, classDef1, classDef2, class2Count, classValues, classDevs };
   }
   return null;
 }
 
-function subtableValue(st: Subtable, left: number, right: number): number | null {
+function subtableValue(st: Subtable, left: number, right: number, norm: number[] | undefined, delta: DeltaFn | null): number | null {
   const ci = st.coverage.get(left);
   if (ci === undefined) return null;
+  let val: number;
+  let dev: number | undefined;
   if (st.format === 1) {
-    const val = st.pairSets![ci]?.get(right);
-    return val === undefined ? null : val;
+    const base = st.pairSets![ci]?.get(right);
+    if (base === undefined) return null;
+    val = base;
+    dev = st.pairDevs![ci]?.get(right);
+  } else {
+    const idx = (st.classDef1!.get(left) ?? 0) * st.class2Count! + (st.classDef2!.get(right) ?? 0);
+    val = st.classValues![idx] ?? 0;
+    dev = st.classDevs!.get(idx);
   }
-  const c1 = st.classDef1!.get(left) ?? 0;
-  const c2 = st.classDef2!.get(right) ?? 0;
-  return st.classValues![c1 * st.class2Count! + c2] ?? 0;
+  if (dev !== undefined && norm && delta) val += delta(Math.floor(dev / 65536), dev % 65536, norm);
+  return val;
 }
 
 /**
@@ -187,11 +217,18 @@ export function readGposKerning(buffer: ArrayBuffer): KernFn | null {
       if (subs.length) lookups.push(subs);
     }
     if (!lookups.length) return null;
-    return (left, right) => {
+    // Variable fonts (Inter, …) keep per-weight kerning as deltas in the GDEF item variation store.
+    let delta: DeltaFn | null = null;
+    const gdef = findTable(v, 'GDEF');
+    if (gdef && v.getUint16(gdef[0] + 2) >= 3) {
+      const storeOff = v.getUint32(gdef[0] + 14);
+      if (storeOff) delta = readItemVarStore(v, gdef[0] + storeOff);
+    }
+    return (left, right, norm) => {
       let total = 0;
       for (const subs of lookups) {
         for (const st of subs) {
-          const val = subtableValue(st, left, right);
+          const val = subtableValue(st, left, right, norm, delta);
           if (val !== null) {
             total += val;
             break;

@@ -54,6 +54,26 @@ export function commandsToSubpaths(cmds: readonly PathCommand[]): SubPath[] {
   return out.map((sp) => ({ ...sp, points: sp.points.map((p): BezierPoint => ({ ...p, type: p.in && p.out ? 'smooth' : 'corner' })) }));
 }
 
+/** Pen position of every glyph of every line (node-local coords): the layout live text is checked against. */
+export function glyphPositions(node: TextNode, font: LoadedFont, choice: FaceChoice) {
+  const layout = layoutText(node, choice.face.metrics, (line) => fontLineWidth(font, line, node, choice));
+  const coords = coordsFor(font, choice.weight, autoOpsz(choice.face, node.fontSize));
+  const s = node.fontSize / font.ot.unitsPerEm;
+  return layout.lines.map((line) => {
+    const glyphs = Array.from(line.text, (ch) => font.glyphFor(ch));
+    let x = line.x;
+    return {
+      baseline: line.baseline,
+      glyphs: glyphs.map((glyph, i) => {
+        const at = x;
+        x += font.advance(glyph, coords) * s;
+        if (i < glyphs.length - 1) x += font.kerning(glyph, glyphs[i + 1], coords) * s + node.letterSpacing;
+        return { glyph, x: at };
+      }),
+    };
+  });
+}
+
 /**
  * Glyph outlines for a text node with a loaded font, grouped per glyph (one compound path per glyph,
  * or a single compound path when the fill/stroke is a gradient so it spans the whole text).
@@ -61,16 +81,12 @@ export function commandsToSubpaths(cmds: readonly PathCommand[]): SubPath[] {
  * the canvas rendering. The group takes the text's transform, so it lands exactly where the text was.
  */
 export function outlineWithFont(node: TextNode, font: LoadedFont, choice: FaceChoice): SceneNode {
-  const layout = layoutText(node, choice.face.metrics, (line) => fontLineWidth(font, line, node, choice));
   const coords = coordsFor(font, choice.weight, autoOpsz(choice.face, node.fontSize));
-  const s = node.fontSize / font.ot.unitsPerEm;
   const skew = choice.syntheticItalic ? SYNTHETIC_ITALIC_SKEW : 0;
   const glyphPaths: SubPath[][] = [];
-  for (const line of layout.lines) {
-    const glyphs = Array.from(line.text, (ch) => font.glyphFor(ch));
-    let x = line.x;
-    glyphs.forEach((g, i) => {
-      const cmds = font.glyphPath(g, x, line.baseline, node.fontSize, coords).commands as PathCommand[];
+  for (const line of glyphPositions(node, font, choice)) {
+    for (const { glyph, x } of line.glyphs) {
+      const cmds = font.glyphPath(glyph, x, line.baseline, node.fontSize, coords).commands as PathCommand[];
       if (cmds.length) {
         const sk = skew
           ? cmds.map((c) => {
@@ -84,9 +100,7 @@ export function outlineWithFont(node: TextNode, font: LoadedFont, choice: FaceCh
         const sp = commandsToSubpaths(sk);
         if (sp.length) glyphPaths.push(sp);
       }
-      x += font.advance(g, coords) * s;
-      if (i < glyphs.length - 1) x += font.kerning(g, glyphs[i + 1]) * s + node.letterSpacing;
-    });
+    }
   }
   const paint = { fill: structuredClone(node.fill), stroke: structuredClone(node.stroke) };
   const gradient = node.fill.kind === 'linear' || node.fill.kind === 'radial' || node.stroke.paint.kind === 'linear' || node.stroke.paint.kind === 'radial';
