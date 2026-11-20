@@ -60,6 +60,10 @@ function upsert(list: ProjectMeta[], meta: ProjectMeta) {
 
 export const useProjectsStore = create<ProjectsState>()((set, get) => {
   const activate = (doc: DesignDocument) => {
+    // An autosave still pending belongs to the project being closed: save it now, while the editor still holds
+    // it. Left pending, the next flush (the sync engine flushes before every sync) saved the project opened here
+    // instead, as an edit with a newer timestamp: a live project then replaced the agent's latest build.
+    if (timer) void save();
     useDocStore.getState().load(doc);
     useEditorStore.getState().setSelection([]);
     setActiveProjectId(doc.id);

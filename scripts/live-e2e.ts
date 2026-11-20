@@ -9,8 +9,11 @@
 // 3. conflict, the CLI's edit is newer (the app was offline): the app takes it and keeps its own edit as a
 //    "conflicted copy" project;
 // 4. conflict, the app's edit is newer: the file takes it, the server archives the CLI's version;
-// 5. Ctrl+C on `designer live` clears the Live mark in the app.
-import { mkdtempSync, readdirSync } from 'node:fs';
+// 5. Ctrl+C on `designer live` clears the Live mark in the app;
+// 6. the app is already open on another project when `?open-project=` opens the live one and the agent runs
+//    `wf build --into` right away: the build survives (the old project's pending autosave used to be saved
+//    into the live project as an app edit, newer than the build, and the file lost every screen).
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -142,6 +145,32 @@ try {
   await waitUntil('the Live indicator to disappear', async () => (await indicator.count()) === 0, 10_000);
   ok(`designer live stopped (${live.lines.at(-1)}); the Live indicator is gone`);
   await context.close();
+
+  // 6. The app is already open (another project) when the agent's project is opened and built into.
+  const spec = join(work, 'two.spec.json');
+  writeFileSync(spec, JSON.stringify({ name: 'Race', screens: [{ name: 'Gallery', root: [{ heading: 'Gallery' }] }, { name: 'Settings', root: [{ 'list-row': 'Language' }] }] }));
+  for (const delay of [0, 300, 800]) {
+    const f = join(work, `race-${delay}.designer.json`);
+    designer(root, ['new', '--preset', 'wireframe', '--name', `Race ${delay}`, '-o', f], work);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const pg = await ctx.newPage();
+    await enableSyncBeforeLoad(pg, server.url);
+    await pg.goto(app.url);
+    await pg.waitForTimeout(3000);
+    const l = await startLive(root, f, server.url, app.url, work);
+    await pg.waitForTimeout(3000); // the app pulls it into its list
+    const opening = pg.goto(`${app.url}?open-project=${l.id}`);
+    await pg.waitForTimeout(delay);
+    designer(root, ['wf', 'build', spec, '--into', f], work);
+    await opening;
+    await pg.waitForTimeout(4000);
+    const screens = readProject(f).wireframe.screens.length;
+    const pulled = l.count(/↓ pulled/);
+    await l.stop();
+    await ctx.close();
+    if (screens !== 2 || pulled) throw new Error(`opened while building (${delay} ms): the file has ${screens} screens, ${pulled} pull(s) from the app (expected 2 and 0)`);
+  }
+  ok('opening the project while the agent builds (0 / 300 / 800 ms apart, the app already open): the build survives, nothing comes back from the app');
 } catch (e) {
   failed = true;
   console.error(`FAILED: ${e instanceof Error ? e.stack : e}`);
