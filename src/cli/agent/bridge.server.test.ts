@@ -109,7 +109,11 @@ describe.skipIf(!hasGo)('designer agent against designer-sync', () => {
     const stored = await getItem(conn, 'projects', doc.id);
     expect(stored.name).toBe('Trips + agent');
     expect((stored.data as DesignDocument).live).toBeUndefined();
+    // Offline at once after a clean stop (not after the server's 45 s window).
+    const t = Date.now();
     await b.stop();
+    expect((await listAgents(conn)).some((a) => a.agentId === b.agentId)).toBe(false);
+    expect(Date.now() - t).toBeLessThan(2000);
 
     const h = mk('hang');
     await h.start();

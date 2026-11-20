@@ -164,6 +164,9 @@ type AgentIn struct {
 	Version string `json:"version"`
 	Busy    bool   `json:"busy"`
 	JobID   string `json:"jobId"`
+	// Status is "online" (the default) or "offline": the goodbye a bridge
+	// sends when it stops cleanly, so the app does not wait for the window.
+	Status string `json:"status"`
 }
 
 // Jobs keeps the queue and the agents' presence. One mutex guards both, which
@@ -611,9 +614,27 @@ func (q *Jobs) Heartbeat(in AgentIn) error {
 	if in.JobID != "" && !idPattern.MatchString(in.JobID) {
 		return fmt.Errorf("%w: jobId is invalid", ErrInvalid)
 	}
+	if in.Status != "" && in.Status != "online" && in.Status != "offline" {
+		return fmt.Errorf("%w: status must be online or offline", ErrInvalid)
+	}
 	q.mu.Lock()
 	events := q.sweepLocked()
 	now := q.now()
+	if in.Status == "offline" {
+		// Goodbye: not listed from now on, announced at once. An agent the
+		// server does not know (or already announced offline) changes nothing.
+		if a, known := q.agents[in.AgentID]; known && a.announced {
+			a.announced = false
+			a.Busy, a.JobID = false, ""
+			a.LastSeen = nowMs(now.Add(-agentOnlineWindow))
+			ev := agentEvent(a, "offline")
+			ev.UpdatedAt = nowMs(now)
+			events = append(events, ev)
+		}
+		q.mu.Unlock()
+		q.emit(events)
+		return nil
+	}
 	a, known := q.agents[in.AgentID]
 	if !known {
 		a = &Agent{AgentID: in.AgentID}
