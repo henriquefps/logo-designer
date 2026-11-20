@@ -1,0 +1,408 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Roam Settings",
+  "screens": [
+    {
+      "name": "Settings",
+      "status": "current",
+      "platform": "phone",
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Settings",
+            "leading": "back",
+            "actions": 0
+          }
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "Account"
+            },
+            {
+              "list-row": {
+                "title": "Maya Chen",
+                "trailing": "chevron",
+                "subtitle": "maya.chen@example.com",
+                "leading": "avatar"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Edit profile",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Change password",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Trip reminders",
+                "trailing": "toggle",
+                "subtitle": "A day before every departure",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Currency",
+                "trailing": "value",
+                "value": "USD"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Connected accounts",
+                "trailing": "chevron",
+                "subtitle": "Google, Apple"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "General"
+            },
+            {
+              "list-row": {
+                "title": "Language",
+                "trailing": "value",
+                "value": "English"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Appearance",
+                "trailing": "value",
+                "value": "System"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Download maps on Wi-Fi only",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Two-step verification",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Distance units",
+                "trailing": "value",
+                "value": "Kilometers"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Clear search history",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Rate Roam",
+                "trailing": "chevron"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "Notifications"
+            },
+            {
+              "list-row": {
+                "title": "Push notifications",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Price drop alerts",
+                "trailing": "toggle",
+                "subtitle": "When a saved trip gets cheaper",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Flight status updates",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Email newsletter",
+                "trailing": "toggle",
+                "checked": false
+              }
+            },
+            {
+              "list-row": {
+                "title": "Quiet hours",
+                "trailing": "value",
+                "value": "10 PM to 7 AM"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Offline maps",
+                "trailing": "value",
+                "value": "3 regions, 1.2 GB"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Data saver",
+                "trailing": "toggle",
+                "checked": false,
+                "subtitle": "Lower-quality photos on mobile data"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Payment methods",
+                "trailing": "chevron",
+                "subtitle": "Visa ending in 4242"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "Trips"
+            },
+            {
+              "list-row": {
+                "title": "Default trip privacy",
+                "trailing": "value",
+                "value": "Friends"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Add bookings from email",
+                "trailing": "toggle",
+                "subtitle": "Flights and hotels from your confirmations",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Calendar sync",
+                "trailing": "toggle",
+                "checked": false
+              }
+            },
+            {
+              "list-row": {
+                "title": "Travel documents",
+                "trailing": "chevron",
+                "subtitle": "Passport, visas, insurance"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Home airport",
+                "trailing": "value",
+                "value": "SFO"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Location history",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Cache size",
+                "trailing": "value",
+                "value": "240 MB"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Clear cache",
+                "trailing": "chevron"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "Privacy"
+            },
+            {
+              "list-row": {
+                "title": "Profile visibility",
+                "trailing": "value",
+                "value": "Friends"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Personalized recommendations",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Ad tracking",
+                "trailing": "toggle",
+                "checked": false
+              }
+            },
+            {
+              "list-row": {
+                "title": "Download my data",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Blocked users",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Billing history",
+                "trailing": "chevron"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "section-header": "More"
+            },
+            {
+              "list-row": {
+                "title": "Saved travelers",
+                "trailing": "chevron",
+                "subtitle": "2 people"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Loyalty programs",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Gift card balance",
+                "trailing": "value",
+                "value": "$25.00"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Accessibility",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Text size",
+                "trailing": "value",
+                "value": "Default"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Backup trips to cloud",
+                "trailing": "toggle",
+                "checked": true
+              }
+            },
+            {
+              "list-row": {
+                "title": "Last backup",
+                "trailing": "value",
+                "value": "Today, 9:41 AM"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Help center",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Contact support",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Terms of service",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Privacy policy",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Version",
+                "trailing": "value",
+                "value": "4.2.0"
+              }
+            }
+          ],
+          "gap": 0
+        },
+        {
+          "vstack": [
+            {
+              "button": {
+                "label": "Sign out",
+                "variant": "secondary"
+              }
+            },
+            {
+              "button": {
+                "label": "Delete account",
+                "variant": "text"
+              }
+            }
+          ],
+          "gap": 8,
+          "align": "stretch",
+          "padding": 16
+        }
+      ]
+    }
+  ]
+}

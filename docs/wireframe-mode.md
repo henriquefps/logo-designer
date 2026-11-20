@@ -951,6 +951,20 @@ with a regression test:
   note connectors.
 - Note connectors crossed the screens between a note and its target: routed (Notes above).
 
+## Promo video (2026-11-20)
+
+A ~90 s promotional cut after the overview, all English, on a fictional app (Roam, a trip planner) instead of Hoard,
+with Henrique's hfps identity on everything the recorder draws over the app: `scripts/demo/scenarios/17-promo.ts`
+(`bun run demo promo`; the recorder's pieces in `scripts/demo/README.md`). Found while recording, with tests:
+
+- A note attached to a screen with screens on both sides (the agent's note on a reorganized menu, between the current
+  screen and its new sub-screens) was placed over the next screen: it now goes below its screen
+  (`notePositionFor`, `notes.test.ts`).
+- The recorder's `fill` pressed Enter in multiline fields, which adds a line there: every Text set in a demo ended with
+  a newline and a taller box (the cards of the overview too). It commits with Ctrl + Enter now.
+- The scene cards' full-screen clip-path animation left blank white frames in the headless recording; they slide with
+  a transform.
+
 ## Quality bar
 
 Everything in `docs/rebuild-spec.md` → Quality bar, plus: layout and every component's `build` have

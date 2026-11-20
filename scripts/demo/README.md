@@ -3,7 +3,10 @@
 Short screen recordings of Designer features, made in the real app with real input: Playwright moves
 the mouse in visible steps, drags, clicks and types. Nothing calls the stores or injects documents;
 each video starts from New document → Wireframe. A fake cursor (with a click ripple), a caption bar
-above the app and a key badge (bottom right) make each step readable.
+above the app and a key badge (bottom right) make each step readable. Everything drawn on top of the app (caption bar,
+ripple, speed and key badges, terminal strip, scene and end cards, file viewer) is in Henrique's **hfps** identity
+(`lib/hfps.ts`: the hfps-kit tokens for a palette, blue by default; Inter as the app loads it; Phosphor icons; one white
+card on the tinted background, eyebrow labels), so every video looks the same without per-scenario styling.
 
 ```sh
 bun run demo                 # every scenario → demo-out/<name>.mp4
@@ -39,7 +42,7 @@ Scenarios `11`–`15` (phase 4, AI through `designer agent`) run the real thing:
 (`lib/agent.ts`). 11 pastes the Hoard Settings screenshot (Turn into a wireframe with AI), 12 drags a flow to empty
 canvas (Generate with AI), 13 adapts a screen to tablet, 14 asks the agent, 15 is Henrique's benchmark (the whole
 Settings screen reorganized; `BENCH_OUT=<dir>` keeps the project, sheet, coverage report and export). The agent's
-wait is not cut: `demo.speedUp(n, wait)` plays it n× faster with an orange "⏩ acelerado ×n" badge, and the
+wait is not cut: `demo.speedUp(n, wait)` plays it n× faster with a "×n" badge (a fast-forward icon), and the
 terminal strip shows `designer agent`'s own progress lines. Results differ from run to run (it is a real model).
 
 Scenario `16-overview` (`bun run demo overview`) is the wireframe mode **overview**: one continuous project in ten
@@ -67,24 +70,40 @@ Needs ffmpeg on the PATH and Playwright's Chromium (`bunx playwright install chr
 video. `demo-out/` is git-ignored; the raw `.webm` stays next to each MP4, and a failing scenario
 leaves `<name>.error.png` and exits non-zero.
 
+Scenario `17-promo` (`bun run demo promo`) is the wireframe mode **promo**: ~90 s, all English, a fictional app
+(Roam, a trip planner). The Explore screen built by hand from library blocks (sped up ×10–12), the tab bar made a shared
+component and its Trips tab dragged out to a new linked screen whose tab bar marks Trips, Generate with AI from the
+Lisbon card's flow, then Roam's long, mixed-up Settings (`fixtures/roam/settings-current.spec.json`, 50 items in six
+sections) reorganized by the real agent from a plain-English request, Present through the new menu and Export for AI,
+closed by the end card. Same backend as the overview (Go, Claude Code logged in); no screenshots needed. It records at
+1280 × 800 (the app at 760 under the caption bar, `scenario.video`), runs at `demo.pace = 0.7`, opens on its title
+card (`demo.showCard` in the setup) and does what the viewer need not see behind scene cards (`scene({ behind })`: cut
+from the video). `PROMO_CHAPTERS=1,2 bun run demo promo` records only some chapters; `dev-scenario.ts` works on it
+too. Writes `17-promo.mp4`, `17-promo-poster.png` (`demo.poster()`) and `17-promo.chapters.txt`; ~5 min to record.
+
 ## Files
 
 - `run.ts`: starts the app (`lib/server.ts`), records each scenario in a fresh browser context,
   cuts the setup and converts webm → mp4 (`lib/encode.ts`).
-- `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, a paste box, chapter
-  cards, a file viewer). The app is pushed down by the caption bar and shortened by it (the status bar used to sit
+- `lib/hfps.ts`: the hfps identity for the overlay: the five palettes, the light tokens derived from them (as
+  hfps-kit's `visuals/hfps-tokens.css`, prefixed `--demo-*`), the fonts, Phosphor icon paths, Designer's app icon.
+- `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, speed badge, a paste box,
+  scene cards: `scene` / `title` / `end`, a file viewer), styled from `lib/hfps.ts`. The app is pushed down by the caption bar and shortened by it (the status bar used to sit
   40 px below the window).
   It only listens to events; it never touches the app.
-- `lib/demo.ts`: the driver: `move`, `click`, `dblclick`, `drag`, `type`, `fill`, `key`, `menu`,
-  `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and output), `pause`,
-  `speedUp` (a sped-up part, encoded by `lib/encode.ts` with trim + setpts + concat).
+- `lib/demo.ts`: the driver: `move`, `click`, `dblclick`, `drag`, `type`, `fill` (Ctrl + Enter commits a multiline
+  field), `key`, `menu`, `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and
+  output), `pause`, `speedUp` (a sped-up part, encoded by `lib/encode.ts` with trim + setpts + concat; `{ pace }` for a
+  brisker series of edits), `cut` (left out of the video), `scene` / `chapter` / `showCard` (scene cards), `poster`.
+- `lib/wf.ts`: wireframe gestures shared by the long scenarios (`findId`, `selectDeep`, the job panel, tabs of a
+  bottom navigation, `linkTab`).
 - `lib/agent.ts`: the phase 4 session (server with key, `designer agent`, project from a fixture spec), waiting
   for a job with timings, putting an image on the clipboard, selecting a screen by name.
 - `lib/designer.ts`: where things are in Designer's UI (library items, Properties fields by their
   aria-label, screens by their name label, canvas nodes by the text they draw) and common gestures
   (`insertFromLibrary`, `dragFromLibrary`, `setField`, `choose`, `focusScreen`, …).
 - `scenarios/NN-name.ts`: one video each. `setup()` (optional) runs fast and is cut from the video;
-  `run()` is what the viewer sees. Captions are in Portuguese, one short sentence per step.
+  `run()` is what the viewer sees. One short sentence per caption: Portuguese in 01–16, English from the promo on.
 
 ## Writing a scenario
 
