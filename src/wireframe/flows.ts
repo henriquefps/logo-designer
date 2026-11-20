@@ -110,6 +110,14 @@ export function partAt(doc: DocLike, id: Id, p: Vec): ComponentPart | null {
   return null;
 }
 
+/** True when other parts of the node share part `key`'s row (tabs side by side): its handle and arrow leave from its top. */
+export function partInRow(doc: DocLike, id: Id, key: string): boolean {
+  const parts = partsOfId(doc, id);
+  const me = parts.find((p) => p.key === key);
+  if (!me) return false;
+  return parts.some((p) => p.key !== key && p.rect.y < me.rect.y + me.rect.height - 1 && p.rect.y + p.rect.height > me.rect.y + 1);
+}
+
 /** A part's label ("Arquivos"), or the key when the part is not drawn now. */
 export const partLabel = (doc: DocLike, id: Id, key: string): string => partsOfId(doc, id).find((p) => p.key === key)?.label ?? key;
 
@@ -438,13 +446,16 @@ export interface FlowCurve {
 const EDGE_INSET = 24;
 const clamp = (v: number, lo: number, hi: number) => (hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
 
-/** The curve of a flow from a source rectangle to a target frame rectangle. */
-export function curveBetween(s: Rect, t: Rect): FlowCurve {
+/**
+ * The curve of a flow from a source rectangle to a target frame rectangle. `fromTop`: the source is a part in a row
+ * (a tab of a bottom navigation): the curve leaves from its top centre, upwards, so it does not run along the row.
+ */
+export function curveBetween(s: Rect, t: Rect, fromTop = false): FlowCurve {
   const sc = { x: s.x + s.width / 2, y: s.y + s.height / 2 };
   const tc = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
   const right = tc.x >= sc.x;
-  const start = { x: right ? s.x + s.width : s.x, y: sc.y };
-  const out = { x: right ? 1 : -1, y: 0 };
+  const start = fromTop ? { x: sc.x, y: s.y } : { x: right ? s.x + s.width : s.x, y: sc.y };
+  const out = fromTop ? { x: 0, y: -1 } : { x: right ? 1 : -1, y: 0 };
   let end: Vec;
   let dir: Vec;
   if (t.x >= start.x) {
@@ -478,13 +489,19 @@ export function flowSourceRect(doc: DocLike, source: Id, part?: string): Rect | 
 }
 
 /**
- * The arrows of a flow, one per canvas node it starts at (a shared flow: one per instance), each from the source (or
- * its part) to the nearest edge of the target frame. Hidden ends draw nothing; a shared flow draws nothing on the
- * screen it opens (the tab bar's own tab: it would point at its own screen on every screen).
+ * The arrows of a flow, each from the source (or its part) to the nearest edge of the target frame. Hidden ends draw
+ * nothing. A shared flow (defined in a master) is one link: it draws one arrow, from the instance that contains a
+ * node of `selection` when there is one, else from the first instance that is not on the screen it opens (a tab
+ * bar's own tab would point at its own screen); `all` draws one per instance.
  */
-export function flowCurves(doc: DocLike, flow: WireframeFlow): { source: Id; curve: FlowCurve }[] {
+export function flowCurves(doc: DocLike, flow: WireframeFlow, opts: { selection?: readonly Id[]; all?: boolean } = {}): { source: Id; curve: FlowCurve }[] {
   const out: { source: Id; curve: FlowCurve }[] = [];
-  for (const id of flowSources(doc, flow)) {
+  let sources = flowSources(doc, flow);
+  if (flow.symbol && !opts.all && sources.length > 1) {
+    const picked = opts.selection?.length ? sources.find((id) => opts.selection!.some((sel) => { const ref = masterRef(doc, id); return !!ref && (sel === ref.instance || sel.startsWith(instancePrefix(ref.instance))); })) : undefined;
+    sources = picked ? [picked] : sources;
+  }
+  for (const id of sources) {
     const loc = locate(asDoc(doc), id);
     if (!loc || !loc.node.visible || loc.ancestors.some((a) => !a.visible)) continue;
     const origin = frameOf(doc, id);
@@ -492,7 +509,8 @@ export function flowCurves(doc: DocLike, flow: WireframeFlow): { source: Id; cur
     if (!target || !target.visible) continue;
     if (flow.symbol && origin && origin.screen.screenId === flow.to) continue;
     const s = flowSourceRect(doc, id, flow.part);
-    if (s) out.push({ source: id, curve: curveBetween(s, frameRect(target)) });
+    if (s) out.push({ source: id, curve: curveBetween(s, frameRect(target), flow.part !== undefined && partInRow(doc, id, flow.part)) });
+    if (flow.symbol && !opts.all) break;
   }
   return out;
 }
@@ -530,11 +548,11 @@ export function distanceToCurve(curve: FlowCurve, p: Vec): number {
   return best;
 }
 
-/** The flow whose arrow passes within `tolerance` (document units) of `p`, the last drawn first. */
-export function flowAt(doc: DocLike, p: Vec, tolerance: number): Id | null {
+/** The flow whose arrow passes within `tolerance` (document units) of `p`, the last drawn first (`selection`: see `flowCurves`). */
+export function flowAt(doc: DocLike, p: Vec, tolerance: number, selection?: readonly Id[]): Id | null {
   const list = flowsOf(doc);
   for (let i = list.length - 1; i >= 0; i--) {
-    for (const { curve } of flowCurves(doc, list[i])) if (distanceToCurve(curve, p) <= tolerance) return list[i].id;
+    for (const { curve } of flowCurves(doc, list[i], { selection })) if (distanceToCurve(curve, p) <= tolerance) return list[i].id;
   }
   return null;
 }

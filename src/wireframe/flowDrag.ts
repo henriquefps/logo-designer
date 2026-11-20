@@ -9,7 +9,7 @@
 import { worldBounds, type Id, type Rect, type Vec } from '@/model';
 import type { ToolContext, ToolPointerEvent } from '@/tools/types';
 import type { Gesture } from '@/tools/select/gestures';
-import { canFlowFrom, flowAt, frameAt, partAt, partsOfId, partWorldRect } from './flows';
+import { canFlowFrom, flowAt, frameAt, partAt, partInRow, partsOfId, partWorldRect } from './flows';
 import { frameOf } from './screens';
 import { addFlowCommand, sharedScope, useFlowStore } from './flowCommands';
 
@@ -58,11 +58,7 @@ export function partHandlePoint(ctx: Pick<ToolContext, 'doc'>, id: Id, key: stri
   const doc = ctx.doc();
   const rect = partWorldRect(doc, id, key);
   if (!rect) return null;
-  const row = partsOfId(doc, id).some((p) => {
-    if (p.key === key) return false;
-    const r = partWorldRect(doc, id, p.key);
-    return !!r && r.y < rect.y + rect.height - 1 && r.y + r.height > rect.y + 1;
-  });
+  const row = partInRow(doc, id, key);
   return { point: row ? { x: rect.x + rect.width / 2, y: rect.y } : { x: rect.x + rect.width, y: rect.y + rect.height / 2 }, rect };
 }
 
@@ -86,7 +82,7 @@ export function updateHoverPart(ctx: ToolContext, point: Vec): void {
 }
 
 /** The arrow under the pointer (wireframes only). */
-export const hitFlowArrow = (ctx: ToolContext, point: Vec): Id | null => (ctx.doc().wireframe ? flowAt(ctx.doc(), point, ARROW_HIT_PX * ctx.px()) : null);
+export const hitFlowArrow = (ctx: ToolContext, point: Vec): Id | null => (ctx.doc().wireframe ? flowAt(ctx.doc(), point, ARROW_HIT_PX * ctx.px(), ctx.editor().selection) : null);
 
 /**
  * Drag from the handle (of the element, or of one of its parts): a preview line; on release, link to the screen under
@@ -97,10 +93,13 @@ export function startFlowDrag(ctx: ToolContext, fromId: Id, e: ToolPointerEvent,
   const start = (part !== undefined ? partHandlePoint(ctx, fromId, part)?.point : flowHandlePoint(ctx, fromId, ctx.editor().zoom)) ?? e.point;
   const withPart = part !== undefined ? { part } : {};
   const sourceFrame = frameOf(ctx.doc(), fromId)?.id ?? null;
-  // Releasing over the source's own screen links nothing (a short drag, a change of mind).
+  // Releasing over the source's own screen links nothing (a short drag, a change of mind), except from a part: a tab
+  // that opens its own screen is what makes it the selected one there (after a real drag, not a click on the handle).
   const over = (p: Vec) => {
     const f = frameAt(ctx.doc(), p);
-    return f && f.id !== sourceFrame ? f.id : null;
+    if (!f) return null;
+    if (f.id !== sourceFrame) return f.id;
+    return part !== undefined && Math.hypot(p.x - start.x, p.y - start.y) >= 40 * ctx.px() ? f.id : null;
   };
   store.select(null);
   store.setMenu(null);

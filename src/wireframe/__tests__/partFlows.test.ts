@@ -13,8 +13,11 @@ import { addFlow, flowCurves, flowSources, flowsAt, flowsOf, newScreenFromFlow, 
 import { getComponent } from '../library/registry';
 import { materializeDocument } from '../pipeline';
 import { follow, hotspots, startPresent } from '../present';
-import { frames } from '../screens';
+import { frameRect, frames } from '../screens';
 import { deleteSymbolCommand, detachSymbolSelected } from '../symbolCommands';
+import { useFlowStore } from '../flowCommands';
+import { hitPartHandle, partHandlePoint, startFlowDrag, updateHoverPart } from '../flowDrag';
+import type { ToolContext, ToolPointerEvent } from '@/tools/types';
 import { newSymbolInstance, symbolsOf } from '../symbols';
 import { NAV_LABELS, navProject } from '../spec/__tests__/fixtures';
 
@@ -65,8 +68,9 @@ describe('parts', () => {
     const tabsFlow = flowsOf(doc).find((f) => f.from === 'tabs')!;
     const [arrow] = flowCurves(doc, tabsFlow);
     const r = partWorldRect(doc, 'tabs', 'item:1')!;
-    expect(arrow.curve.points[0].x).toBeCloseTo(r.x + r.width);
-    expect(arrow.curve.points[0].y).toBeCloseTo(r.y + r.height / 2);
+    // Tabs side by side: from the top of the tab.
+    expect(arrow.curve.points[0].x).toBeCloseTo(r.x + r.width / 2);
+    expect(arrow.curve.points[0].y).toBeCloseTo(r.y);
   });
 
   it('addFlow checks the part, New screen is named after the part', () => {
@@ -161,10 +165,24 @@ describe('links defined once in a shared component', () => {
     expect(again).toBe(flowsOf(doc).find((f) => f.symbol && f.part === 'item:1')!.id); // the same link, not a second one
   });
 
-  it('arrows: one per instance, none on the screen the item opens', () => {
+  it('arrows: one link, one arrow (from the selected instance, else the first not on the screen it opens)', () => {
     const doc = navProject();
     const files = flowsOf(doc).find((f) => f.symbol && f.part === 'item:1')!;
-    expect(flowCurves(doc, files).map((c) => c.source).sort()).toEqual(['A', 'G', 'S'].map(navOn).sort());
+    expect(flowCurves(doc, files, { all: true }).map((c) => c.source).sort()).toEqual(['A', 'G', 'S'].map(navOn).sort());
+    expect(flowCurves(doc, files).map((c) => c.source)).toEqual([navOn('G')]);
+    expect(flowCurves(doc, files, { selection: ['tabbar-S'] }).map((c) => c.source)).toEqual([navOn('S')]);
+    expect(flowCurves(doc, files, { selection: [navOn('A')] }).map((c) => c.source)).toEqual([navOn('A')]);
+    const gallery = flowsOf(doc).find((f) => f.symbol && f.part === 'item:0')!;
+    expect(flowCurves(doc, gallery).map((c) => c.source)).toEqual([navOn('F')]);
+  });
+
+  it('a tab in a row: its arrow leaves from the top of the tab, not along the bar', () => {
+    const doc = navProject();
+    const files = flowsOf(doc).find((f) => f.symbol && f.part === 'item:1')!;
+    const [{ curve }] = flowCurves(doc, files);
+    const r = partWorldRect(doc, NAV, 'item:1')!;
+    expect(curve.points[0]).toEqual({ x: r.x + r.width / 2, y: r.y });
+    expect(curve.points[1].y).toBeLessThan(r.y);
   });
 
   it('a new instance gets the links with no work', () => {
@@ -286,5 +304,57 @@ describe('project file', () => {
     expect(flowsOf(loaded).map((f) => f.id)).not.toContain('x2');
     expect(warnings.join('\n')).toMatch(/no shared component "nope"/);
     expect(warnings.join('\n')).toMatch(/no node "missing" in shared component/);
+  });
+});
+
+describe('drawing from a part in the editor (select tool)', () => {
+  const ctx = {
+    doc: () => s().doc,
+    docStore: () => s(),
+    editor: () => useEditorStore.getState(),
+    px: () => 1 / useEditorStore.getState().zoom,
+    hitTest: () => null,
+    setTool: () => {},
+  } as unknown as ToolContext;
+  const ev = (p: { x: number; y: number }) => ({ point: p, screen: p, shift: false, alt: false, mod: false, button: 0, pointerType: 'mouse', pointerId: 1, pressure: 0.5, detail: 1 }) as unknown as ToolPointerEvent;
+  const centre = (r: { x: number; y: number; width: number; height: number }) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+
+  it('hovering a part of the selected instance shows its handle; dragging it to a screen asks where the link applies', () => {
+    s().load(navProject());
+    useEditorStore.getState().setSelection([navOn('G')]);
+    const files = partWorldRect(s().doc, navOn('G'), 'item:1')!;
+    updateHoverPart(ctx, centre(files));
+    expect(useFlowStore.getState().hoverPart).toEqual({ nodeId: navOn('G'), key: 'item:1' });
+    const handle = partHandlePoint(ctx, navOn('G'), 'item:1')!.point;
+    expect(handle).toEqual({ x: files.x + files.width / 2, y: files.y }); // tabs in a row: on the top edge
+    // Moving onto the handle keeps the hover (half of it is outside the part).
+    updateHoverPart(ctx, { x: handle.x, y: handle.y - 4 });
+    expect(hitPartHandle(ctx, { x: handle.x, y: handle.y - 4 })).toEqual({ id: navOn('G'), part: 'item:1' });
+    const g = startFlowDrag(ctx, navOn('G'), ev(handle), 'item:1');
+    const albums = centre(frameRect(frameOfScreen(s().doc, 'Albums')));
+    g.move(ev(albums));
+    g.end();
+    // Inside a shared component: nothing linked yet, the menu asks.
+    expect(useFlowStore.getState().menu).toMatchObject({ fromId: navOn('G'), part: 'item:1', to: screenId(s().doc, 'Albums') });
+    useFlowStore.getState().setMenu(null);
+  });
+
+  it('a part can link its own screen (a real drag; a click on the handle links nothing)', () => {
+    const doc = structuredClone(navProject());
+    doc.wireframe!.flows = flowsOf(doc).filter((f) => !f.symbol);
+    s().load(doc);
+    useEditorStore.getState().setSelection(['tabs']);
+    const photos = partWorldRect(s().doc, 'tabs', 'item:0')!;
+    const handle = partHandlePoint(ctx, 'tabs', 'item:0')!.point;
+    let g = startFlowDrag(ctx, 'tabs', ev(handle), 'item:0');
+    g.end();
+    expect(flowsOf(s().doc).filter((f) => f.from === 'tabs')).toHaveLength(1);
+    g = startFlowDrag(ctx, 'tabs', ev(handle), 'item:0');
+    const inside = { x: photos.x + 20, y: photos.y + 200 };
+    g.move(ev(inside));
+    g.end();
+    expect(flowsOf(s().doc).filter((f) => f.from === 'tabs').map((f) => [f.part, f.to])).toContainEqual(['item:0', screenId(s().doc, 'Gallery')]);
+    // Linked to its own screen, the tab is the selected one there.
+    expect(comp(s().doc, 'tabs').component.resolved).toEqual({ selected: 1 });
   });
 });
