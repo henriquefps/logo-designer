@@ -114,6 +114,7 @@ export class AgentBridge {
   private ticking = false;
   private retick = false;
   private heartbeatFailing = false;
+  private heartbeatChain: Promise<void> = Promise.resolve();
   /** Jobs this bridge finished: ids (tests, and never claiming one twice). */
   readonly finished: { id: string; status: string }[] = [];
 
@@ -156,6 +157,8 @@ export class AgentBridge {
     this.stopEvents?.();
     if (this.current) this.end('stop');
     await this.jobPromise;
+    // The goodbye: the app shows the agent offline now, not when the 45 s window runs out (a crash still does).
+    await this.heartbeat(true);
   }
 
   /** Resolves when the job running now (if any) has finished. */
@@ -172,22 +175,31 @@ export class AgentBridge {
     return id;
   }
 
-  private async heartbeat() {
-    try {
-      await sendHeartbeat(this.o.conn, {
-        agentId: this.agentId,
-        name: this.o.name,
-        host: hostname(),
-        version: `designer-agent ${AGENT_VERSION}; ${this.o.claudeVersion}`,
-        busy: !!this.current,
-        ...(this.current ? { jobId: this.current.id } : {}),
-      });
-      if (this.heartbeatFailing) this.log('heartbeat: the sync server answers again');
-      this.heartbeatFailing = false;
-    } catch (e) {
-      if (!this.heartbeatFailing) this.log(`! heartbeat failed: ${e instanceof Error ? e.message : e}`);
-      this.heartbeatFailing = true;
-    }
+  private async heartbeat(goodbye = false) {
+    // After stop() nothing may announce the agent online again; only the goodbye goes out.
+    if (this.stopped && !goodbye) return;
+    const send = async () => {
+      try {
+        await sendHeartbeat(this.o.conn, {
+          agentId: this.agentId,
+          name: this.o.name,
+          host: hostname(),
+          version: `designer-agent ${AGENT_VERSION}; ${this.o.claudeVersion}`,
+          busy: goodbye ? false : !!this.current,
+          ...(!goodbye && this.current ? { jobId: this.current.id } : {}),
+          ...(goodbye ? { status: 'offline' as const } : {}),
+        });
+        if (this.heartbeatFailing) this.log('heartbeat: the sync server answers again');
+        this.heartbeatFailing = false;
+      } catch (e) {
+        if (!this.heartbeatFailing) this.log(`! heartbeat failed: ${e instanceof Error ? e.message : e}`);
+        this.heartbeatFailing = true;
+      }
+    };
+    // One at a time, in order: a slow "online" heartbeat must not land after the goodbye.
+    const p = this.heartbeatChain.then(send);
+    this.heartbeatChain = p;
+    return p;
   }
 
   private async poll() {

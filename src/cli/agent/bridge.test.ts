@@ -276,6 +276,21 @@ describe('designer agent bridge', () => {
     expect(server.jobs.get('job6')!.error).toMatch(/was stopped before the job finished/);
   });
 
+  it('says goodbye when it stops: a last heartbeat with status offline, and no online one after it', async () => {
+    const { b } = bridge('ok');
+    await b.start();
+    await until(() => heartbeats.length >= 3); // heartbeatMs is 40: it is beating
+    expect(heartbeats.every((h) => h.status === undefined)).toBe(true);
+    await b.stop();
+    const n = heartbeats.length;
+    expect(heartbeats.at(-1)).toMatchObject({ agentId: b.agentId, status: 'offline', busy: false });
+    expect(heartbeats.filter((h) => h.status === 'offline')).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(heartbeats).toHaveLength(n);
+    await b.stop(); // a second stop sends nothing
+    expect(heartbeats).toHaveLength(n);
+  });
+
   it('deletes job folders and logs older than a day, keeps the agent id', async () => {
     await mkdir(join(workdir, 'old'), { recursive: true });
     await writeFile(join(workdir, 'old.stream.jsonl'), '');

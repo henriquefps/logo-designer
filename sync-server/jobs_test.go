@@ -733,3 +733,42 @@ func TestJobsDoNotShadowProjectsAndFonts(t *testing.T) {
 	}
 	e.expect(200, "GET", "/api/projects/dabc", nil)
 }
+
+func TestAgentGoodbye(t *testing.T) {
+	e := newJobsEnv(t, Config{})
+	c := e.subscribe()
+	hb := map[string]any{"agentId": "a1", "name": "n", "host": "h", "version": "1", "busy": true, "jobId": "j1"}
+	e.expect(400, "POST", "/api/agents/heartbeat", map[string]any{"agentId": "a1", "status": "sleeping"})
+	// A goodbye from an agent the server never saw changes nothing.
+	e.expect(200, "POST", "/api/agents/heartbeat", map[string]any{"agentId": "ghost", "status": "offline"})
+	e.expect(200, "POST", "/api/agents/heartbeat", hb)
+	if items := e.expect(200, "GET", "/api/agents", nil)["items"].([]any); len(items) != 1 {
+		t.Fatalf("agents: %v", items)
+	}
+	e.advance(2 * time.Second)
+	e.expect(200, "POST", "/api/agents/heartbeat", map[string]any{"agentId": "a1", "status": "offline"})
+	if items := e.expect(200, "GET", "/api/agents", nil)["items"].([]any); len(items) != 0 {
+		t.Fatalf("offline at once, not after 45 s: %v", items)
+	}
+	e.expect(200, "POST", "/api/agents/heartbeat", map[string]any{"agentId": "a1", "status": "offline"}) // announced once
+	e.advance(agentOnlineWindow + time.Second)
+	e.srv.jobs.Sweep() // the window passing later announces nothing more
+	var got []string
+	for _, ev := range c.drain() {
+		if ev.Kind != "agents" || ev.ID != "a1" {
+			t.Fatalf("event: %+v", ev)
+		}
+		got = append(got, ev.Status)
+		if ev.Status == "offline" && ev.UpdatedAt != testNow+2000 {
+			t.Fatalf("offline event time: %+v", ev)
+		}
+	}
+	if strings.Join(got, ",") != "busy,offline" {
+		t.Fatalf("agent events: %v", got)
+	}
+	// Coming back is announced again.
+	e.expect(200, "POST", "/api/agents/heartbeat", hb)
+	if items := e.expect(200, "GET", "/api/agents", nil)["items"].([]any); len(items) != 1 {
+		t.Fatalf("back online: %v", items)
+	}
+}

@@ -1,0 +1,40 @@
+# systemd USER unit for the Designer AI agent bridge (docs/agents.md → Running it as a service).
+# Example only: nothing installs or enables it. To use it on a machine:
+#   mkdir -p ~/.config/systemd/user && cp scripts/agent/designer-agent.service ~/.config/systemd/user/
+#   $EDITOR ~/.config/systemd/user/designer-agent.service     # WorkingDirectory, --name
+#   systemctl --user daemon-reload && systemctl --user enable --now designer-agent
+#   loginctl enable-linger "$USER"                            # keep it running without a login session
+#   journalctl --user -u designer-agent -f                    # logs
+[Unit]
+Description=Designer AI agent bridge (your Claude Code, for the Designer app)
+Documentation=https://github.com/henriquefps/logo-designer/blob/main/docs/agents.md
+# The sync server is reached over the network (or Tailscale); retried by the bridge itself when it is down.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# A checkout of this repo (the bridge runs this checkout's CLI). Adjust.
+WorkingDirectory=%h/projects/logo-designer
+# bun and claude must be on PATH; systemd user units do not read the shell profile.
+Environment=PATH=%h/.bun/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# The server address and key come from the skv group "designer-sync" (DESIGNER_SYNC_URL, DESIGNER_SYNC_KEY): no secret in this file.
+ExecStart=%h/.local/bin/skv run designer-sync -- bun run designer agent --name %H
+# A clean stop (SIGTERM) finishes a running job as failed and sends the "offline" goodbye, so the app updates at once.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+# `designer agent` exits 1 when it cannot start (sync server unreachable at boot, Claude Code missing or logged out,
+# wrong key), 0 after a clean stop. on-failure retries the first, and a crash or a kill, every 30 s; a clean stop
+# (systemctl --user stop, SIGTERM) stays stopped.
+Restart=on-failure
+RestartSec=30
+# stdout/stderr go to journald (journalctl --user -u designer-agent).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=designer-agent
+# This is a user unit on a machine that is also used interactively: stay out of the way.
+Nice=10
+MemoryMax=4G
+
+[Install]
+WantedBy=default.target

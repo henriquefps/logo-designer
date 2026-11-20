@@ -127,6 +127,8 @@ export interface HeartbeatBody {
   version: string;
   busy: boolean;
   jobId?: string;
+  /** `'offline'` is the goodbye of a bridge that stops cleanly: the server marks it offline at once. Default `'online'`. */
+  status?: 'online' | 'offline';
 }
 
 /** An agent seen on the server in the last 45 seconds. */
@@ -254,7 +256,7 @@ export const finishJob = (conn: Connection, id: string, body: FinishBody) => jso
 /** The app's cancel: a queued job is cancelled at once; a running one gets `cancelRequested` and its agent finishes it. */
 export const cancelJob = (conn: Connection, id: string) => json<Job>(conn, 'POST', `/api/jobs/${enc(id)}/cancel`, {});
 
-/** Presence: call every 15 s (`HEARTBEAT_MS`). */
+/** Presence: call every 15 s (`HEARTBEAT_MS`); one last time with `status: 'offline'` when the agent stops cleanly. */
 export const sendHeartbeat = (conn: Connection, body: HeartbeatBody) =>
   json<{ ok: boolean }>(conn, 'POST', '/api/agents/heartbeat', body);
 

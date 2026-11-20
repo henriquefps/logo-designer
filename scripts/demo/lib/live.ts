@@ -148,8 +148,8 @@ export interface AgentProcess {
   /** Everything it printed so far, one entry per line. */
   lines: string[];
   waitForLine(re: RegExp, ms?: number): Promise<string>;
-  /** Ctrl+C, then waits for it to exit. */
-  stop(): Promise<void>;
+  /** Ctrl+C (or `signal`), then waits for it to exit. */
+  stop(signal?: NodeJS.Signals): Promise<void>;
   exited(): boolean;
 }
 
@@ -186,8 +186,8 @@ export async function startAgent(
     lines,
     waitForLine,
     exited: () => exited,
-    stop: async () => {
-      if (!exited) child.kill('SIGINT');
+    stop: async (signal = 'SIGINT') => {
+      if (!exited) child.kill(signal);
       await exit;
     },
   };

@@ -122,7 +122,7 @@ The app queues a request for the user's own agent (`designer agent`, running on 
 - `POST /api/jobs/<id>/progress` `{ agentId, message, stage? }` → `{ status, cancelRequested, progressCount }`. Only the claiming agent, only while `running`; the newest 200 entries are kept, messages are cut at 500 characters.
 - `POST /api/jobs/<id>/finish` `{ agentId, status: "done" | "failed" | "cancelled", summary?, error? }` → the job. Same agent rule.
 - `POST /api/jobs/<id>/cancel` → the job. A `queued` job becomes `cancelled` at once; a `running` one gets `cancelRequested: true` and its agent finishes it as `cancelled`; a finished one is `409`.
-- `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId? }` every 15 s; `GET /api/agents` → `{ "items": [{ agentId, name, host, version, busy, jobId?, lastSeen }] }` for the agents seen in the last 45 s.
+- `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId?, status? }` every 15 s (`status` is `"online"` by default; `"offline"` is the goodbye of an agent that stops cleanly: it is no longer listed and the `agents` event `offline` goes out at once, only `agentId` is needed, and an unknown agent changes nothing); `GET /api/agents` → `{ "items": [{ agentId, name, host, version, busy, jobId?, lastSeen }] }` for the agents seen in the last 45 s.
 
 A `running` job whose agent is silent (no heartbeat, claim or progress) for 2 minutes becomes `failed` with `"agent went away"`. The newest 200 jobs are kept; attachments are deleted 24 h after a job finishes (the record stays, with `attachmentsDeleted`).
 
