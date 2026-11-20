@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findNode, type ComponentNode, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
 import { frames } from '../../screens';
-import { notesOf } from '../../notes';
+import { noteRect, notesOf } from '../../notes';
 import { getComponents } from '../../library/registry';
 import { buildFromSpec, checkSpec, dumpToSpec, parseSpec, RESERVED_KEYS, SpecError } from '..';
 
@@ -87,6 +87,18 @@ describe('the Hoard settings example (docs/wireframe-spec.md)', () => {
     expect(a.transform).toMatchObject({ x: 0, y: 0 });
     expect(b.transform.x).toBeGreaterThan(a.transform.x + a.screen.width);
     expect(b.transform.y).toBe(0);
+  });
+
+  it('places a new screen right of the notes beside the last one, not on them (phase 4 end-to-end run)', () => {
+    const one = { name: 'Hoard', screens: [{ name: 'Gallery', root: [{ heading: 'Gallery', note: 'A long note to the right of the screen' }] }] };
+    const first = buildFromSpec(one).doc;
+    const note = notesOf(first)[0];
+    const right = noteRect(note).x + noteRect(note).width;
+    expect(right).toBeGreaterThan(byName(first, 'Gallery').transform.x + byName(first, 'Gallery').screen.width);
+    const spec = dumpToSpec(first, { geometry: false });
+    spec.screens.push({ name: 'Settings', root: [{ heading: 'Settings' }] } as (typeof spec.screens)[number]);
+    const { doc } = buildFromSpec(spec, first);
+    expect(byName(doc, 'Settings').transform.x).toBeGreaterThanOrEqual(right);
   });
 
   it('dumps back to a spec that builds the same project', () => {
