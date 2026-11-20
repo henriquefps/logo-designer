@@ -746,8 +746,11 @@ All under the sync server's usual auth (API key / LAN rules), JSON, ids are clie
 - `POST /api/jobs/<id>/finish` `{ agentId, status: 'done'|'failed'|'cancelled', summary?, error? }`.
 - `POST /api/jobs/<id>/cancel` (app) → `cancelRequested: true` (status unchanged until the bridge
   finishes it as `cancelled`; a `queued` job becomes `cancelled` at once).
-- Presence: `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId? }` every 15 s;
-  `GET /api/agents` lists agents seen in the last 45 s.
+- Presence: `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId?, status? }` every 15 s;
+  `GET /api/agents` lists agents seen in the last 45 s. `status: 'offline'` is the goodbye of a bridge that
+  stops cleanly (SIGINT/SIGTERM, normal exit): the server stops listing the agent and emits the `agents`
+  event `offline` at once (an unknown agent: nothing); a crash still falls back to the 45 s window. A later
+  heartbeat brings the agent back.
 - Events on `GET /api/events`: `{ kind: 'jobs', id, status, updatedAt }` on every job change and
   `{ kind: 'agents', … }` when presence changes.
 - Retention: the newest 200 jobs; attachments deleted 24 h after a job finishes. A `running` job
@@ -844,7 +847,7 @@ job's end; rounds are `wf build --into` runs.
 
 Checked too: **cancel** mid-job (Cancel → the bridge kills Claude Code's tree within a second, the row says
 Cancelled, nothing half-built, the live mark cleared); **two jobs** sent back to back run in order (the second
-waits as "Waiting for the agent"); **agent offline** (bridge stopped → within 45 s "Agent offline", Generate with
+waits as "Waiting for the agent"); **agent offline** (bridge stopped → at once "Agent offline" (45 s after a crash), Generate with
 AI disabled with the tooltip, Ask the agent… says why); the **live mark** is cleared after every job; **Undo**.
 Screenshots: `docs/screenshots/agent-e2e/`. Henrique's benchmark (the whole Settings screen reorganized by one
 request): [`agents.md`](agents.md) → Benchmark.
@@ -868,9 +871,9 @@ Found and fixed (each with a regression test or e2e check):
   (the old wording contradicted itself); requests keep "current" screens intact and propose a "changed" version with
   a note (notes on current screens are fine), move content verbatim, and give every new screen a way back.
 
-Open: Claude Code runs its built-in read-only commands (`grep`, `sed -n`, `cat` …) on job-folder files although
-they are not in the allow list (refused outside the folder; see `agents.md` → Security model). The presence goes
-"offline" only after the 45 s window when the bridge stops (no goodbye in the protocol).
+Closed afterwards: Claude Code's built-in read-only commands (`grep`, `sed -n`, `cat` …) are denied too (a
+`--disallowedTools` prefix tree around `designer `; `agents.md` → Security model), and a clean stop sends an
+`offline` heartbeat, so the app shows "Agent offline" within a second (a crash: the 45 s window).
 
 ## Quality bar
 
