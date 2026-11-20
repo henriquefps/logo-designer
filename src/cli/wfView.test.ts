@@ -10,6 +10,7 @@ import { addFlow, setScreenStatus } from '@/wireframe/flows';
 import { addNote } from '@/wireframe/notes';
 import { materializeDocument } from '@/wireframe/pipeline';
 import { addScreen } from '@/wireframe/screens';
+import { segmentHitsRect } from '@/wireframe/routing';
 import { main } from './main';
 import { compareLayout, imageSize, parseCompareArgs, parseSheetArgs, sheetLayout, solveScale, WfUsageError } from './wfView';
 
@@ -112,8 +113,17 @@ describe('sheet layout', () => {
     const gallery = L.frames[1].rect;
     const toGallery = L.arrows[1];
     expect(toGallery.points[0].x).toBeCloseTo(home.x + home.width, 3);
-    expect(toGallery.points[3].x).toBeCloseTo(gallery.x, 3);
+    expect(toGallery.points[toGallery.points.length - 1].x).toBeCloseTo(gallery.x, 3);
     expect(toGallery.dir).toEqual({ x: 1, y: 0 });
+    // Arrows never pass over a frame other than their own two; labels sit off every frame.
+    for (const a of L.arrows) {
+      const own = L.frames.filter((fr) => [a.points[0], a.points[a.points.length - 1]].some((p) => p.x >= fr.rect.x - 0.01 && p.x <= fr.rect.x + fr.rect.width + 0.01 && p.y >= fr.rect.y - 0.01 && p.y <= fr.rect.y + fr.rect.height + 0.01));
+      for (const fr of L.frames) {
+        if (own.includes(fr)) continue;
+        for (let i = 1; i < a.points.length; i++) expect(segmentHitsRect(a.points[i - 1], a.points[i], fr.rect)).toBe(false);
+      }
+      if (a.label) expect(L.frames.some((fr) => fr.rect.x < a.labelAt!.x && fr.rect.x + fr.rect.width > a.labelAt!.x && fr.rect.y < a.labelAt!.y && fr.rect.y + fr.rect.height > a.labelAt!.y)).toBe(false);
+    }
     const tablets = sheetLayout(doc, { ...defaults, platform: 'tablet' });
     expect(tablets.frames).toHaveLength(1);
     expect(tablets.arrows).toHaveLength(0);
