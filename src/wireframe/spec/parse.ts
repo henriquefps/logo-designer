@@ -477,7 +477,12 @@ class Parser {
       if (n.form === 'container' || n.form === 'group') n.children.forEach(visit);
       if (n.form === 'node') claim(n.node.id, join(n.path, 'node.id'), nodeIds);
     };
-    for (const s of spec.screens) for (const v of s.variants) (claim(v.id, join(v.path, 'id'), nodeIds), v.root.forEach(visit));
+    for (const s of spec.screens) {
+      for (const v of s.variants) {
+        claim(v.id, join(v.path, 'id'), nodeIds);
+        v.root.forEach(visit);
+      }
+    }
     spec.canvas?.forEach(visit);
     spec.notes?.forEach((n) => claim(n.id, join(n.path, 'id'), nodeIds));
     const screenIds = new Map<string, string>();

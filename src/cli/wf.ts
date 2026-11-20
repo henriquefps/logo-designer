@@ -99,7 +99,10 @@ async function loadIcons(keys: string[]): Promise<number> {
     for (const key of lucide) {
       try {
         const node = svgToNodes(await bundledSvg(key.slice(7)), { color: '#000000', size: ICON_GLYPH_SIZE, name: key });
-        if (node) (registerIcon(key, node), loaded++);
+        if (node) {
+          registerIcon(key, node);
+          loaded++;
+        }
       } catch {
         // An unknown name keeps its placeholder.
       }

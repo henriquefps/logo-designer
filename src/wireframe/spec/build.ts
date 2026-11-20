@@ -394,7 +394,12 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
     if (n.id !== undefined) ctx.claimed.add(n.id);
     if (n.form === 'container' || n.form === 'group') n.children.forEach(claim);
   };
-  for (const s of spec.screens) for (const v of s.variants) (v.id && ctx.claimed.add(v.id), v.root.forEach(claim));
+  for (const s of spec.screens) {
+    for (const v of s.variants) {
+      if (v.id) ctx.claimed.add(v.id);
+      v.root.forEach(claim);
+    }
+  }
   spec.canvas?.forEach(claim);
 
   const symbols = buildSymbols(spec, existing, ctx);
@@ -546,7 +551,10 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
   const before = existing ? sourceIds(existing.children) : new Set<Id>();
   let added = 0;
   let kept = 0;
-  for (const id of now) (before.has(id) ? kept++ : added++);
+  for (const id of now) {
+    if (before.has(id)) kept++;
+    else added++;
+  }
   const removed = [...before].filter((id) => !now.has(id)).length;
   const summary: BuildSummary = {
     screens: doc.wireframe!.screens.length,
