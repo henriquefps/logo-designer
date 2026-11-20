@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { SCREEN_PLATFORMS, type IconShapeSetting, type ScreenPlatform } from '@/model';
 import { ARTBOARD_PRESETS } from '@/panels/properties/sections/artboard/presets';
 import { NumberField } from '@/panels/shared/NumberField';
+import { samplesFor, type SampleDef } from '@/samples/registry';
+import { SampleCard } from '@/samples/SampleCard';
 import { defaultName, MAX_SIDE, type FreeOptions, type IconOptions, type ModeOptions, type WireframeOptions } from './modes';
 
 interface PanelProps<T extends ModeOptions> {
@@ -190,7 +192,26 @@ export function IconPanel({ options, onChange, onCreate, disabled }: PanelProps<
 
 const PLATFORM_ICONS: Record<ScreenPlatform, Icon> = { phone: DeviceMobileIcon, tablet: DeviceTabletIcon, desktop: DesktopIcon };
 
-export function WireframePanel({ options, onChange, onCreate, disabled }: PanelProps<WireframeOptions>) {
+/** The samples of a mode, next to its blank options: each opens as a new project copy. */
+function Samples({ mode, onOpenSample, disabled }: { mode: ModeOptions['mode']; onOpenSample?: (s: SampleDef) => void; disabled?: boolean }) {
+  const id = useId();
+  const samples = samplesFor(mode);
+  if (!samples.length || !onOpenSample) return null;
+  return (
+    <section className="flex flex-col gap-2" aria-labelledby={id}>
+      <h3 id={id} className="eyebrow">
+        Or start from a sample
+      </h3>
+      <div className="flex flex-col gap-2">
+        {samples.map((s) => (
+          <SampleCard key={s.id} sample={s} onOpen={onOpenSample} disabled={disabled} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function WireframePanel({ options, onChange, onCreate, onOpenSample, disabled }: PanelProps<WireframeOptions> & { onOpenSample?: (s: SampleDef) => void }) {
   const name = useId();
   const set = (patch: Partial<WireframeOptions>) => onChange({ ...options, ...patch });
   return (
@@ -210,6 +231,7 @@ export function WireframePanel({ options, onChange, onCreate, disabled }: PanelP
         })}
       </Group>
       <p className="text-sm text-muted-foreground">The canvas is infinite: add more screens, other platforms, components and the flow between screens once it is open.</p>
+      <Samples mode="wireframe" onOpenSample={onOpenSample} disabled={disabled} />
     </div>
   );
 }

@@ -17,7 +17,8 @@ export default defineConfig({
       manifest: false,
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
+        // samples/: the bundled sample projects (src/samples/registry.ts) open offline too.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}', 'samples/*.json'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         // Icon libraries and font files are big: cached on first use instead of precached. Bundled
         // fonts (~3 MB of TTF) load one by one when a text uses them; Inter's non-Latin subsets load
