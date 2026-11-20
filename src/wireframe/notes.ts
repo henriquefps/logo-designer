@@ -122,8 +122,8 @@ const targetRect = (doc: DocLike, id: Id): Rect | null => {
 /**
  * Top-left for a new note next to `targetId`: right of its screen (or of the node itself), clear of other notes.
  * When that column would cover the next screen (screens sit 80 px apart, a note is 200 px wide), the column
- * left of the screen is used instead if it is free of screens; with no room on either side, the right one.
- * Null when the target does not exist.
+ * left of the screen is used instead if it is free of screens; with screens on both sides (a menu between the old
+ * screen and its sub-screens), below the screen, at its left edge. Null when the target does not exist.
  */
 export function notePositionFor(doc: DocLike, targetId: Id): Vec | null {
   const t = targetRect(doc, targetId);
@@ -133,8 +133,8 @@ export function notePositionFor(doc: DocLike, targetId: Id): Vec | null {
   const others = notesOf(doc).map(noteRect);
   const screens = frames(doc).filter((f) => f.id !== frame?.id).map(frameRect);
   const h = MIN_HEIGHT;
-  const stack = (x: number): Vec => {
-    let y = Math.round(t.y);
+  const stack = (x: number, y0 = t.y): Vec => {
+    let y = Math.round(y0);
     for (let guard = 0; guard < 200; guard++) {
       const hit = others.find((r) => rectsIntersect(r, { x, y, width: NOTE_WIDTH, height: h + NOTE_GAP }));
       if (!hit) break;
@@ -146,7 +146,9 @@ export function notePositionFor(doc: DocLike, targetId: Id): Vec | null {
   const onRight = stack(Math.round(right.x + right.width + NOTE_GAP));
   if (!frame || !coversScreen(onRight)) return onRight;
   const onLeft = stack(Math.round(right.x - NOTE_GAP - NOTE_WIDTH));
-  return coversScreen(onLeft) ? onRight : onLeft;
+  if (!coversScreen(onLeft)) return onLeft;
+  const below = stack(Math.round(right.x), right.y + right.height + NOTE_GAP);
+  return coversScreen(below) ? onRight : below;
 }
 
 /** Adds a note (mutates `doc`, a draft or a fresh copy). `target` attaches it and, without a position, places it next to the target. Returns the note id. */

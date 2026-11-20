@@ -128,7 +128,7 @@ describe('attach and detach', () => {
     expect(home).toBeTruthy();
   });
 
-  it('a note never covers the next screen: left of its screen when the right side is taken, right when both are', () => {
+  it('a note never covers the next screen: left of its screen when the right side is taken, below it when both are', () => {
     // Regression (phase 3 e2e run): screens built side by side (80 px apart) got their notes on the next screen.
     const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
     const a = addScreen(doc, { platform: 'phone', name: 'A', x: 0, y: 0 });
@@ -140,9 +140,17 @@ describe('attach and detach', () => {
     };
     const onA = added(a);
     expect(onA.transform.x).toBe(-24 - 200); // left of A: its right side is B
-    // B has screens on both sides: right, as before.
+    // B has screens on both sides (found recording the promo: the agent's note on a new menu covered its first
+    // sub-screen): below B, at its left edge; a second one stacks under it.
     const onB = added(b);
-    expect(onB.transform.x).toBe(470 + 390 + 24);
+    const fb = frameRect(doc.children.find((n) => n.id === b) as ScreenNode);
+    expect(onB.transform.x).toBe(470);
+    expect(onB.transform.y).toBe(fb.y + fb.height + 24);
+    const onB2 = added(b);
+    expect(onB2.transform.x).toBe(470);
+    expect(onB2.transform.y).toBeGreaterThan(onB.transform.y);
+    for (const f of [a, b, c].map((id) => frameRect(doc.children.find((n) => n.id === id) as ScreenNode)))
+      for (const n of [onA, onB, onB2, added(c)]) expect(segmentHitsRect({ x: n.transform.x + 1, y: n.transform.y + 1 }, { x: n.transform.x + 199, y: n.transform.y + 47 }, f)).toBe(false);
     // C is the last one: right.
     const onC = added(c);
     expect(onC.transform.x).toBe(940 + 390 + 24);
