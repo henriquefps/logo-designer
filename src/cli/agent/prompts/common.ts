@@ -98,7 +98,7 @@ export function rules(maxRounds: number, extra: string[] = []): string {
     `Look at files (${SPEC_FILE}, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.`,
     `Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.`,
     `Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.`,
-    `Before every build, run \`designer wf dump ${PROJECT_FILE} --no-geometry -o ${SPEC_FILE}\` and make your changes on that fresh dump: the person may be editing the project at the same time.`,
+    `Start every round from a fresh dump, \`designer wf dump ${PROJECT_FILE} --no-geometry -o ${SPEC_FILE}\`, then edit ${SPEC_FILE} and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).`,
     `Build only with \`designer wf build ${SPEC_FILE} --into ${PROJECT_FILE}\`. Never write ${PROJECT_FILE} by hand and never build a new file with -o.`,
     `At most ${maxRounds} rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.`,
     ...extra,

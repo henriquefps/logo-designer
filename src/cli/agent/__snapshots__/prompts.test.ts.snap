@@ -47,7 +47,7 @@ Rules:
 3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
 4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
 5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-6. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
 7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 8. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 9. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
@@ -107,7 +107,7 @@ Rules:
 3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
 4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
 5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-6. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
 7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 8. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 9. Add "opens" links from the new screen only where the target screen already exists (a back button to "Home", for example); describe other navigation in a note.
@@ -136,7 +136,7 @@ Rules:
 3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
 4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
 5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-6. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
 7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 8. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 9. Screens with status "current" record the app as it is today: never change their content (notes on them are fine: a note describes the app). When the request changes such a screen, make the change on its "changed" version: the screen named after it with a suffix (e.g. "Configurações (nova)"), if the project has one; otherwise add it, a new screen with status "changed", named after the current one with a suffix in the project's language, placed after it in the spec, same platform. Put a note on the changed version's top bar saying which current screen it replaces. Screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.
@@ -171,7 +171,7 @@ Rules:
 3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
 4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
 5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-6. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
 7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 8. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 9. Real texts and states from the screenshot (which tab is selected, toggles, values); no tracing of shapes or pixel positions.
