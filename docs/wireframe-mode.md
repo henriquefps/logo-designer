@@ -29,7 +29,7 @@ Each phase is useful on its own and ships as one or more PRs.
 2. **Flow**: arrows from an element to a screen; dropping an arrow on empty canvas offers "New
    screen"; present mode (click through screens like a prototype); shared components (edit the top
    bar once, every screen updates); screen status *current / changed / new*.
-3. **Agents**: wireframe commands in the `designer` CLI and the `designer` skill, so a Claude Code
+3. **Agents** (detailed below, with live editing): wireframe commands in the `designer` CLI and the `designer` skill, so a Claude Code
    session can create screens, read the flow and turn a screenshot into a wireframe (the manual
    experiment of 2026-11-19 automated).
 4. **AI in the app**: bring-your-own-key (Anthropic, Gemini, and one OpenAI-compatible adapter that
@@ -458,6 +458,108 @@ component.
 README gets a **Flow** section (a list "Settings → Language (from "Language" row)" and a Mermaid
 `flowchart` of logical screens) and each screen's status; each screen file lists its outgoing flows
 next to their source elements ("→ opens Language").
+
+## Phase 3: agents (detailed)
+
+Goal: an agent (Claude Code, Codex, a script) creates, reads and edits wireframe projects as well as
+Henrique does by hand, on his subscription, through the `designer` CLI and the `designer` skill. It
+is also the best-quality path for screenshot → wireframe: the agent looks, compares and corrects in
+a loop, like the 2026-11-19 experiment, but builds with library components instead of converting a
+DOM into shapes. Henrique approved this phase and live editing on 2026-11-19.
+
+### A1. The wireframe spec format (`designer wf build` / `wf dump`)
+
+A compact JSON an agent writes and reads, describing screens the way a person thinks of them, not
+coordinates: logical screens and their variants (platform), each frame's root layout, a tree of
+nodes where each node is a library component (`{ "list-row": { "title": "Language", "trailing":
+"value", "value": "English" } }` or an explicit `{ "kind": …, "props": … }`), a container (`vstack`,
+`hstack`, `grid` with gap/padding/align/columns/style/radius/repeat), a shared component instance
+(`{ "use": "Trip card" }`), plain text, or a free/pinned placement; shared component masters; flows
+(`"from": "Settings/Language row"` → `"to": "Language"`, by path or by an `id` the agent assigns);
+notes (attached by path/id); screen status.
+
+- `designer wf build <spec.json> [-o project.designer.json] [--into existing.designer.json]`: spec →
+  project, through the same pipeline as the app (layout, components, symbols, repeat), validated with
+  errors that name the spec path ("screens[1].root[3].list-row.trailing: 'arrow' is not one of none,
+  chevron, toggle, value, checkbox").
+- `designer wf dump <project> [-o spec.json]`: project → spec, so the agent can read what Henrique
+  edited by hand.
+- **Round trip without damage** (decided): `dump` writes stable ids for every node; `build --into`
+  updates an existing project by id, keeping what the spec does not express (manual sizes, free
+  positions, frame positions on the canvas, notes positions) and removing only what the spec removed.
+  `build(dump(p)) == p` for any project made of library pieces is a test.
+- A JSON Schema for the spec (`public/schema/wireframe-spec.schema.json`) and docs in
+  `docs/wireframe-spec.md` with a complete example (the Hoard settings screen).
+
+### A2. The catalog (`designer wf components`)
+
+Lists every library component with its kind, label, platforms, category, props (type, default,
+options, visibleWhen, help), sizing/resizable/placement defaults and one example, as Markdown (for
+reading) or `--json`. Generated from the registry at run time, so it never goes stale.
+
+### A3. Looking at the result (`designer wf sheet`, `wf compare`)
+
+- `designer wf sheet <project> [-o sheet.png] [--platform P]`: one image of every frame laid out as
+  on the canvas, with names, status badges and flow arrows, for reviewing the whole flow.
+- `designer wf compare <screenshot.png> <project> --screen <name> [--platform P] [-o out.png]`:
+  the screenshot and the rendered frame side by side at the same scale (the frame's width), with a
+  thin grid, for the "look, fix, render again" loop.
+
+### A4. Rendering fidelity (the `to-png` font bug)
+
+Noticed in the experiment: in `to-png`, Inter 500/600 render lighter than in the browser, and
+letter-spaced text ("SERVIDOR", 0.14em) and some words ("Domingo") get gaps between letters. An
+agent comparing renders is misled by this, so it is fixed in this phase: CLI renders must match the
+app (same font files and weights, same letter spacing and kerning). A visual regression test renders
+a fixed set of texts (weights 400–700, letter spacing 0 / 0.05 / 0.14 em, mixed words) through the
+CLI and compares against the app's SVG text layout within a tolerance.
+
+### A5. Live editing (agent ↔ Henrique, through the sync server)
+
+Henrique sees the screens appear while the agent works and can adjust them in the middle; the agent
+sees his adjustments. Built on the existing sync (docs/sync.md); the server stays "yours", and
+nothing changes for people who don't use it.
+
+- **Server:** an event stream `GET /api/events` (SSE, auth like the rest; heartbeat every 25 s so
+  Cloudflare Tunnel keeps it open) that emits `{kind, id, updatedAt}` when a project or font changes.
+  The rest of the protocol (list, GET/PUT, last-write-wins, conflict archive) is unchanged. New
+  release of `designer-sync`.
+- **App:** when sync is on, subscribe to the stream and pull a changed project immediately (falling
+  back to the 30 s poll when the stream is unavailable). The project open in the editor updates in
+  place when it has no unsaved edits (today's rule); for a project marked **live**, the app pushes
+  its own edits faster (≈ 500 ms after the edit instead of autosave + 2 s) and shows a small "Live"
+  indicator with who changed it last (this device / another device / the CLI).
+- **CLI:** `designer live <project.designer.json> [--server URL]` (API key from `DESIGNER_SYNC_KEY`
+  or `SYNC_API_KEY`, server from `DESIGNER_SYNC_URL`; with skv: `skv run designer-sync -- designer
+  live …`): pushes the file now, then mirrors both ways until stopped — file changes (the agent ran
+  `wf build --into`) are pushed; remote changes (Henrique edited in the app) are written back to the
+  file. Prints one line with how to open it ("open Designer → it appears in your projects", or an
+  `?open-project=<id>` link that opens it once synced). Also `designer sync push|pull <file|id>` for
+  one-off transfers. Conflicts follow today's rules (last-write-wins, loser kept).
+- Security: no new exposure; the stream carries only ids and timestamps.
+
+### A6. Handing over big projects
+
+`#open=` links stop at about 2 MB. Check how big real wireframe projects get (10 screens with
+images), make sure `designer open` / `present` pick the `?import=` path automatically when needed,
+and that live editing (A5) is the recommended path for agent sessions.
+
+### A7. The `designer` skill and an end-to-end run
+
+The skill (`skills/designer/`) gets a **Wireframes** section: when to use wireframe mode, the spec
+format, the catalog, the screenshot → wireframe loop (look at the screenshot, write the spec with
+library components, `wf build`, `wf compare`, fix, repeat), flows and notes, live editing, and how
+an agent that **receives** an "Export for AI" package should read it to build the app. Then an
+end-to-end run: an agent turns real screenshots (Hoard's Gallery and Settings) into a wireframe
+project through the CLI only, live, recorded as the round's demo video.
+
+### Phase 3 workstreams
+
+1. **A1 + A2** (first; Opus): spec format, build/dump with round trip, catalog.
+2. **A4** (now, in parallel; Sonnet): rendering fidelity.
+3. **A5** (now, in parallel; Opus): live editing — server, app, CLI.
+4. **A3** (after A4; Sonnet): sheet and compare.
+5. **A6 + A7** (last; Opus): handover check, skill, end-to-end run and demo video.
 
 ## Quality bar
 
