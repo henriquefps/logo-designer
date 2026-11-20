@@ -21,6 +21,12 @@ export interface PipelineContext {
   /** The node with this id before the change, or null (new node, or `load`). */
   previous: (id: Id) => SceneNode | null;
   /**
+   * Like `previous`, but against the document where the whole gesture started (the transaction's base).
+   * Outside a gesture it is the same as `previous`. For steps whose result must depend on the gesture's
+   * total change, not on the last frame's delta.
+   */
+  atGestureStart: (id: Id) => SceneNode | null;
+  /**
    * True when `value` (a node or any part of one, draft or plain) differs from `prev`. Earlier
    * steps' writes count: a draft that a step modified is a change.
    */

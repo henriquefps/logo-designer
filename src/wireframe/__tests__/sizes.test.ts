@@ -38,6 +38,56 @@ const resizeTo = (id: string, w: number | null, h: number | null) =>
 
 beforeEach(() => s().load(createDocument()));
 
+describe('resize gesture: the result depends on the total change, not the last frame', () => {
+  /** Frames computed from the snapshot, like the selection handles do (each re-applies the snapshot's layoutItem). */
+  const gesture = (id: string, frames: [number | null, number | null][]) => {
+    const snap = structuredClone(n(id));
+    s().beginTransaction('Resize');
+    for (const [w, h] of frames) {
+      s().replaceNodes([bakeScale({ ...structuredClone(snap), transform: { ...snap.transform, scaleX: w ? w / snap.component.size!.width : 1, scaleY: h ? h / snap.component.size!.height : 1 } })]);
+    }
+    s().commitTransaction();
+  };
+
+  it('a last frame that does not change the height keeps the height fixed', () => {
+    s().load(wireframe([inst('c', 'card')]));
+    const natural = size('c').height;
+    const w = size('c').width;
+    gesture('c', [[null, natural + 40], [null, natural + 120], [null, natural + 120]]);
+    expect(n('c').layoutItem?.height).toBe(natural + 120);
+    expect(size('c').height).toBe(natural + 120);
+    expect(outlineH('c')).toBe(natural + 120);
+    expect(size('c').width).toBe(w);
+  });
+
+  it('a gesture that ends where it started changes nothing', () => {
+    s().load(wireframe([inst('c', 'card')]));
+    const natural = size('c').height;
+    gesture('c', [[null, natural + 60], [null, natural]]);
+    expect(n('c').layoutItem?.height).toBeUndefined();
+  });
+
+  it('width: an x-only tail keeps the fixed width', () => {
+    s().load(wireframe([inst('c', 'card')]));
+    const w = size('c').width;
+    gesture('c', [[w - 50, null], [w - 100, null], [w - 100, null]]);
+    expect(n('c').layoutItem?.width).toBe(w - 100);
+  });
+
+  it('a container (R2) keeps its fixed height too', () => {
+    const box = { ...createGroup({ name: 'box' }), id: 'box', layout: { kind: 'vstack', gap: 0, padding: 8, align: 'stretch' }, children: [inst('h', 'heading')] } as GroupNode;
+    s().load(wireframe([box]));
+    const was = (n<GroupNode>('box').layout!.size ?? { width: 0, height: 0 }).height;
+    const snap = structuredClone(n<GroupNode>('box'));
+    s().beginTransaction('Resize');
+    for (const h of [was + 30, was + 90, was + 90]) {
+      s().replaceNodes([bakeScale({ ...structuredClone(snap), transform: { ...snap.transform, scaleY: h / was } })]);
+    }
+    s().commitTransaction();
+    expect(n<GroupNode>('box').layoutItem?.height).toBe(was + 90);
+  });
+});
+
 describe('R1: the card follows its height (the reported bug)', () => {
   it('a fixed layout height reaches build(): the border is as tall as the box', () => {
     s().load(wireframe([inst('c', 'card', {}, { height: 300 })]));
