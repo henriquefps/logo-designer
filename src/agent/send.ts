@@ -2,17 +2,18 @@
 // pulls it from there) and marked live (its edits come back within a second), a snapshot is taken for "Undo the
 // agent's changes", then the job is created.
 import { toast } from 'sonner';
-import { newId } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { getItem } from '@/sync/api';
 import { syncConnection, syncNow, useSyncStore } from '@/sync/engine';
 import { addSnapshotMark, currentPresence, putJob } from './agentStore';
 import { availability } from './jobs';
-import { createJob, type CreateJobBody, type Job } from './protocol';
+import { createJob, newJobId, type CreateJobBody, type JobType } from '@/sync/jobs';
+import type { AppJob } from './jobs';
 import { saveSnapshot } from './snapshots';
 
-export type JobSpec = Omit<CreateJobBody, 'id' | 'projectId'>;
+/** A job to send, without the ids this module adds. */
+export type JobSpec = { [T in JobType]: Omit<CreateJobBody<T>, 'id' | 'projectId'> }[JobType];
 
 /** Whether the open document can send a job now (the reason is the tooltip of a disabled entry point). */
 export const canSendNow = () => availability(currentPresence(), { wireframe: !!useDocStore.getState().doc.wireframe });
@@ -38,7 +39,7 @@ export async function flushToServer(): Promise<void> {
 }
 
 /** Flush + live + snapshot + create. Returns the job, or null (the reason was shown in a toast). */
-export async function sendJob(spec: JobSpec): Promise<Job | null> {
+export async function sendJob(spec: JobSpec): Promise<AppJob | null> {
   const ok = canSendNow();
   if (!ok.ok) {
     toast.error('The agent is not available', { description: ok.reason });
@@ -48,15 +49,12 @@ export async function sendJob(spec: JobSpec): Promise<Job | null> {
   try {
     await flushToServer();
     const projectId = useProjectsStore.getState().activeId!;
-    const id = newId('job');
+    const id = newJobId();
     await saveSnapshot(id, useDocStore.getState().doc).then(
       () => addSnapshotMark(id),
       () => undefined, // without a snapshot the job still runs; the panel offers no undo
     );
-    const created = await createJob(conn, { id, projectId, ...spec });
-    const now = Date.now();
-    // The server's answer is the job; a server that answers with less still gets a row.
-    const job: Job = created?.id ? created : { id, projectId, type: spec.type, input: spec.input, status: 'queued', createdAt: now, updatedAt: now, ...(spec.screenId ? { screenId: spec.screenId } : {}), ...(spec.frameId ? { frameId: spec.frameId } : {}) };
+    const job = await createJob(conn, { id, projectId, ...spec } as CreateJobBody);
     putJob(job);
     return job;
   } catch (e) {

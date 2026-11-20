@@ -7,8 +7,9 @@ import type { DesignDocument } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { isSyncConfigured, onSyncStream, syncConnection, useSyncStore } from '@/sync/engine';
-import { applyJobEvent, presenceOf, upsertJob, type Jobs, type Presence, type PresenceInput } from './jobs';
-import { cancelJob, getJob, isFinished, listAgents, listJobs, NoJobsError, parseAgentEvent, type AgentInfo, type Job } from './protocol';
+import { applyJobEvent, presenceOf, upsertJob, type AppJob, type Jobs, type Presence, type PresenceInput } from './jobs';
+import { SyncError } from '@/sync/api';
+import { cancelJob, getJob, isFinished, listAgents, listJobs, type AgentInfo, type Job } from '@/sync/jobs';
 import { loadSnapshot, loadSnapshotIndex, restoredContent } from './snapshots';
 
 interface AgentState {
@@ -50,7 +51,7 @@ export const currentPresence = (): Presence => {
   return presenceOf({ syncConfigured: isSyncConfigured(), agents: s.agents, error: s.agentsError });
 };
 
-export function putJob(job: Job) {
+export function putJob(job: Job | AppJob) {
   useAgentStore.setState((s) => ({ jobs: upsertJob(s.jobs, job), panelOpen: true }));
 }
 
@@ -67,7 +68,9 @@ export async function refreshAgents(): Promise<void> {
     const agents = await listAgents(conn);
     useAgentStore.setState({ agents, agentsError: null });
   } catch (e) {
-    useAgentStore.setState({ agents: null, agentsError: e instanceof NoJobsError ? { kind: 'unsupported' } : { kind: 'unreachable', message: describe(e) } });
+    // A server before designer-sync 0.3.0 has no /api/agents.
+    const old = e instanceof SyncError && e.status === 404;
+    useAgentStore.setState({ agents: null, agentsError: old ? { kind: 'unsupported' } : { kind: 'unreachable', message: describe(e) } });
   }
 }
 
@@ -81,8 +84,6 @@ export async function refreshJobs(projectId = useProjectsStore.getState().active
       for (const j of list) jobs = upsertJob(jobs, j);
       return { jobs };
     });
-    // The list is metadata only: read the running ones in full for their latest progress line.
-    await Promise.all(list.filter((j) => !isFinished(j.status)).map((j) => refreshJob(j.id)));
   } catch {
     // An older server or offline: presence says so.
   }
@@ -155,10 +156,8 @@ export function startAgent(): () => void {
       void refreshAgents();
       void refreshJobs();
     },
-    onOther: (_name, data) => {
-      const ev = parseAgentEvent(data);
-      if (!ev) return;
-      if (ev.kind === 'agents') return void refreshAgents();
+    onAgents: () => void refreshAgents(),
+    onJob: (ev) => {
       const r = applyJobEvent(useAgentStore.getState().jobs, ev, useProjectsStore.getState().activeId);
       if (r.jobs !== useAgentStore.getState().jobs) useAgentStore.setState({ jobs: r.jobs });
       if (r.fetch) void refreshJob(ev.id);

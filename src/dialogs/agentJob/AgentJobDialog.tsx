@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImageIcon, SparkleIcon } from '@phosphor-icons/react';
 import {
   ResponsiveDialog,
@@ -41,17 +41,18 @@ const keyOf = (r: AgentRequest) => {
   return keys.get(r)!;
 };
 
+/** A preview URL and the natural size of a pasted image (the URL is made and revoked by the effect itself). */
 function useImageInfo(file: File | null) {
-  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const [info, setInfo] = useState<{ file: File; url: string; size: { width: number; height: number } } | null>(null);
   useEffect(() => {
-    if (!url) return;
+    if (!file) return;
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => setSize({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onload = () => setInfo({ file, url, size: { width: img.naturalWidth, height: img.naturalHeight } });
     img.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [url]);
-  return { url, size };
+  }, [file]);
+  return info && info.file === file ? { url: info.url, size: info.size } : { url: null, size: null };
 }
 
 function AgentJobForm({ request, onClose }: { request: AgentRequest; onClose: () => void }) {

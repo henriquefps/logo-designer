@@ -17,7 +17,7 @@ export interface FakeJob {
   startedAt?: number;
   finishedAt?: number;
   agentId?: string;
-  cancelRequested?: boolean;
+  cancelRequested: boolean;
   summary?: string;
   error?: string;
   progress: { at: number; message: string; stage?: string }[];
@@ -31,7 +31,7 @@ export interface FakeAgent {
   version?: string;
   busy: boolean;
   jobId?: string;
-  seenAt: number;
+  lastSeen: number;
 }
 
 interface Stored extends ServerRecord {
@@ -83,18 +83,20 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?:
 
   // ---------- jobs and presence ----------
 
-  /** Metadata (lists): no progress, no attachment data. */
-  const jobMeta = (j: FakeJob) => {
+  const base = (j: FakeJob) => {
     const { progress: _p, attachments, ...rest } = j;
     void _p;
-    return { ...rest, attachments: attachments.map((a) => ({ name: a.name, mime: a.mime })) };
+    return { ...rest, attachments: attachments.map((a) => ({ name: a.name, mime: a.mime, size: Math.floor((a.dataBase64.length * 3) / 4) })) };
   };
-  const jobFull = (j: FakeJob) => ({ ...jobMeta(j), progress: structuredClone(j.progress) });
+  /** Listings (like jobs.go): no progress log, its size and last line instead. */
+  const jobMeta = (j: FakeJob) => ({ ...base(j), progressCount: j.progress.length, ...(j.progress.length ? { lastProgress: j.progress[j.progress.length - 1] } : {}) });
+  const jobFull = (j: FakeJob) => ({ ...base(j), progress: structuredClone(j.progress) });
   const touch = (j: FakeJob) => {
     j.updatedAt = Math.max(Date.now(), j.updatedAt + 1);
     publish('jobs', j.id, j.updatedAt, { status: j.status });
   };
-  const liveAgents = () => [...agents.values()].filter((a) => Date.now() - a.seenAt < 45_000);
+  const liveAgents = () => [...agents.values()].filter((a) => Date.now() - a.lastSeen < 45_000);
+  const agentStatus = (a: FakeAgent | undefined) => (!a ? 'offline' : a.busy ? 'busy' : 'online');
 
   function createJob(body: Partial<FakeJob>): { status: number; body: unknown } {
     if (!body.id || !body.type || !body.projectId) return { status: 400, body: { error: 'id, type and projectId are required.' } };
@@ -110,12 +112,13 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?:
       status: 'queued',
       createdAt: now,
       updatedAt: now,
+      cancelRequested: false,
       progress: [],
       attachments: body.attachments ?? [],
     };
     jobs.set(j.id, j);
     publish('jobs', j.id, j.updatedAt, { status: j.status });
-    return { status: 200, body: jobFull(j) };
+    return { status: 201, body: jobFull(j) };
   }
 
   function claim(id: string, agentId: string): boolean {
@@ -157,21 +160,23 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?:
     return true;
   }
 
-  function heartbeat(a: Omit<FakeAgent, 'seenAt'>) {
+  function heartbeat(a: Omit<FakeAgent, 'lastSeen'>) {
     const was = agents.get(a.agentId);
-    agents.set(a.agentId, { ...a, seenAt: Date.now() });
-    if (!was || was.busy !== a.busy || was.jobId !== a.jobId) publish('agents', a.agentId, Date.now());
+    const now: FakeAgent = { ...a, lastSeen: Date.now() };
+    agents.set(a.agentId, now);
+    if (agentStatus(was) !== agentStatus(now)) publish('agents', a.agentId, Date.now(), { status: agentStatus(now) });
   }
 
+  /** The agent stops heartbeating (the server drops it after 45 s; here at once). */
   function goAway(agentId: string) {
-    if (agents.delete(agentId)) publish('agents', agentId, Date.now());
+    if (agents.delete(agentId)) publish('agents', agentId, Date.now(), { status: 'offline' });
   }
 
   async function jobsRoute(method: string, url: URL, parts: string[], body: unknown): Promise<Response | null> {
     if (opts.jobs === false) return json(404, { error: 'Not found.' }); // a server before 0.3.0
     if (parts[1] === 'agents') {
       if (parts[2] === 'heartbeat' && method === 'POST') {
-        heartbeat(body as Omit<FakeAgent, 'seenAt'>);
+        heartbeat(body as Omit<FakeAgent, 'lastSeen'>);
         return json(200, { ok: true });
       }
       if (!parts[2] && method === 'GET') return json(200, { items: liveAgents() });
@@ -208,7 +213,7 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?:
     if (action === 'claim' && method === 'POST') return claim(j.id, b.agentId ?? '') ? json(200, jobFull(j)) : json(409, { error: 'Already claimed.' });
     if (action === 'progress' && method === 'POST') {
       progress(j.id, b.message ?? '', b.stage);
-      return json(200, { ok: true });
+      return json(200, { status: j.status, cancelRequested: j.cancelRequested, progressCount: j.progress.length });
     }
     if (action === 'finish' && method === 'POST') {
       finish(j.id, b.status ?? 'done', b);

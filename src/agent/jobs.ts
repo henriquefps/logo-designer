@@ -1,17 +1,19 @@
 // Pure parts of the app's agent support (docs/wireframe-mode.md → Phase 4 → The app): merging server jobs and
 // events into the local state, the job panel's rows, agent presence and whether an entry point can send a job.
-import { platformDef, type DesignDocument } from '@/model';
+import { platformDef, type DesignDocument, type ScreenPlatform } from '@/model';
 import { logicalScreen } from '@/wireframe/screens';
-import { isFinished, type AgentEvent, type AgentInfo, type Job, type JobStatus, type NextScreenInput, type AdaptInput, type ScreenshotInput, type RequestInput } from './protocol';
+import { isFinished, type AdaptInput, type AgentInfo, type Job, type JobEvent, type JobMeta, type JobProgress, type JobStatus, type NextScreenInput, type RequestInput, type ScreenshotInput } from '@/sync/jobs';
 
-export type Jobs = Record<string, Job>;
+/** A job as this device knows it: from a listing (last progress line only) or a full read (the whole log). */
+export type AppJob = Omit<Job, 'progress'> & { progress?: JobProgress[]; lastProgress?: JobProgress; progressCount?: number };
+export type Jobs = Record<string, AppJob>;
 
-/** A job from the server (list or full read): kept unless what we have is newer. Progress survives a metadata-only list. */
-export function upsertJob(jobs: Jobs, job: Job): Jobs {
+/** A job from the server (listing or full read): kept unless what we have is newer. A read log survives a listing. */
+export function upsertJob(jobs: Jobs, job: Job | JobMeta | AppJob): Jobs {
   const cur = jobs[job.id];
   if (cur && cur.updatedAt > job.updatedAt) return jobs;
-  const progress = job.progress ?? cur?.progress;
-  const next: Job = { ...cur, ...job, ...(progress ? { progress } : {}) };
+  const progress = 'progress' in job && job.progress ? job.progress : cur?.progress;
+  const next: AppJob = { ...cur, ...job, ...(progress ? { progress } : {}) };
   return { ...jobs, [job.id]: next };
 }
 
@@ -19,12 +21,13 @@ export function upsertJob(jobs: Jobs, job: Job): Jobs {
  * A `jobs` event: the status is applied at once (the full read follows). Returns the jobs and whether the full job
  * should be read (it is ours to show: known here, or of the project open now).
  */
-export function applyJobEvent(jobs: Jobs, ev: Extract<AgentEvent, { kind: 'jobs' }>, activeProject: string | null): { jobs: Jobs; fetch: boolean } {
+export function applyJobEvent(jobs: Jobs, ev: JobEvent, activeProject: string | null): { jobs: Jobs; fetch: boolean } {
   const cur = jobs[ev.id];
   if (!cur) return { jobs, fetch: activeProject !== null };
-  if (ev.updatedAt !== undefined && ev.updatedAt < cur.updatedAt) return { jobs, fetch: false };
-  if (!ev.status || ev.status === cur.status) return { jobs, fetch: true };
-  return { jobs: { ...jobs, [ev.id]: { ...cur, status: ev.status, ...(ev.updatedAt !== undefined ? { updatedAt: ev.updatedAt } : {}) } }, fetch: true };
+  if (ev.updatedAt < cur.updatedAt) return { jobs, fetch: false };
+  if (ev.status === cur.status) return { jobs, fetch: true };
+  // Not the new updatedAt: the full read that follows must not look stale next to it.
+  return { jobs: { ...jobs, [ev.id]: { ...cur, status: ev.status } }, fetch: true };
 }
 
 export const STATUS_LABEL: Record<JobStatus, string> = {
@@ -38,8 +41,8 @@ export const STATUS_LABEL: Record<JobStatus, string> = {
 const screenName = (doc: DesignDocument | null, id: string | undefined) => (doc && id ? (logicalScreen(doc, id)?.name ?? null) : null);
 
 /** What the job is, in a few words ("Next screen “Settings”", "Adapt “Home” to tablet"). */
-export function jobTitle(job: Job, doc: DesignDocument | null): string {
-  const input = job.input as Record<string, unknown> | undefined;
+export function jobTitle(job: AppJob, doc: DesignDocument | null): string {
+  const input: unknown = job.input;
   switch (job.type) {
     case 'screenshot': {
       const i = input as Partial<ScreenshotInput> | undefined;
@@ -51,7 +54,7 @@ export function jobTitle(job: Job, doc: DesignDocument | null): string {
     }
     case 'adapt': {
       const i = input as Partial<AdaptInput> | undefined;
-      const to = i?.toPlatform ? platformDef(i.toPlatform).label.toLowerCase() : 'another platform';
+      const to = i?.toPlatform ? platformDef(i.toPlatform as ScreenPlatform).label.toLowerCase() : 'another platform';
       return `Adapt “${screenName(doc, i?.screenId ?? job.screenId) ?? 'screen'}” to ${to}`;
     }
     case 'request': {
@@ -61,13 +64,16 @@ export function jobTitle(job: Job, doc: DesignDocument | null): string {
   }
 }
 
-export function latestProgress(job: Job): string | null {
+export function latestProgress(job: AppJob): string | null {
   const p = job.progress;
-  return p?.length ? p[p.length - 1].message : null;
+  const last = p?.length ? p[p.length - 1] : undefined;
+  // The newer of the read log's last line and the listing's.
+  const line = last && job.lastProgress ? (job.lastProgress.at > last.at ? job.lastProgress : last) : (last ?? job.lastProgress);
+  return line?.message ?? null;
 }
 
 /** Time spent: from start (or creation while queued) to the end, or to `now` while it runs. */
-export function elapsedMs(job: Job, now: number): number {
+export function elapsedMs(job: AppJob, now: number): number {
   const start = job.startedAt ?? job.createdAt;
   const end = isFinished(job.status) ? (job.finishedAt ?? job.updatedAt) : now;
   return Math.max(0, end - start);

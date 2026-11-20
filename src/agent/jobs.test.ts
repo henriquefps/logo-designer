@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { createDocument } from '@/model';
 import { addScreen } from '@/wireframe/screens';
 import { applyJobEvent, availability, formatElapsed, jobRows, MAX_ROWS, presenceLabel, presenceOf, RECENT_MS, upsertJob, type Jobs } from './jobs';
-import { parseAgentEvent, type Job } from './protocol';
+import type { AgentInfo } from '@/sync/jobs';
+import type { AppJob as Job } from './jobs';
 import { restoredContent } from './snapshots';
 
 const T = 1_700_000_000_000;
-const job = (over: Partial<Job> = {}): Job => ({ id: 'j1', type: 'request', projectId: 'p1', input: { text: 'add an empty state' }, status: 'queued', createdAt: T, updatedAt: T, ...over });
+const job = (over: Partial<Job> = {}): Job => ({ id: 'j1', type: 'request', projectId: 'p1', input: { text: 'add an empty state' }, attachments: [], cancelRequested: false, status: 'queued', createdAt: T, updatedAt: T, ...over }) as Job;
 
 describe('job state: server reads and events → rows', () => {
+  it('takes the newer of the read log’s last line and the listing’s lastProgress', () => {
+    const read = upsertJob({}, job({ status: 'running', updatedAt: T + 1, progress: [{ at: T + 1, message: 'Reading the project' }] }));
+    const listed = upsertJob(read, { ...job({ status: 'running', updatedAt: T + 2 }), progressCount: 2, lastProgress: { at: T + 2, message: 'Round 1' } });
+    expect(jobRows(listed, { projectId: 'p1', doc: null, now: T + 3 })[0].latest).toBe('Round 1');
+  });
+
   it('upserts by updatedAt, and a metadata-only list keeps the progress already read', () => {
     let jobs: Jobs = {};
     jobs = upsertJob(jobs, job({ status: 'running', updatedAt: T + 10, progress: [{ at: T + 10, message: 'Reading the project' }] }));
@@ -26,16 +33,8 @@ describe('job state: server reads and events → rows', () => {
     expect(r.jobs.j1.status).toBe('running');
     expect(applyJobEvent(r.jobs, { kind: 'jobs', id: 'j1', status: 'queued', updatedAt: T + 1 }, 'p1')).toEqual({ jobs: r.jobs, fetch: false });
     // An unknown job: read it when a project is open (it may be this project's, sent from another device).
-    expect(applyJobEvent({}, { kind: 'jobs', id: 'x' }, 'p1').fetch).toBe(true);
-    expect(applyJobEvent({}, { kind: 'jobs', id: 'x' }, null).fetch).toBe(false);
-  });
-
-  it('parses jobs and agents events and ignores the rest', () => {
-    expect(parseAgentEvent('{"kind":"jobs","id":"j1","status":"done","updatedAt":5}')).toEqual({ kind: 'jobs', id: 'j1', status: 'done', updatedAt: 5 });
-    expect(parseAgentEvent('{"kind":"jobs","id":"j1","status":"weird"}')).toEqual({ kind: 'jobs', id: 'j1' });
-    expect(parseAgentEvent('{"kind":"agents","agentId":"a"}')).toEqual({ kind: 'agents' });
-    expect(parseAgentEvent('{"kind":"projects","id":"p","updatedAt":1}')).toBeNull();
-    expect(parseAgentEvent('nope')).toBeNull();
+    expect(applyJobEvent({}, { kind: 'jobs', id: 'x', status: 'queued', updatedAt: T }, 'p1').fetch).toBe(true);
+    expect(applyJobEvent({}, { kind: 'jobs', id: 'x', status: 'queued', updatedAt: T }, null).fetch).toBe(false);
   });
 
   it('builds rows: this project only, running first, the latest progress, elapsed, cancel and undo', () => {
@@ -93,7 +92,7 @@ describe('job state: server reads and events → rows', () => {
 });
 
 describe('presence and entry-point preconditions', () => {
-  const agent = { agentId: 'a1', name: 'cachyos-fps', host: 'cachyos-fps', version: '0.3.0', busy: false };
+  const agent: AgentInfo = { agentId: 'a1', name: 'cachyos-fps', host: 'cachyos-fps', version: '0.3.0', busy: false, lastSeen: T };
 
   it('reads presence: no sync, older server, unreachable, offline, online, busy', () => {
     expect(presenceOf({ syncConfigured: false, agents: [agent], error: null })).toEqual({ kind: 'no-sync' });

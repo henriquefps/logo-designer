@@ -9,7 +9,7 @@ import { flowSource, flowSourceLabel, newScreenFromFlow } from '@/wireframe/flow
 import { frameOf, frames } from '@/wireframe/screens';
 import type { FlowMenu } from '@/wireframe/flowCommands';
 import { sendJob } from './send';
-import type { Job } from './protocol';
+import type { AppJob as Job } from './jobs';
 
 export type AgentRequest =
   | { kind: 'screenshot'; file: File; at?: Vec }

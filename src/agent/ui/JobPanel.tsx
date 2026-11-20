@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { requestCancel, undoAgentChanges, useAgentStore } from '../agentStore';
 import type { JobRow } from '../jobs';
 import { useJobRows } from './useJobRows';
-import type { JobStatus } from '../protocol';
+import type { JobStatus } from '@/sync/jobs';
 
 const ICON: Record<JobStatus, typeof CheckCircleIcon> = {
   queued: ClockIcon,
