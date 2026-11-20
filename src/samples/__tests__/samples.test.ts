@@ -240,14 +240,11 @@ describe('the Roam sample', () => {
     expect(into.summary.removed).toBe(0);
   });
 
-  it('is the committed spec built (scripts/samples/roam.spec.json)', () => {
+  it('is the committed spec built (scripts/samples/roam.spec.json), byte for byte apart from the build stamp', () => {
     const committed = JSON.parse(readFileSync(join(__dirname, '../../../scripts/samples/roam.spec.json'), 'utf8'));
-    const { $schema: _a, ...fromFile } = JSON.parse(JSON.stringify(dumpToSpec(doc)));
-    const { $schema: _b, ...fromSpec } = JSON.parse(JSON.stringify(dumpToSpec(buildFromSpec(committed).doc)));
-    void _a;
-    void _b;
-    // Flow ids the merge did not state are generated; compare the rest.
-    const strip = (s: { flows?: { id?: string }[] }) => ({ ...s, flows: s.flows?.map(({ id: _id, ...f }) => (void _id, f)) });
-    expect(strip(fromSpec)).toEqual(strip(fromFile));
+    const rebuilt = buildFromSpec(committed).doc;
+    expect(JSON.parse(JSON.stringify(dumpToSpec(rebuilt)))).toEqual(JSON.parse(JSON.stringify(dumpToSpec(doc))));
+    expect(doc.id).toBe('dsampleroam');
   });
+
 });

@@ -57,7 +57,8 @@ src/
     assets/             AssetsPanel + sources/<id>/ (empty: icons/fonts workers add theirs)
     shared/             NumberField, ColorField, PaintEditor, AlignButtons, Section/FieldRow
   dialogs/              DialogHost + <id>/ (newDocument = welcome/File → New, projects, shortcuts, about,
-                        export, convertToPath); each Component is React.lazy and mounts on first open
+                        export, convertToPath, samples); each Component is React.lazy and mounts on first open
+  samples/              bundled sample projects (section "Samples" below): registry.ts, copy.ts, open.ts
   io/
     projectFile.ts      .designer.json serialize ($schema) + validateDocument (errors name the JSON path, defaults)
     projectFileTypes.ts file shape for the JSON Schema (scripts/gen-schema.ts → public/schema/)
@@ -255,6 +256,35 @@ still-empty, untouched document instead of leaving an empty project behind; a re
 the other mode's marker (`icon` / `wireframe`) and keeps its name only if it was a plain document.
 Tests: `newDocument.test.ts` (Vitest) and `bun run e2e:new-document` (Playwright, each mode end to end;
 `SHOTS=<dir>` also saves light/dark screenshots at 390/1024/1440).
+
+## Samples (`src/samples/`)
+
+Finished projects bundled with the app (`public/samples/<id>.designer.json` + a thumbnail), listed in
+`registry.ts` (`SampleDef`: id, name, one-line description, mode, file, thumbnail; pure data, the CLI imports it
+too). Adding one is two files and one entry (README → Samples).
+
+- **Opening always copies** (`copy.ts`, pure): `sampleCopy` gives the document a new id, fresh timestamps, no
+  `live` mark, and a name no project has (`uniqueName`: "Roam (sample)", "Roam (sample) 2", …).
+- **App** (`open.ts`): `openSample(id)` fetches the file (precached by the PWA: `samples/*.json` in
+  `vite.config.ts` → `globPatterns`; the thumbnails are PNGs, already precached), validates it (`parseProject`) and
+  imports the copy (`useProjectsStore.importDocument`, which opens it and fits the canvas). The still-empty first
+  document is removed, as New reuses it. `ui.ts` wraps it with a toast.
+- **UI**: `SampleCard.tsx`; the New document step of a mode lists `samplesFor(mode)` under "Or start from a sample"
+  (`ModeOptions.tsx`, wireframe today); Help → **Open sample project…** (`help.samples`) opens
+  `dialogs/samples/` with every sample.
+- **CLI**: `designer new --sample <id> [-o file] [--name N]` (`src/cli/samples.ts`) reads the file from the
+  checkout's `public/` and writes the same copy.
+- **Roam** is built, never hand-edited, by `scripts/samples/roam.ts`: `--merge` dumps the promo's two projects
+  with `designer wf dump`, merges the specs (renames the Settings sub-screen "Trips" to "Trip settings", adds the
+  tab bar's Profile → "Settings (new)" link on the master, lays the screens out in two rows) into
+  `scripts/samples/roam.spec.json`; without arguments it rebuilds from that spec (`wf build`, a fixed id and date
+  so rebuilds are byte-identical), validates, and renders the thumbnail (`to-png --screen Explore`) and
+  `docs/screenshots/sample-roam-sheet.png` (`wf sheet --notes`). 387 KB of compact JSON, 27 KB gzipped.
+- Tests: `src/samples/__tests__/samples.test.ts` (registry files, copy semantics, `openSample` against the
+  projects store, the Roam file: names, statuses, renamed screen, tab bar links, no dangling flows/notes, known
+  component kinds, two rows without overlaps, spec round trip), `src/cli/main.test.ts` (`new --sample`), and
+  `bun run e2e:samples` (Playwright: open from New document and from Help, Present mode reaches a Settings
+  sub-screen through the Profile tab; `SHOTS=<dir>` saves light/dark screenshots).
 
 ## View preferences
 

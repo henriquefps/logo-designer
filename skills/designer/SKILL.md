@@ -108,6 +108,8 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
 - `designer wf components` (once per session; `designer wf components list-row` for one) lists every kind with
   its props, defaults, options and an example. Use only those kinds and props; `wf build` rejects anything else
   with the spec path and a "did you mean".
+- A complete worked example: `designer new --sample roam -o roam.designer.json`, then `designer wf dump
+  roam.designer.json` (13 screens, a shared tab bar with links on its tabs, statuses, notes).
 - A screen: `{ "name": "Settings", "status": "current", "platform": "phone", "root": [ …nodes ] }`. A node is a
   component (`{ "list-row": { "title": "Language", "trailing": "value", "value": "English" } }`, short forms
   `{ "heading": "Settings" }`, `{ "tabs": ["A", "B"] }`), a stack (`{ "vstack": […], "gap": 8 }`, `hstack`, `grid`

@@ -24,6 +24,7 @@ const THUMB = join(root, 'public/samples/roam.thumb.png');
 const SHEET = join(root, 'docs/screenshots/sample-roam-sheet.png');
 
 const NAME = 'Roam (sample)';
+const SAMPLE_DATE = Date.UTC(2026, 10, 20); // the promo recording
 const W = 390; // phone frame width
 const GAP = 200; // between frames in a row (room for routed arrows)
 const NOTE_GAP = 24; // frame edge → its notes
@@ -94,7 +95,7 @@ function merge(app: Spec, settings: Spec): Spec {
   // so it works from every screen with the tab bar, in Present mode too).
   const tripsTab = app.flows?.find((f) => f.to === 'Trips' && f.from.includes('#'));
   if (!tripsTab) throw new Error('no tab bar link to Trips in roam');
-  const profile: SpecFlow = { from: tripsTab.from.replace(/#.*$/, '#Profile'), to: 'Settings (new)' };
+  const profile: SpecFlow = { id: 'fsampleroamprofile', from: tripsTab.from.replace(/#.*$/, '#Profile'), to: 'Settings (new)' };
 
   return {
     $schema: app.$schema,
@@ -179,11 +180,13 @@ try {
   mkdirSync(dirname(OUT), { recursive: true });
   const built = join(tmp, 'roam.designer.json');
   build(spec, built);
-  // Compact JSON: the app and the CLI read it, nobody edits it.
-  writeFileSync(OUT, JSON.stringify(readJson(built)));
+  // Compact JSON: the app and the CLI read it, nobody edits it. A fixed id and date keep rebuilds byte-identical
+  // (opening a sample always gives the copy a new id and the current time anyway).
+  writeFileSync(OUT, JSON.stringify({ ...readJson<Json>(built), id: 'dsampleroam', createdAt: SAMPLE_DATE, updatedAt: SAMPLE_DATE }));
   designer('validate', OUT);
   designer('wf', 'sheet', OUT, '-o', SHEET, '--notes', '--max', '3200');
-  designer('wf', 'sheet', OUT, '-o', THUMB, '--max', '480');
+  // The thumbnail is the Explore screen (a card shows its top, square): the whole sheet is unreadable at 64 px.
+  designer('to-png', OUT, '--screen', 'Explore', '--size', '192', '-o', THUMB);
   const raw = statSync(OUT).size;
   const gz = gzipSync(readFileSync(OUT)).length;
   console.log(`Wrote ${OUT} (${(raw / 1024).toFixed(0)} KB, ${(gz / 1024).toFixed(0)} KB gzipped), ${THUMB} (${(statSync(THUMB).size / 1024).toFixed(0)} KB), ${SHEET}`);

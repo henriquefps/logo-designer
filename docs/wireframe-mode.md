@@ -965,6 +965,14 @@ with Henrique's hfps identity on everything the recorder draws over the app: `sc
 - The scene cards' full-screen clip-path animation left blank white frames in the headless recording; they slide with
   a transform.
 
+### The Roam sample
+
+The promo's finished project ships as the app's first sample project ("Roam (sample)": New document → Wireframe →
+Sample: Roam, Help → Open sample project…, `designer new --sample roam`): the app screens in a first row, the
+Settings story in a second, the Settings sub-screen "Trips" renamed "Trip settings", and the shared tab bar's
+Profile tab linked to "Settings (new)". Built by `scripts/samples/roam.ts` from the two recorded projects;
+architecture.md → Samples.
+
 ## Quality bar
 
 Everything in `docs/rebuild-spec.md` → Quality bar, plus: layout and every component's `build` have
