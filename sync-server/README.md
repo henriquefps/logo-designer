@@ -88,7 +88,7 @@ Every setting is a flag or an environment variable. Flags win.
 | Flag | Environment variable | Default | Meaning |
 | --- | --- | --- | --- |
 | `--port` | `PORT` | `3051` | TCP port to listen on (all interfaces). |
-| `--data-dir` | `DATA_DIR` | `./data` (`/app/data` in Docker) | Folder holding `projects/`, `fonts/` and `conflicts/`. Created if missing. |
+| `--data-dir` | `DATA_DIR` | `./data` (`/app/data` in Docker) | Folder holding `projects/`, `fonts/`, `jobs/` and `conflicts/`. Created if missing. |
 | `--api-key` | `SYNC_API_KEY` | empty | When set, `/api/projects` and `/api/fonts` require `Authorization: Bearer <key>`. Required through a tunnel or proxy. |
 | `--allowed-origins` | `ALLOWED_ORIGINS` | empty (any origin) | Comma-separated web origins allowed by CORS, e.g. `https://designer.hfps.dev`. |
 | `--max-body-mb` | `MAX_BODY_MB` | `64` | Largest single project or font the server accepts. |
@@ -105,11 +105,26 @@ designer-sync version
 
 All bodies are JSON. `kind` is `projects` or `fonts`.
 
-- `GET /api/health` → `{ "ok": true, "projectCount": n, "fontCount": n, "events": true, "serverTime": ms }`. No key needed. `events` is present on servers that have the event stream.
+- `GET /api/health` → `{ "ok": true, "projectCount": n, "fontCount": n, "events": true, "jobs": true, "serverTime": ms }`. No key needed. `events` and `jobs` are present on servers that have the event stream and the agent job queue.
 - `GET /api/<kind>` → `{ "items": [Meta], "serverTime": ms }`: id, name, createdAt, updatedAt, deleted, size of every item, tombstones included. No payloads.
 - `GET /api/<kind>/<id>` → the stored record: the Meta fields plus `data` (a project document, or a font).
-- `GET /api/events` → a [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) stream of changes, same auth as the rest. It starts with `retry: 3000` and `event: ready` (`{"serverTime": ms}`), then sends `event: change` with `{"kind", "id", "updatedAt"}` for every applied `PUT` (projects and fonts, deletions included) and a `: heartbeat` comment every 25 s, so Cloudflare Tunnel (which closes a response that is silent for 100 s) keeps it open. Only ids and timestamps: a client fetches what it needs with `GET`. A client too slow to read is dropped (it reconnects and resyncs); at most 256 streams are open at once (`503` beyond that). The app and `designer live` use it to see changes within a second.
+- `GET /api/events` → a [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) stream of changes, same auth as the rest. It starts with `retry: 3000` and `event: ready` (`{"serverTime": ms}`), then sends `event: change` with `{"kind", "id", "updatedAt"}` for every applied `PUT` (projects and fonts, deletions included), `{"kind":"jobs","id","status","updatedAt"}` on every job change and `{"kind":"agents","id","status","updatedAt"}` when an agent comes online, goes busy or idle, or goes offline and a `: heartbeat` comment every 25 s, so Cloudflare Tunnel (which closes a response that is silent for 100 s) keeps it open. Only ids and timestamps: a client fetches what it needs with `GET`. A client too slow to read is dropped (it reconnects and resyncs); at most 256 streams are open at once (`503` beyond that). The app and `designer live` use it to see changes within a second.
 - `PUT /api/<kind>/<id>` with `{ name, createdAt, updatedAt, deleted, base, data }` → `{ "applied": bool, "item": Meta }`. The revision is taken when the id is new or `updatedAt` is strictly greater than the stored one; otherwise `applied` is false and `item` is what the server has. `deleted: true` stores a tombstone and drops `data`. `base` is the `updatedAt` the client last synced for this id. `updatedAt` more than a day in the future is refused (a wrong clock would win every merge).
+
+### Jobs (agent requests)
+
+The app queues a request for the user's own agent (`designer agent`, running on one of their machines) and follows it. Same auth as fonts, ids are chosen by the client (`[A-Za-z0-9_-]`, up to 80). Errors are `{ "error": "…" }`: `400` invalid, `401` key, `404` unknown, `409` wrong state (a lost claim), `413` too big.
+
+- `POST /api/jobs` `{ id, type, projectId, screenId?, frameId?, input, attachments? }` → `201` and the job, status `queued`. `type` is `screenshot` (`input` `{ platform, name?, hint? }` and exactly one `image/*` attachment), `next-screen` (`{ fromScreenId, fromNodeId, fromPart?, label, platform, hint?, at: {x, y} }`), `adapt` (`{ screenId, fromPlatform, toPlatform, hint? }`) or `request` (`{ text }`). `attachments` is `[{ name, mime, dataBase64 }]`, at most 8, decoded total up to `MAX_BODY_MB`. A repeated id is `409`.
+- `GET /api/jobs?active=1&projectId=…` → `{ "items": [JobMeta], "serverTime": ms }`, newest first: the job without its progress log, plus `progressCount` and `lastProgress`. `active=1` keeps `queued` and `running`.
+- `GET /api/jobs/<id>` → the full job (`status`, `input`, `attachments`, `agentId`, `cancelRequested`, `summary`, `error`, `progress: [{ at, message, stage? }]`, timestamps). `GET /api/jobs/<id>/attachments/<name>` → the file, with its mime type.
+- `POST /api/jobs/<id>/claim` `{ agentId }` → `200` and the job (`running`) when it was `queued`, otherwise `409`. It is atomic: of any number of simultaneous claims exactly one wins.
+- `POST /api/jobs/<id>/progress` `{ agentId, message, stage? }` → `{ status, cancelRequested, progressCount }`. Only the claiming agent, only while `running`; the newest 200 entries are kept, messages are cut at 500 characters.
+- `POST /api/jobs/<id>/finish` `{ agentId, status: "done" | "failed" | "cancelled", summary?, error? }` → the job. Same agent rule.
+- `POST /api/jobs/<id>/cancel` → the job. A `queued` job becomes `cancelled` at once; a `running` one gets `cancelRequested: true` and its agent finishes it as `cancelled`; a finished one is `409`.
+- `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId? }` every 15 s; `GET /api/agents` → `{ "items": [{ agentId, name, host, version, busy, jobId?, lastSeen }] }` for the agents seen in the last 45 s.
+
+A `running` job whose agent is silent (no heartbeat, claim or progress) for 2 minutes becomes `failed` with `"agent went away"`. The newest 200 jobs are kept; attachments are deleted 24 h after a job finishes (the record stays, with `attachmentsDeleted`).
 
 ## Data on disk
 
@@ -117,6 +132,8 @@ All bodies are JSON. `kind` is `projects` or `fonts`.
 data/
   projects/<id>.json        one file per project (a tombstone keeps only the metadata)
   fonts/<id>.json           one file per uploaded font face (base64 inside)
+  jobs/<id>.json            one file per agent job (input, status, progress log)
+  jobs/<id>/<name>          its attachments (screenshots), deleted 24 h after the job finishes
   conflicts/projects/<id>/<updatedAt>.json   overwritten versions, newest 10 per project
 ```
 
@@ -127,7 +144,7 @@ Files are written atomically (temp file, fsync, rename) with mode 0600, so a cop
 Your projects are only as private as this server, so it refuses to be exposed without a key.
 
 - **Without an API key** (default) it answers only requests that come straight from your network: loopback, private ranges, link-local and `100.64.0.0/10` (Tailscale) peers, and without `Cf-Connecting-IP`, `X-Forwarded-For`, `X-Real-IP` or `Forwarded` headers. Anything through a tunnel or proxy gets `401` with an explanation, and the server prints a warning at startup.
-- **With an API key**, anyone who has it may read and overwrite every project and font, and follow the event stream, from anywhere. The comparison is constant time. Treat it like a password; if it leaks, make a new one and update the server and every device.
+- **With an API key**, anyone who has it may read and overwrite every project and font, queue and read agent jobs (which carry screenshots and the user's requests), and follow the event stream, from anywhere. The comparison is constant time. Treat it like a password; if it leaks, make a new one and update the server and every device.
 - CORS allows any origin by default (the key is what protects the data). Set `ALLOWED_ORIGINS` to accept your copy of the app only.
 - Don't put Cloudflare Access (a login page) in front of the hostname: the app makes background requests and cannot log in.
 

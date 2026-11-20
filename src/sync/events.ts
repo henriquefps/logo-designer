@@ -3,6 +3,7 @@
 // header). The stream is only a hint that something changed: on every (re)connect the caller runs its
 // normal sync to catch up with what it missed.
 import { normalizeServerUrl, type Connection, type Kind } from './api';
+import { parseAgentsEvent, parseJobEvent, type AgentsEvent, type JobEvent } from './jobs';
 
 export interface ChangeEvent {
   kind: Kind;
@@ -55,6 +56,10 @@ export function parseChange(data: string): ChangeEvent | null {
 
 export interface SubscribeOptions {
   onChange: (e: ChangeEvent) => void;
+  /** A job was created, claimed, progressed or finished (phase 4, agent jobs). */
+  onJob?: (e: JobEvent) => void;
+  /** An agent came online, went busy or idle, or went offline. */
+  onAgents?: (e: AgentsEvent) => void;
   /** The stream is (re)connected: catch up with a normal sync. */
   onOpen?: () => void;
   onState?: (s: StreamState) => void;
@@ -114,7 +119,11 @@ export function subscribeEvents(conn: Connection, opts: SubscribeOptions): () =>
           opts.onOpen?.();
         } else if (name === 'change') {
           const e = parseChange(data);
-          if (e) opts.onChange(e);
+          if (e) return opts.onChange(e);
+          const j = opts.onJob && parseJobEvent(data);
+          if (j) return opts.onJob?.(j);
+          const a = opts.onAgents && parseAgentsEvent(data);
+          if (a) opts.onAgents?.(a);
         }
       }, bump);
       const reader = res.body.getReader();
