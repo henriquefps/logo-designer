@@ -336,7 +336,20 @@ describe('Claude Code check and flags', () => {
     expect(ALLOWED_TOOLS).toEqual(['Bash(designer wf *)', 'Bash(designer screen *)', 'Bash(designer to-png *)', 'Bash(designer validate *)', 'Bash(designer info *)', 'Read', 'Write', 'Edit']);
     expect(args.slice(-2)).toEqual(['--append-system-prompt', 'SYS']);
     expect(args).not.toContain('--model');
-    // Bun must not read bunfig.toml (preload), .env or tsconfig.json from the job folder, nor install anything.
-    expect(defaultDesignerCommand().slice(1, 5)).toEqual(['--no-install', '--config=/dev/null', '--no-env-file', expect.stringMatching(/^--tsconfig-override=\/.+tsconfig\.json$/)]);
+    // Bun must not read bunfig.toml (preload) or .env from the job folder, nor install anything.
+    expect(defaultDesignerCommand().slice(1, 4)).toEqual(['--no-install', '--config=/dev/null', '--no-env-file']);
   });
+
+  it('runs the real CLI cleanly from a job folder with a hostile bunfig.toml, .env and tsconfig.json', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'designer-jobdir-'));
+    await writeFile(join(dir, 'evil.ts'), 'throw new Error("preloaded");\n');
+    await writeFile(join(dir, 'bunfig.toml'), 'preload = ["./evil.ts"]\n');
+    await writeFile(join(dir, '.env'), 'DESIGNER_EVIL=1\n');
+    await writeFile(join(dir, 'tsconfig.json'), JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['./evil/*'] } } }));
+    const [bin, ...args] = defaultDesignerCommand();
+    const r = await promisify(execFile)(bin, [...args, 'wf', 'components'], { cwd: dir });
+    expect(r.stdout).toMatch(/^# Wireframe components/);
+    // Regression (phase 4 end-to-end run): `--tsconfig-override` made Bun print an internal error after every command.
+    expect(r.stderr).not.toMatch(/Internal error/);
+  }, 30_000);
 });
