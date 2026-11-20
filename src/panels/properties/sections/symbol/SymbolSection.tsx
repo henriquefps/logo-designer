@@ -31,11 +31,11 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
       <div className="flex min-w-0 items-center gap-2">
         <DiamondsFourIcon className="shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.name}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">{copies === 1 ? '1 copy' : `${copies} copies`}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{copies === 1 ? '1 instance' : `${copies} instances`}</span>
       </div>
       {inside ? (
         <>
-          <p className="text-xs text-muted-foreground">Part of “{s.name}”: changes here go to every copy.</p>
+          <p className="text-xs text-muted-foreground">Part of “{s.name}”: changes here go to every instance.</p>
           <Button size="sm" variant="outline" onClick={() => useEditorStore.getState().setSelection([owner.id])}>
             Select the component
           </Button>
@@ -50,7 +50,7 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
               <LinkBreakIcon /> Detach
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Double-click to edit the content: every copy follows. Position and size are this copy’s own.</p>
+          <p className="text-xs text-muted-foreground">Double-click to edit the content: every instance follows. Position and size are this instance’s own.</p>
         </>
       )}
     </Section>

@@ -372,7 +372,7 @@ export function makeSymbol(d: Draft<DocLike>, nodeId: Id, name: string): Id | nu
   const symbols = symbolsOf(doc);
   const content = contentOf(inst, { id, name: label }, symbols);
   const draft = draftAt(d, path) as Draft<GroupNode>;
-  draft.children = children as Draft<SceneNode>[];
+  draft.children = structuredClone(children) as Draft<SceneNode>[];
   draft.symbol = { id };
   draft.name = label;
   const wf = d.wireframe!;
@@ -387,14 +387,15 @@ export function newSymbolInstance(s: WireframeSymbol, symbols: readonly Wirefram
   const c = s.content;
   let layout = c.layout;
   if (layout && width !== undefined) layout = { ...layout, size: { width, height: layout.size?.height ?? 0 } };
-  return {
+  // Cloned: a new node shares nothing frozen with the master (the pipeline writes into it).
+  return structuredClone({
     ...createGroup({ name: s.name, transform: { x: Math.round(at.x), y: Math.round(at.y) } }),
     id,
     ...(layout ? { layout } : {}),
     ...(c.layoutItem ? { layoutItem: c.layoutItem } : {}),
     symbol: { id: s.id },
     children: materializeChildren(c, id, symbols, [s.id]),
-  };
+  });
 }
 
 /** Detach (on a draft node): the instance becomes plain content (same id, same children). */
@@ -466,7 +467,7 @@ export function deleteSymbol(d: Draft<DocLike>, id: Id): boolean {
       });
     const content = symbols[i].content;
     const next = fill(content.children);
-    if (!deepEqual(next, content.children)) wf.symbols![i].content = { ...content, children: next } as Draft<GroupNode>;
+    if (!deepEqual(next, content.children)) wf.symbols![i].content = structuredClone({ ...content, children: next }) as Draft<GroupNode>;
   });
   wf.symbols = wf.symbols!.filter((x) => x.id !== id);
   if (!wf.symbols.length) delete wf.symbols;
@@ -567,10 +568,11 @@ export function syncSymbols(d: Draft<DesignDocument>, ctx: PipelineContext): voi
     const target = draft();
     if (next.children.length !== node.children.length || next.children.some((c, i) => c !== node.children[i])) {
       const reuse = new Map(node.children.map((c, i) => [c, target.children[i]]));
-      target.children = next.children.map((c) => reuse.get(c) ?? (c as Draft<SceneNode>));
+      // New nodes are cloned: they share frozen parts with the master, and later steps write into them.
+      target.children = next.children.map((c) => reuse.get(c) ?? (structuredClone(c) as Draft<SceneNode>));
     }
     if (!deepEqual(next.layout, node.layout)) {
-      if (next.layout) target.layout = next.layout as Draft<LayoutInfo>;
+      if (next.layout) target.layout = structuredClone(next.layout) as Draft<LayoutInfo>;
       else delete target.layout;
     }
     rewritten.push(path);

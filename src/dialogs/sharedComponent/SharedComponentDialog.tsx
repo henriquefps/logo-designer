@@ -47,7 +47,7 @@ function NameForm({ state, close }: { state: Extract<NonNullable<SymbolDialogSta
         <ResponsiveDialogTitle>{make ? 'Make component' : 'Rename component'}</ResponsiveDialogTitle>
         <ResponsiveDialogDescription>
           {make
-            ? 'The selection becomes a shared component: insert it on other screens from My components in the library. Editing any copy updates all of them.'
+            ? 'The selection becomes a shared component: insert it on other screens from My components in the library. Editing any instance updates all of them.'
             : 'The name shows in My components and in the export for AI.'}
         </ResponsiveDialogDescription>
       </ResponsiveDialogHeader>
@@ -80,7 +80,7 @@ export function SharedComponentDialog({ open, onOpenChange }: { open: boolean; o
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{state.name}”?</AlertDialogTitle>
             <AlertDialogDescription>
-              {state.instances === 1 ? 'Its one copy stays' : `Its ${state.instances} copies stay`} on the screens as plain content, no longer linked. The component
+              {state.instances === 1 ? 'Its one instance stays' : `Its ${state.instances} instances stay`} on the screens as plain content, no longer linked. The component
               leaves My components.
             </AlertDialogDescription>
           </AlertDialogHeader>
