@@ -52,3 +52,53 @@ describe('canvas input gate (first click on a freshly loaded page)', () => {
     expect(acceptsCanvasInput()).toBe(true);
   });
 });
+
+describe('live editing (sync)', () => {
+  it('a pulled version replaces the open project in place without being saved again (no push back)', async () => {
+    await p().init();
+    const id = await p().create('Remote');
+    await wait(AUTOSAVE_DELAY + 50);
+    const before = p().saveState;
+    const incoming = { ...useDocStore.getState().doc, name: 'From the CLI', updatedAt: 1_000_000, children: [createRect()] };
+    expect(await p().applyRemote(incoming)).toBe(true);
+    expect(useDocStore.getState().doc.name).toBe('From the CLI');
+    expect(p().saveState).toBe(before); // no autosave scheduled
+    await wait(AUTOSAVE_DELAY + 100);
+    expect((await loadDocument(id))!.updatedAt).toBe(1_000_000);
+  });
+
+  it('keeps the selection on nodes that survive a pull', async () => {
+    await p().init();
+    await p().create('Sel');
+    const [a, b] = [createRect(), createRect()];
+    useDocStore.getState().addNodes([a, b]);
+    await p().flush();
+    const { useEditorStore } = await import('../useEditorStore');
+    useEditorStore.getState().setSelection([a.id, b.id]);
+    const doc = useDocStore.getState().doc;
+    await p().applyRemote({ ...doc, updatedAt: doc.updatedAt + 1, children: doc.children.filter((c) => c.id !== b.id) });
+    expect(useEditorStore.getState().selection).toEqual([a.id]);
+  });
+
+  it('a live project autosaves faster, records this device as the editor, and can stop being live', async () => {
+    const { LIVE_AUTOSAVE_DELAY } = await import('@/sync/live');
+    const { deviceId } = await import('@/sync/state');
+    await p().init();
+    const id = await p().create('Live');
+    const doc = useDocStore.getState().doc;
+    await p().applyRemote({ ...doc, live: { editedBy: 'cli' }, updatedAt: doc.updatedAt + 1 });
+    expect(p().projects.find((m) => m.id === id)!.live).toBe('cli');
+
+    useDocStore.getState().addNodes([createRect()]);
+    await wait(LIVE_AUTOSAVE_DELAY + 80);
+    expect(LIVE_AUTOSAVE_DELAY).toBeLessThan(AUTOSAVE_DELAY);
+    expect(p().saveState).toBe('saved');
+    expect((await loadDocument(id))!.live).toEqual({ editedBy: `app:${deviceId()}` });
+    expect(p().projects.find((m) => m.id === id)!.live).toBe(`app:${deviceId()}`);
+
+    p().stopLive();
+    await wait(AUTOSAVE_DELAY + 100);
+    expect((await loadDocument(id))!.live).toBeUndefined();
+    expect(p().projects.find((m) => m.id === id)!.live).toBeUndefined();
+  });
+});

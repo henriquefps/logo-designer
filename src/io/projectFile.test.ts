@@ -85,3 +85,13 @@ describe('project file', () => {
     expect('icon' in validateDocument(createDocument())).toBe(false);
   });
 });
+
+describe('live mark', () => {
+  it('keeps a live mark, defaults its editor and drops a malformed one', () => {
+    const base = JSON.parse(serializeProject(createDocument({ name: 'L' })));
+    expect(parseProject(JSON.stringify({ ...base, live: { editedBy: 'app:x1' } })).live).toEqual({ editedBy: 'app:x1' });
+    expect(parseProject(JSON.stringify({ ...base, live: {} })).live).toEqual({ editedBy: 'cli' });
+    expect(parseProject(JSON.stringify({ ...base, live: true })).live).toBeUndefined();
+    expect(parseProject(JSON.stringify(base)).live).toBeUndefined();
+  });
+});

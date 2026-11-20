@@ -330,8 +330,9 @@ export class LiveMirror {
     await this.push(doc, this.base, 'file changed');
   }
 
-  private async push(doc: DesignDocument, base: number | undefined, why: string, live = true) {
-    const updatedAt = Math.max(this.now(), (this.base ?? 0) + 1);
+  /** `after`: the revision must be newer than this (a conflict the file won against a newer-stamped remote). */
+  private async push(doc: DesignDocument, base: number | undefined, why: string, live = true, after = 0) {
+    const updatedAt = Math.max(this.now(), (this.base ?? 0) + 1, after + 1);
     const data: DesignDocument = { ...doc, updatedAt, ...(live ? { live: { editedBy: CLI_EDITOR } } : {}) };
     if (!live) delete data.live;
     const r = await putItem(this.o.conn, 'projects', doc.id, { name: doc.name, createdAt: doc.createdAt, updatedAt, deleted: false, base, data });
@@ -357,7 +358,7 @@ export class LiveMirror {
     // Did the file change too, without having been pushed yet?
     const text = await readFile(this.o.path, 'utf8').catch(() => null);
     if (text !== null && text !== this.lastText) {
-      let local: DesignDocument | null = null;
+      let local: DesignDocument | null;
       try {
         local = parseFileDoc(text, basename(this.o.path)).doc;
       } catch {
@@ -375,7 +376,7 @@ export class LiveMirror {
         }
         this.lastText = text;
         this.lastStat = await this.statKey();
-        await this.push(local, this.base, 'file changed, conflict');
+        await this.push(local, this.base, 'file changed, conflict', true, updatedAt);
         return;
       }
       if (local) {
