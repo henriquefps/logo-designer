@@ -55,6 +55,10 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | `designer link <file> --github` | prints a `?import=` link to the file's raw URL on GitHub (current branch; it must be pushed) |
 | `designer link --url <url>` | prints a `?import=` link for any URL that allows CORS |
 | `designer serve <project\|svg> [--port 8765]` | serves one file on `http://localhost:<port>/` with CORS and prints its `?import=` link (Ctrl+C to stop) |
+| `designer live <project> [--server URL]` | **live editing** through Henrique's sync server ([below](#live-editing)): pushes the file now, then mirrors both ways until Ctrl+C. File edits are pushed within a second; edits made in the app are written back to the file. Run it in the background |
+| `designer sync push <project> [--server URL]` | uploads a project file once (it then appears in the app on every device with Sync on); prints an `?open-project=` link |
+| `designer sync pull <project\|id> [-o file] [--server URL]` | downloads a project: into its own file (matched by the file's `id`), or for an id into `-o` / `<name>.designer.json` |
+| `designer sync list [--json] [--server URL]` | the projects on the server: id, last change, size, name |
 
 Every command takes `--origin http://localhost:5173` to make links for a local dev server instead of
 production. Without `-o`, projects and SVGs go to stdout; `-` reads the SVG from stdin.
@@ -123,6 +127,37 @@ instances (`component: { kind, props }`) are generated on open; write their prop
 like the app does on open, and print a `warning:` for what was ignored (an unknown component kind loads as a
 plain group). `export-ai` turns the project into the package an AI agent reads to build the app (`bun run designer export-ai notes.designer.json`).
 More wireframe commands (components, flows) come in phase 3.
+
+## Live editing
+
+With Henrique's sync server ([`sync.md`](sync.md)) an agent can work on a project **while he watches and
+adjusts it** in the app: no links, no re-imports, both sides see each other's edits within a second.
+
+```sh
+# server from --server or DESIGNER_SYNC_URL; key from DESIGNER_SYNC_KEY or SYNC_API_KEY (here via skv)
+skv run designer-sync -- bun run designer live hoard.designer.json &
+# Live: “Hoard” (dmwob5jkn1oddhqb) ↔ https://sync.example.com
+# Open Designer with Sync on (same server): it appears in your projects. Or open https://designer.hfps.dev/?open-project=dmwob5jkn1oddhqb
+# Edits to hoard.designer.json are pushed within a second; edits in the app are written back to it. Ctrl+C to stop.
+# 10:36:08 PM ↑ pushed (start)
+# 10:36:12 PM ↑ pushed (file changed)
+# 10:36:14 PM ↓ pulled (changed on the server, edited in the app) → hoard.designer.json
+```
+
+- Keep editing the file as usual (`designer screen`, writing the JSON, `wf build --into` …): each save is
+  pushed. The file must be valid; a broken save is reported (`! not pushed: …`) and the next one is tried.
+- **Henrique's edits come back into the file**: re-read it before the next change (it is rewritten whole,
+  atomically). The file never carries the `live` mark; the server copy does.
+- Give him the printed `?open-project=` link (or tell him it is in his projects). The app shows **Live ·
+  the CLI / this device / another device** in the top bar: who saved the current version.
+- **Conflicts** follow the sync rules (last write wins, the loser is kept): when both sides changed before
+  either was synced, the newer one wins and the other is saved next to the file as
+  `<name> (conflicted copy YYYY-MM-DD).designer.json` (the server also archives what it overwrote).
+- If the project is deleted in the app, `live` stops and leaves the file alone. Ctrl+C pushes once more
+  without the live mark.
+- One-off transfers: `designer sync push|pull|list` (same server and key). A push is stamped "now", so it
+  wins over older versions (which the server archives); it is refused only when the server's copy is
+  stamped later (a device clock ahead), and then `sync pull` first.
 
 ## The workflow
 
@@ -214,7 +249,7 @@ Manual check (native dialogs can't be automated):
 - **A `window` automation API** for agents driving the page: it needs a browser session and
   couples agents to UI internals. (`window.__designer` exists in development only, for tests.)
 - **A watch folder** (the app reloading a file when an agent edits it): the browser can't watch
-  files without a handle the user picked; reopening the file or a new link is enough.
+  files without a handle the user picked. [Live editing](#live-editing) does this through the sync server.
 
 The format + CLI + links cover agent work with far less surface. Revisit if agents need to edit a
 project while Henrique has it open.
