@@ -132,3 +132,70 @@ describe('useDocStore', () => {
     expect(s().doc.artboard.width).toBe(1024);
   });
 });
+
+describe('applyRemote: a version from elsewhere keeps the undo history (docs/sync.md → In-place update and undo)', () => {
+  const remote = (patch: Partial<ReturnType<typeof createDocument>>) => ({ ...s().doc, ...patch });
+
+  it('is one undo step on top of your edits; your edits stay undoable', () => {
+    const mine = createRect();
+    s().addNodes([mine]);
+    s().updateNode(mine.id, { name: 'Mine' });
+    const theirs = createEllipse();
+    expect(s().applyRemote(remote({ children: [...s().doc.children, theirs], updatedAt: 5, live: { editedBy: 'cli' } }))).toBe(true);
+    expect(s().past).toHaveLength(3);
+    expect(s().past.at(-1)).toMatchObject({ label: 'Changes from the agent', remote: true });
+    s().undo();
+    expect(ids()).toEqual([mine.id]);
+    expect(s().doc.live).toEqual({ editedBy: 'cli' }); // where the version came from is not undone
+    expect(s().doc.updatedAt).toBe(5);
+    s().undo();
+    expect(s().findNode(mine.id)!.name).not.toBe('Mine');
+    s().undo();
+    expect(ids()).toEqual([]);
+    s().redo();
+    s().redo();
+    s().redo();
+    expect(ids()).toEqual([mine.id, theirs.id]);
+  });
+
+  it('consecutive versions from elsewhere are one step; a version after your edit is a new one', () => {
+    const [a, b, c] = [createRect(), createRect(), createRect()];
+    s().addNodes([a]);
+    s().applyRemote(remote({ children: [...s().doc.children, b] }));
+    s().applyRemote(remote({ children: [...s().doc.children, c], name: 'Renamed there' }));
+    expect(s().past).toHaveLength(2);
+    expect(s().past.at(-1)!.label).toBe('Changes from another device');
+    s().undo();
+    expect(ids()).toEqual([a.id]);
+    expect(s().doc.name).not.toBe('Renamed there');
+    s().redo();
+    s().updateNode(a.id, { name: 'A' });
+    s().applyRemote(remote({ children: s().doc.children.slice(0, 2) }));
+    expect(s().past).toHaveLength(4);
+  });
+
+  it('clears redo, records nothing when only the live mark or date changed, and waits for a gesture to end', () => {
+    s().addNodes([createRect()]);
+    s().undo();
+    expect(s().future).toHaveLength(1);
+    s().applyRemote(remote({ live: { editedBy: 'cli' }, updatedAt: 9 }));
+    expect(s().past).toHaveLength(0);
+    expect(s().future).toHaveLength(1); // nothing changed in the content
+    expect(s().doc.live).toEqual({ editedBy: 'cli' });
+    s().applyRemote(remote({ children: [createRect()] }));
+    expect(s().future).toHaveLength(0);
+    s().beginTransaction('Move');
+    expect(s().applyRemote(remote({ children: [] }))).toBe(false);
+    s().cancelTransaction();
+  });
+
+  it('rematerialize: no step of its own; joins a change from elsewhere; refuses after your own edit', () => {
+    expect(s().rematerialize()).toBe(true);
+    expect(s().past).toHaveLength(0);
+    s().applyRemote(remote({ children: [createRect()] }));
+    expect(s().rematerialize()).toBe(true);
+    expect(s().past).toHaveLength(1);
+    s().addNodes([createRect()]);
+    expect(s().rematerialize()).toBe(false);
+  });
+});

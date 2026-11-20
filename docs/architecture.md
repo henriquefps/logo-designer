@@ -115,6 +115,8 @@ src/
   `beginTransaction(label)` on pointerdown, apply freely while moving (no history recorded), and
   `commitTransaction()` on pointerup (one undo step) or `cancelTransaction()` on Escape. Gestures compute
   each frame **from the snapshot taken at the start** and use `replaceNodes`, never incremental deltas.
+  A version from elsewhere (sync, agent, live mirror) goes through `applyRemote(doc)`, not `load`: one undo step,
+  history kept ([sync.md → In-place update and undo](sync.md#in-place-update-and-undo)). `load` is for opening.
 - **Selection** lives in `useEditorStore.selection`. It can contain nested ids (layers panel, Cmd-click
   on canvas); use `topmostIds(doc, ids)` before transforming.
 - **Rendering.** `NodeRenderer` is memoized by node identity; immer structural sharing keeps untouched

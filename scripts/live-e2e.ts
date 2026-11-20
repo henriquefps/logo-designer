@@ -10,6 +10,8 @@
 //    "conflicted copy" project;
 // 4. conflict, the app's edit is newer: the file takes it, the server archives the CLI's version;
 // 5. Ctrl+C on `designer live` clears the Live mark in the app;
+// 2b. undo after the agent's edit: Henrique's own edits stay undoable (the agent's change used to replace the
+//    document through `load`, which cleared the history), the agent's change being one undo step on top;
 // 6. the app is already open on another project when `?open-project=` opens the live one and the agent runs
 //    `wf build --into` right away: the build survives (the old project's pending autosave used to be saved
 //    into the live project as an app edit, newer than the build, and the file lost every screen).
@@ -35,6 +37,11 @@ const appDoc = (page: Page) =>
   page.evaluate(() => {
     const d = (window as unknown as { __designer: { useDocStore: { getState(): { doc: { name: string; wireframe?: { screens: { name: string }[] }; children: { name: string; children: { name: string }[] }[] } } } } }).__designer.useDocStore.getState().doc;
     return { name: d.name, screens: d.wireframe?.screens.map((s) => s.name) ?? [], components: d.children.flatMap((c) => c.children.map((k) => k.name)) };
+  });
+const history = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __designer: { useDocStore: { getState(): { past: { label: string }[]; future: unknown[] } } } }).__designer.useDocStore.getState();
+    return { past: s.past.map((e) => e.label), future: s.future.length };
   });
 const projectNames = (page: Page) =>
   page.evaluate(() => (window as unknown as { __designer: { useProjectsStore: { getState(): { projects: { name: string }[] } } } }).__designer.useProjectsStore.getState().projects.map((p) => p.name));
@@ -105,6 +112,24 @@ try {
   await live.waitForLine(/↓ pulled .*edited in the app/);
   await waitUntil('the indicator to say this device', async () => (await indicator.getAttribute('data-live-by')) === 'this-device', 3_000);
   ok('Live indicator: last change by this device');
+
+  // 2b. The agent edits after Henrique: his rename stays undoable, under one "Changes from the agent" step.
+  const ownSteps = (await history(page)).past.length;
+  if (!ownSteps) throw new Error('the rename should be an undo step');
+  editProject(file, (d) => addComponent(d, 'Settings', 'list-row', { title: 'Help', trailing: 'chevron' }, 'Help row'));
+  await waitUntil('the agent’s Help row in the app', async () => (await appDoc(page)).components.includes('Help row'), 5_000);
+  const h = await history(page);
+  if (h.past.length !== ownSteps + 1 || h.past.at(-1) !== 'Changes from the agent') throw new Error(`history after the agent's edit: ${JSON.stringify(h)} (had ${ownSteps} steps)`);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+z');
+  await waitUntil('Ctrl+Z to take the Help row away', async () => !(await appDoc(page)).components.includes('Help row'), 3_000);
+  if ((await appDoc(page)).name !== 'Hoard (Henrique)') throw new Error('the first undo should only take the agent’s change back');
+  await page.keyboard.press('Control+z');
+  await waitUntil('Ctrl+Z to take the rename back', async () => (await appDoc(page)).name === 'Hoard', 3_000);
+  await page.keyboard.press('Control+Shift+z');
+  await page.keyboard.press('Control+Shift+z');
+  await waitUntil('redo in the file', () => readProject(file).name === 'Hoard (Henrique)' && JSON.stringify(readProject(file)).includes('Help row'), 5_000, 10);
+  ok('after the agent’s edit, Ctrl+Z undoes its change (one step), then Henrique’s rename; redo brings both back to the file');
 
   // 3. Conflict, the CLI is newer: the app edits offline, then the agent edits the file.
   await context.setOffline(true);

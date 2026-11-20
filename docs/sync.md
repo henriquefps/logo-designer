@@ -41,7 +41,19 @@ Per project, the greater `updatedAt` wins. That is the whole rule. What is cheap
 - Not done: merging two edits of one project (a vector document has no safe three-way merge; the copy lets you do it by eye) and a history browser for `conflicts/` (it is plain JSON, restore by importing the file).
 - **Clocks.** `updatedAt` comes from the device that edited. A clock a day or more in the future is refused by the server (otherwise it would win every later merge); smaller skews can make an older edit win, which is why the loser is always kept rather than dropped.
 - A pulled project is saved with the server's `updatedAt`, so pulling never looks like a local edit and is never pushed back.
-- The project open in the editor is replaced in place when another device changed it, unless it has unsaved edits (the pull then waits for the next cycle, and the usual conflict rules apply).
+- The project open in the editor is replaced in place when another device changed it, unless it has unsaved edits (the pull then waits for the next cycle, and the usual conflict rules apply) or a drag is in progress. See *In-place update and undo* below.
+
+### In-place update and undo
+
+A version from elsewhere (another device, an agent job's pushes, the `designer live` mirror) replaces the open project **without clearing the undo history** (decided 2026-11-20, after the history vanished at the end of an agent job while recording the overview: the pull went through `useDocStore.load`, which starts a fresh history). `useProjectsStore.applyRemote` → `useDocStore.applyRemote`:
+
+- The change is **one undo step**, labelled *Changes from the agent* (the version was saved by the CLI) or *Changes from another device*. Consecutive versions from elsewhere join that step (a whole agent job is one step); a version that arrives after your own edit starts a new one.
+- **Undo after a remote change** first takes that change back (like *Undo the agent's changes*, the result is saved and synced as your edit), then your own edits, in order: they all stay undoable. Redo is cleared by a new version (its steps were recorded against the document before it).
+- The live mark, `updatedAt`, `id` and `createdAt` are set but are not part of the step: undoing the agent's rectangles does not bring an old live mark back.
+- A version that only changes those keys (the live mark cleared at the end of a job) records nothing.
+- Icons the app fills in after such a version (`useDocStore.rematerialize`) join the remote step instead of making one of their own, and are not pushed back for a live project.
+- Not done: undoing your own edit *under* a newer remote step without undoing that step first (it would need a three-way merge of the patches; see the conflict rules above).
+- Tests: `src/store/__tests__/docStore.test.ts` (applyRemote), `src/sync/engine.test.ts` (against the fake server), step 2b of `bun run e2e:live` (real Ctrl+Z in the app).
 
 ### When it syncs
 

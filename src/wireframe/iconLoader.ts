@@ -77,10 +77,8 @@ export function startIconLoader(): () => void {
       if (!ds.doc.wireframe) return;
       const ids = instancesWithPending(ds.doc, loaded);
       if (!ids.length) return;
-      if (!ds.past.length && !ds.txn) {
-        // Just opened: re-materialize without an undo step.
-        ds.load(ds.doc);
-      } else {
+      // Just opened, or just changed elsewhere: re-materialize without an undo step of its own (keeping the history).
+      if (!ds.rematerialize()) {
         // A new `component` object makes the pipeline rebuild the instance (same values).
         ds.updateNodes(
           ids,

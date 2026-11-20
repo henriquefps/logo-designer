@@ -538,9 +538,28 @@ which when drawing from inside an instance ("This screen only" / "Every screen u
 
 Navigation components with a selected index (bottom navigation, tabs, segmented control, sidebar
 navigation, web header) get `selected: 'auto'` as an option (default for new instances): the item
-whose part links to the **current screen** is drawn selected; with no such link, the first. This
-makes one shared tab bar show the right tab on each screen with no per-instance overrides. A number
-keeps the old fixed behaviour.
+whose part links to the **current screen** is drawn selected. This makes one shared tab bar show the
+right tab on each screen with no per-instance overrides. A number keeps the old fixed behaviour.
+
+When no item links to the current screen (a sub-screen), the flows are walked backwards (decided
+2026-11-20, refined the same day): the item that links to a screen which, directly or through other
+screens, **opens** the current one is selected, so Settings → Server keeps "Settings" selected on the
+Server screen.
+
+- **Only "opens" flows count** (parent → child). Ignored: flows from a **back or close part** (top app
+  bar `back` / `close`, modal `close`: they lead to a parent), flows from a **navigation component**
+  (bottom navigation, tabs, segmented control, sidebar navigation, web header: switching between
+  siblings, whole element or part) and flows from a screen **to itself**. So a back link never makes
+  the parent look like a child, and in-screen tabs whose item opens a screen that switches back keep
+  the first tab.
+- **Nearest wins:** breadth first over the remaining incoming flows (from any element or part, on any
+  frame of a screen); an item linking to a screen one flow away beats one linking to a screen two
+  flows away.
+- **Ties:** the first such item. **Cycles** are safe (each screen is visited once).
+- **No path:** the first item, as before.
+- One resolved value (`component.resolved`) serves the canvas, exports, the wf sheet, Present mode and
+  Export for AI's "(selected)". Code: `src/wireframe/steps/autoSelect` (`screenGraph`, `distancesTo`);
+  tests: `src/wireframe/__tests__/autoSelect.test.ts`.
 
 ### As built (links from parts)
 
@@ -816,8 +835,9 @@ order. Per job:
 4. Turn the stream into short progress messages ("Reading the screenshot", "Round 2: fixing the
    list", "Checking with wf compare") → `progress`.
 5. Cancel (event or `cancelRequested` seen on poll) or `--max-minutes` → kill the process tree,
-   finish `cancelled`/`failed`; the project keeps whatever was already built (one undo in the app
-   reverts the job's changes as a whole? see App).
+   finish `cancelled`/`failed`; the project keeps whatever was already built (in the app the job's
+   changes are one undo step on top of your own edits, which stay undoable: [sync.md → In-place update
+   and undo](sync.md#in-place-update-and-undo)).
 6. Finish with a one-paragraph summary from the agent's last message; stop the mirror; keep the job
    folder for a day (debugging), then delete.
 7. Heartbeat every 15 s, including `busy`/`jobId`.
@@ -897,6 +917,9 @@ Found and fixed (each with a regression test or e2e check):
 - `wf build` placed a new screen on top of the notes beside the last one: notes now count as taken space.
 - The job panel showed the agent's multi-paragraph summary in full, over the canvas: clamped to 4 lines with
   More / Less; the prompt asks for at most 3 plain sentences.
+- The undo history was gone right after a job (seen recording the overview): every pull of the open project went
+  through `useDocStore.load`. Now `applyRemote` keeps it: the job's changes are one undo step on top of your own
+  edits ([sync.md → In-place update and undo](sync.md#in-place-update-and-undo)).
 - Undo on an older job wiped the later jobs' screens: offered for the newest job only. Dismissed rows came back
   after a reload: kept per device.
 - The paste dialog's preview revoked a blob URL still loading (a console error on every paste in development).

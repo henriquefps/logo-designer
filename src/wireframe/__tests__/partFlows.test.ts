@@ -117,7 +117,8 @@ describe('remapping part flows when the list changes', () => {
     doc = s().doc;
     expect(keyTo(doc, 'Albums')).toBe('item:2');
     expect(comp(doc, navOn('A')).component.resolved).toEqual({ selected: 3 });
-    // Removal: Settings goes, and its link with it; the Settings screen falls back to the first tab.
+    // Removal: Settings goes, and its link with it; the Settings screen falls back to the first tab (Gallery's back
+    // button leads to Settings, but a back link does not open a child).
     await setComponentProp(navOn('S'), 'labels', ['Files', 'Gallery', 'Photos']);
     doc = s().doc;
     expect(keyTo(doc, 'Settings')).toBeUndefined();
@@ -247,7 +248,8 @@ describe('selected: "auto"', () => {
 
   it('without a link to the screen, the first item; a number keeps the old fixed behaviour', () => {
     const doc = navProject();
-    expect(comp(doc, 'tabs').component.resolved).toBeUndefined(); // Photos / Videos: nothing opens Gallery
+    // Photos / Videos: nothing opens Gallery (Files' tab bar switches to it: a sibling, not a parent).
+    expect(comp(doc, 'tabs').component.resolved).toBeUndefined();
     const d2 = materializeDocument({ ...doc, wireframe: { ...doc.wireframe!, flows: flowsOf(doc).filter((f) => !f.symbol) } });
     expect(comp(d2, navOn('F')).component.resolved).toBeUndefined();
     expect(selectedCentre(d2, navOn('F'))).toBeCloseTo(97.5 / 2);
