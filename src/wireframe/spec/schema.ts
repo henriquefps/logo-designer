@@ -30,7 +30,11 @@ const COMMON: Record<string, Schema> = {
   rotation: { type: 'number' },
   scale: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
   size: { type: 'object', properties: { width: { type: 'number', minimum: 0 }, height: { type: 'number', minimum: 0 } }, required: ['width', 'height'], additionalProperties: false, description: 'Box of a node no layout places (free, in a free screen).' },
-  opens: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Screen(s) this element opens (adds flows).' },
+  opens: {
+    anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }, { type: 'object', additionalProperties: { type: 'string' } }],
+    description:
+      'Screen(s) this element opens (adds flows). An object links parts of a component: { "<part label or key>": "<screen>" }, e.g. a bottom navigation { "Files": "Files" }. Inside a shared component\'s content, the links apply to every instance.',
+  },
   note: { type: 'string', description: 'A note attached to this node.' },
 };
 
@@ -50,8 +54,11 @@ const CONTAINER: Record<string, Schema> = {
 function propSchema(s: PropSpec): Schema {
   const base: Schema = { description: [s.label, s.help].filter(Boolean).join('. ') };
   switch (s.type) {
-    case 'number':
-      return { ...base, type: 'number', ...(s.min !== undefined ? { minimum: s.min } : {}), ...(s.max !== undefined ? { maximum: s.max } : {}), default: s.default };
+    case 'number': {
+      const num: Schema = { type: 'number', ...(s.min !== undefined ? { minimum: s.min } : {}), ...(s.max !== undefined ? { maximum: s.max } : {}) };
+      if (s.auto) return { ...base, anyOf: [num, { const: 'auto', description: s.auto.label }], default: s.auto.default ? 'auto' : s.default };
+      return { ...base, ...num, default: s.default };
+    }
     case 'boolean':
       return { ...base, type: 'boolean', default: s.default };
     case 'choice':
@@ -158,7 +165,11 @@ export function wireframeSpecSchema(): Schema {
       type: 'object',
       properties: {
         id: { type: 'string' },
-        from: { type: 'string', description: 'A node id or a path: "Settings/Language", "Settings@tablet/Language".' },
+        from: {
+          type: 'string',
+          description:
+            'A node id or a path: "Settings/Language", "Settings@tablet/Language"; "#<part>" ends at a part of a component ("Home/Bottom navigation#Files", by label or key). A path starting with a shared component\'s name ("Tab bar/Bottom navigation#Files") links it in the master, on every screen.',
+        },
         to: { type: 'string', description: 'A screen name or id.' },
         label: { type: 'string' },
       },

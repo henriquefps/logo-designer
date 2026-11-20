@@ -410,11 +410,12 @@ export function localizeSharedFlows(doc: DocLike, symbol: Id, instances?: readon
   const wf = doc.wireframe;
   const shared = (wf?.flows ?? []).filter((f) => f.symbol === symbol);
   if (!wf || !shared.length) return 0;
+  const read = plain(doc as DesignDocument);
   const only = instances ? new Set(instances) : null;
   const added: WireframeFlow[] = [];
   for (const f of shared) {
-    for (const id of flowSources(doc, f)) {
-      const ref = masterRef(doc, id);
+    for (const id of flowSources(read, f)) {
+      const ref = masterRef(read, id);
       if (!ref || ref.symbol !== symbol || (only && !only.has(ref.instance))) continue;
       added.push({ id: newId('f'), from: id, to: f.to, ...(f.label ? { label: f.label } : {}), ...(f.part !== undefined ? { part: f.part } : {}) });
     }

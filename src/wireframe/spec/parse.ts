@@ -139,11 +139,12 @@ class Parser {
       else this.fail(join(path, 'scale'), `expected [scaleX, scaleY], got ${show(s)}`);
     }
     const opensRaw = o.opens;
-    let opens: string[] = [];
+    let opens: NormCommon['opens'] = [];
     if (opensRaw !== undefined) {
-      if (typeof opensRaw === 'string') opens = [opensRaw];
-      else if (Array.isArray(opensRaw) && opensRaw.every((x) => typeof x === 'string')) opens = opensRaw as string[];
-      else this.fail(join(path, 'opens'), `expected a screen name (or a list of them), got ${show(opensRaw)}`);
+      if (typeof opensRaw === 'string') opens = [{ to: opensRaw }];
+      else if (Array.isArray(opensRaw) && opensRaw.every((x) => typeof x === 'string')) opens = (opensRaw as string[]).map((to) => ({ to }));
+      else if (isObj(opensRaw) && Object.values(opensRaw).every((x) => typeof x === 'string')) opens = Object.entries(opensRaw).map(([part, to]) => ({ to: to as string, part }));
+      else this.fail(join(path, 'opens'), `expected a screen name, a list of them, or { "<part>": "<screen>" }, got ${show(opensRaw)}`);
     }
     const id = this.str(o, 'id', path);
     if (id !== undefined && !id.trim()) this.fail(join(path, 'id'), 'is empty');
@@ -296,7 +297,8 @@ class Parser {
   prop(spec: PropSpec, v: unknown, path: string): unknown {
     switch (spec.type) {
       case 'number':
-        if (typeof v !== 'number' || !Number.isFinite(v)) return void this.fail(path, `expected a number, got ${show(v)}`);
+        if (v === 'auto' && spec.auto) return v;
+        if (typeof v !== 'number' || !Number.isFinite(v)) return void this.fail(path, `expected a number${spec.auto ? ' or "auto"' : ''}, got ${show(v)}`);
         if ((spec.min !== undefined && v < spec.min) || (spec.max !== undefined && v > spec.max)) return void this.fail(path, `${v} is out of range (${spec.min ?? '−∞'}..${spec.max ?? '∞'})`);
         return v;
       case 'boolean':

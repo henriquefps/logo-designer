@@ -159,3 +159,40 @@ export function variantsProject(): DesignDocument {
   });
   return materializeDocument(doc);
 }
+
+/**
+ * Links from parts (docs/wireframe-mode.md → Links from parts of a component): a "Tab bar" shared component (a
+ * bottom navigation following the screen) on four screens, each item linked once in the master; on Gallery, tabs
+ * with a link from one tab (this screen only) and a top app bar whose back button and second action link.
+ */
+export const NAV_LABELS = ['Gallery', 'Files', 'Albums', 'Settings'];
+export function navProject(): DesignDocument {
+  let doc = createDocument({ name: 'Nav', wireframe: { screens: [] } });
+  const nav = () => inst('', 'bottom-navigation', { labels: [...NAV_LABELS], selected: 'auto', icon4: 'lucide:Settings' });
+  screen(doc, { id: 'G', name: 'Gallery', x: 0 }, [
+    inst('bar', 'top-app-bar', { title: 'Gallery', leading: 'back', actions: 2 }),
+    inst('tabs', 'tabs', { labels: ['Photos', 'Videos'], selected: 'auto' }),
+    stack('tabbar', { kind: 'vstack', gap: 0 }, [{ ...nav(), id: 'nav' }], { position: 'pinned-bottom' }, 'Tab bar'),
+  ]);
+  NAV_LABELS.slice(1).forEach((name, i) => screen(doc, { id: name[0], name, x: 500 * (i + 1) }, [inst(`h-${name}`, 'heading', { text: name })]));
+  doc = materializeDocument(doc);
+  let sym = '';
+  doc = produce(doc, (d) => void (sym = makeSymbol(d, 'tabbar', 'Tab bar')!));
+  doc = materializeDocument(doc);
+  doc = produce(doc, (d) => {
+    const symbols = symbolsOf(current(d));
+    for (const id of ['F', 'A', 'S']) {
+      const f = d.children.find((c) => c.id === id) as ScreenNode;
+      f.children.push({ ...newSymbolInstance(symbols.find((s) => s.id === sym)!, symbols, { x: 0, y: 0 }), id: `tabbar-${id}`, layoutItem: { position: 'pinned-bottom' } } as never);
+    }
+  });
+  doc = materializeDocument(doc);
+  doc = produce(doc, (d) => {
+    const id = (name: string) => d.wireframe!.screens.find((s) => s.name === name)!.id;
+    NAV_LABELS.forEach((name, i) => addFlow(d, 'tabbar~s~nav', id(name), undefined, { part: `item:${i}`, shared: true }));
+    addFlow(d, 'tabs', id('Files'), undefined, { part: 'item:1' });
+    addFlow(d, 'bar', id('Settings'), 'Back to settings', { part: 'back' });
+    addFlow(d, 'bar', id('Albums'), undefined, { part: 'action:1' });
+  });
+  return materializeDocument(doc);
+}

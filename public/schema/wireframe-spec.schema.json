@@ -630,7 +630,7 @@
         },
         "from": {
           "type": "string",
-          "description": "A node id or a path: \"Settings/Language\", \"Settings@tablet/Language\"."
+          "description": "A node id or a path: \"Settings/Language\", \"Settings@tablet/Language\"; \"#<part>\" ends at a part of a component (\"Home/Bottom navigation#Files\", by label or key). A path starting with a shared component's name (\"Tab bar/Bottom navigation#Files\") links it in the master, on every screen."
         },
         "to": {
           "type": "string",
@@ -1192,11 +1192,19 @@
                   ]
                 },
                 "selected": {
-                  "description": "Selected segment. 1 = the first segment.",
-                  "type": "number",
-                  "minimum": 1,
-                  "maximum": 5,
-                  "default": 1
+                  "description": "Selected segment. 1 = the first segment. Follows the screen: the segment that opens the screen on show.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    {
+                      "const": "auto",
+                      "description": "Follows the screen"
+                    }
+                  ],
+                  "default": "auto"
                 }
               },
               "additionalProperties": false
@@ -3644,11 +3652,19 @@
                   ]
                 },
                 "selected": {
-                  "description": "Selected tab. 1 = the first tab.",
-                  "type": "number",
-                  "minimum": 1,
-                  "maximum": 5,
-                  "default": 1
+                  "description": "Selected tab. 1 = the first tab. Follows the screen: the tab that opens the screen on show.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    {
+                      "const": "auto",
+                      "description": "Follows the screen"
+                    }
+                  ],
+                  "default": "auto"
                 },
                 "icon1": {
                   "description": "Icon, tab 1. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
@@ -3875,11 +3891,19 @@
                   ]
                 },
                 "selected": {
-                  "description": "Selected link. Position in the list, starting at 1.",
-                  "type": "number",
-                  "minimum": 1,
-                  "maximum": 8,
-                  "default": 1
+                  "description": "Selected link. Position in the list, starting at 1. Follows the screen: the link that opens the screen on show.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 8
+                    },
+                    {
+                      "const": "auto",
+                      "description": "Follows the screen"
+                    }
+                  ],
+                  "default": "auto"
                 },
                 "search": {
                   "description": "Search",
@@ -4102,11 +4126,19 @@
                   ]
                 },
                 "selected": {
-                  "description": "Selected item. Position among the items (not the labels), starting at 1.",
-                  "type": "number",
-                  "minimum": 1,
-                  "maximum": 20,
-                  "default": 1
+                  "description": "Selected item. Position among the items (not the labels), starting at 1. Follows the screen: the item that opens the screen on show.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 20
+                    },
+                    {
+                      "const": "auto",
+                      "description": "Follows the screen"
+                    }
+                  ],
+                  "default": "auto"
                 },
                 "icons": {
                   "description": "Icons",
@@ -4218,11 +4250,19 @@
                   ]
                 },
                 "selected": {
-                  "description": "Selected tab. 1 = the first tab.",
-                  "type": "number",
-                  "minimum": 1,
-                  "maximum": 6,
-                  "default": 1
+                  "description": "Selected tab. 1 = the first tab. Follows the screen: the tab that opens the screen on show.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 6
+                    },
+                    {
+                      "const": "auto",
+                      "description": "Follows the screen"
+                    }
+                  ],
+                  "default": "auto"
                 }
               },
               "additionalProperties": false
@@ -5326,9 +5366,15 @@
           "items": {
             "type": "string"
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       ],
-      "description": "Screen(s) this element opens (adds flows)."
+      "description": "Screen(s) this element opens (adds flows). An object links parts of a component: { \"<part label or key>\": \"<screen>\" }, e.g. a bottom navigation { \"Files\": \"Files\" }. Inside a shared component's content, the links apply to every instance."
     },
     "common.note": {
       "type": "string",

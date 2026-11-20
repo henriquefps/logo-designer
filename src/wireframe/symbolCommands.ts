@@ -11,6 +11,7 @@ import { FREE_GAP, FREE_MARGIN } from './instances';
 import { layoutDropTarget } from './layoutEdit';
 import { placementArea } from './placement';
 import { contentBottom } from './screens';
+import { localizeSharedFlows } from './flows';
 import {
   defaultSymbolName,
   deleteSymbol,
@@ -87,7 +88,14 @@ export function startDeleteSymbol(symbolId: Id) {
 }
 
 export function deleteSymbolCommand(symbolId: Id) {
-  useDocStore.getState().apply((d) => void deleteSymbol(d, symbolId), { label: 'Delete component' });
+  useDocStore.getState().apply(
+    (d) => {
+      // Links defined in the master stay on every screen, as links of each (now plain) copy.
+      localizeSharedFlows(d, symbolId);
+      deleteSymbol(d, symbolId);
+    },
+    { label: 'Delete component' },
+  );
 }
 
 /** The selected shared instance (exactly one selected object that is one), or null. */
@@ -109,11 +117,34 @@ export function selectedSymbolInstanceIds(): Id[] {
   });
 }
 
+function findDraft(nodes: SceneNode[], id: Id): SceneNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.type === 'group') {
+      const hit = findDraft(n.children, id);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
 /** Detach: the selected instances become plain content (one undo step). */
 export function detachSymbolSelected(): number {
   const ids = selectedSymbolInstanceIds();
   if (!ids.length) return 0;
-  useDocStore.getState().updateNodes(ids, (n) => void detachSymbolInstance(n), { label: ids.length === 1 ? 'Detach shared component' : 'Detach shared components' });
+  const doc = useDocStore.getState().doc;
+  useDocStore.getState().apply(
+    (d) => {
+      for (const id of ids) {
+        const n = findNode(doc, id);
+        // The master's links stay on this copy, as its own.
+        if (n && isSymbolInstance(n)) localizeSharedFlows(d, n.symbol.id, [id]);
+        const draft = findDraft(d.children as SceneNode[], id);
+        if (draft) detachSymbolInstance(draft);
+      }
+    },
+    { label: ids.length === 1 ? 'Detach shared component' : 'Detach shared components' },
+  );
   return ids.length;
 }
 
