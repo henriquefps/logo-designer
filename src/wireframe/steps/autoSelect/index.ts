@@ -1,13 +1,13 @@
 // Selected item follows the screen (docs/wireframe-mode.md → Selected item follows the screen): a navigation
 // component whose `selected` is `'auto'` draws selected the item whose part opens the screen it is on; when none
 // does, the item that opens the nearest screen leading to it (flows walked backwards, breadth first: Settings →
-// Server keeps "Settings" selected on Server); ties go to the first such item, and with no path at all, the first
-// item. The value is stored in `component.resolved` (per instance: never shared between instances
+// Server keeps "Settings" selected on Server), ignoring back / close parts, navigation components' own links
+// (sibling switches) and flows within a screen; ties go to the first such item, and with no path, the first item. The value is stored in `component.resolved` (per instance: never shared between instances
 // of a shared component) and the instance is rebuilt. Runs after `symbols` (420; an instance's content may have just
 // been rewritten from its master) and before `repeat` (450) and `layout` (500), which rebuilds laid-out instances
 // whose `component` changed; instances no layout places are rebuilt here.
 import type { Draft } from 'immer';
-import type { ComponentNode, DesignDocument, Id, SceneNode } from '@/model';
+import type { ComponentNode, DesignDocument, Id, SceneNode, WireframeFlow } from '@/model';
 import { flowSources, flowsAt, flowsOf } from '../../flows';
 import { getComponent } from '../../library/registry';
 import { autoProps, isAutoProp, resolveProps } from '../../library/types';
@@ -18,11 +18,31 @@ import { buildComponentInto } from '../components';
 type Path = number[];
 type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
 
-/** For each logical screen, the logical screens with a flow (from any element or part on one of their frames) to it. */
+/** Parts whose role is going back (or closing): their flows lead to a parent, never to a child. */
+const BACK_PARTS: ReadonlySet<string> = new Set(['back', 'close']);
+
+/**
+ * True when a flow says "screen `from` opens screen `to`" (parent → child), as the backward walk needs: not a back or
+ * close part, not a navigation component's own link (bottom navigation, tabs, segmented control, sidebar navigation,
+ * web header: switching between siblings), not a flow from a screen to itself.
+ */
+function opensChild(flow: Pick<WireframeFlow, 'part' | 'to'>, source: SceneNode | undefined, from: Id): boolean {
+  if (from === flow.to) return false;
+  if (flow.part !== undefined && BACK_PARTS.has(flow.part)) return false;
+  if (source?.type === 'group' && source.component && getComponent(source.component.kind)?.selectFromPart) return false;
+  return true;
+}
+
+/**
+ * For each logical screen, the logical screens that open it: a flow (from an element or a part, on one of their
+ * frames) that `opensChild` keeps.
+ */
 export function screenGraph(doc: DocLike): Map<Id, Set<Id>> {
   const screenOf = new Map<Id, Id>();
+  const nodes = new Map<Id, SceneNode>();
   const visit = (n: SceneNode, screen: Id) => {
     screenOf.set(n.id, screen);
+    nodes.set(n.id, n);
     if (n.type === 'group') for (const c of n.children) visit(c, screen);
   };
   for (const f of frames(doc)) visit(f, f.screen.screenId);
@@ -30,7 +50,7 @@ export function screenGraph(doc: DocLike): Map<Id, Set<Id>> {
   for (const flow of flowsOf(doc)) {
     for (const src of flowSources(doc, flow)) {
       const from = screenOf.get(src);
-      if (from === undefined) continue;
+      if (from === undefined || !opensChild(flow, nodes.get(src), from)) continue;
       let set = incoming.get(flow.to);
       if (!set) incoming.set(flow.to, (set = new Set()));
       set.add(from);

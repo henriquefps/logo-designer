@@ -24,17 +24,29 @@ const sid = (doc: DesignDocument, name: string) => doc.wireframe!.screens.find((
  * Loop B (a bottom navigation each, no item linking to them) and buttons whose flows `links` lists as
  * [button's screen, target screen].
  */
-function project(links: [string, string][]): DesignDocument {
+type Link = [on: string, to: string, via?: 'back' | 'tabs' | 'close'];
+function project(links: Link[]): DesignDocument {
   const doc = createDocument({ name: 'Nav', wireframe: { screens: [] } });
   const names = [...TABS, 'Server', 'Details', 'Loop A', 'Loop B'];
   names.forEach((name, i) => {
     const fid = addScreen(doc, { platform: 'phone', name, x: 500 * i, y: 0 });
     const f = doc.children.find((n) => n.id === fid) as ScreenNode;
     f.children = [inst(`nav-${name}`, 'bottom-navigation', { labels: [...TABS], selected: 'auto' })];
-    links.forEach(([on, to], k) => on === name && f.children.unshift(inst(`btn-${k}`, 'button', { label: `Open ${to}` })));
+    links.forEach(([on, to, via], k) => {
+      if (on !== name) return;
+      const node =
+        via === 'back'
+          ? inst(`btn-${k}`, 'top-app-bar', { title: name, leading: 'back', actions: 0 })
+          : via === 'close'
+            ? inst(`btn-${k}`, 'top-app-bar', { title: name, leading: 'close', actions: 0 })
+            : via === 'tabs'
+              ? inst(`btn-${k}`, 'tabs', { labels: [to, 'Other'], selected: 'auto' })
+              : inst(`btn-${k}`, 'button', { label: `Open ${to}` });
+      f.children.unshift(node);
+    });
   });
   for (const name of names) TABS.forEach((tab, i) => addFlow(doc, `nav-${name}`, sid(doc, tab), undefined, { part: `item:${i}` }));
-  links.forEach(([, to], k) => addFlow(doc, `btn-${k}`, sid(doc, to)));
+  links.forEach(([, to, via], k) => addFlow(doc, `btn-${k}`, sid(doc, to), undefined, via === 'tabs' ? { part: 'item:0' } : via ? { part: via } : {}));
   return materializeDocument(doc);
 }
 
@@ -59,7 +71,7 @@ describe('distancesTo', () => {
     const doc = project([['Settings', 'Server']]);
     const g = screenGraph(doc);
     expect([...g.get(sid(doc, 'Server'))!]).toEqual([sid(doc, 'Settings')]);
-    expect(g.get(sid(doc, 'Settings'))!.size).toBe(7); // every navigation links Settings
+    expect(g.get(sid(doc, 'Settings'))).toBeUndefined(); // navigation links are sibling switches, not "opens"
   });
 });
 
@@ -110,6 +122,44 @@ describe('selected: auto through the screens that open the current one', () => {
       ['Loop B', 'Loop A'],
     ]);
     expect(resolved(closed, 'nav-Loop B')).toBeUndefined(); // no path from any item: the first item
+  });
+
+  it('back and close links are not a way in', () => {
+    // Server's back button leads to Settings and Details' close to Search: neither opens Server / Details.
+    expect(resolved(project([['Server', 'Settings', 'back']]), 'nav-Server')).toBeUndefined();
+    expect(resolved(project([['Server', 'Search', 'back'], ['Details', 'Server', 'close']]), 'nav-Details')).toBeUndefined();
+    // A back link next to the real way in does not change it.
+    const doc = project([
+      ['Search', 'Server'],
+      ['Server', 'Settings', 'back'],
+      ['Settings', 'Server', 'back'],
+    ]);
+    expect(resolved(doc, 'nav-Server')).toEqual({ selected: 2 });
+  });
+
+  it('tab switches are not a way in: in-screen tabs and tab-switch cycles keep the first item', () => {
+    // Loop A's tabs open Loop B, Loop B's tabs open Loop A: siblings, so neither screen is opened from the other.
+    const doc = project([
+      ['Loop A', 'Loop B', 'tabs'],
+      ['Loop B', 'Loop A', 'tabs'],
+      ['Settings', 'Loop B', 'tabs'],
+    ]);
+    expect(resolved(doc, 'nav-Loop A')).toBeUndefined();
+    expect(resolved(doc, 'nav-Loop B')).toBeUndefined();
+    // The tabs themselves: their first item opens Loop B, which only leads back by switching: the first item.
+    expect(resolved(doc, 'btn-0')).toBeUndefined();
+    // With a real way in (a button on Settings opens Loop A), Settings is selected on Loop A.
+    const opened = project([
+      ['Loop A', 'Loop B', 'tabs'],
+      ['Loop B', 'Loop A', 'tabs'],
+      ['Settings', 'Loop A'],
+    ]);
+    expect(resolved(opened, 'nav-Loop A')).toEqual({ selected: 3 });
+    expect(resolved(opened, 'nav-Loop B')).toBeUndefined();
+  });
+
+  it('a flow within a screen is not a way in', () => {
+    expect(resolved(project([['Server', 'Server']]), 'nav-Server')).toBeUndefined();
   });
 
   it('no path: the first item (nothing stored)', () => {
