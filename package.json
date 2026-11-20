@@ -13,7 +13,8 @@
     "deploy:dry": "bun run build && node node_modules/cf/bin/cf deploy --dry-run",
     "test": "vitest run",
     "designer": "bun bin/designer.ts",
-    "schema": "bun scripts/gen-schema.ts"
+    "schema": "bun scripts/gen-schema.ts",
+    "demo": "node scripts/demo/run.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
@@ -56,6 +57,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "fake-indexeddb": "^6.2.7",
     "globals": "^17.6.0",
+    "playwright": "^1.65.1",
     "tailwindcss": "^4.3.1",
     "ts-json-schema-generator": "^2.9.0",
     "typescript": "^6.0.3",
