@@ -50,7 +50,7 @@ export function runWireframePipeline(
   doc: DesignDocument,
   before: DesignDocument | null,
   phase: PipelinePhase,
-  opts: { patches?: boolean; steps?: readonly WireframeStep[]; gestureStart?: DesignDocument | null } = {},
+  opts: { patches?: boolean; steps?: readonly WireframeStep[]; gestureStart?: DesignDocument | null; committing?: boolean } = {},
 ): PipelineResult | null {
   if (!doc.wireframe) return null;
   const steps = (opts.steps ?? getSteps()).filter((s) => !s.phases || s.phases.includes(phase));
@@ -62,6 +62,7 @@ export function runWireframePipeline(
     previous: previousLookup(before),
     atGestureStart: opts.gestureStart ? previousLookup(opts.gestureStart) : previousLookup(before),
     differs: (value, prev) => plain(value) !== prev,
+    ...(opts.committing ? { committing: true } : {}),
   };
   const recipe = (d: Draft<DesignDocument>) => {
     for (const step of steps) step.run(d, ctx);

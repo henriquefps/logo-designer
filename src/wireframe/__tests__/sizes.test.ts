@@ -141,6 +141,29 @@ describe('R1: the card follows its height (the reported bug)', () => {
     expect(size('j').height).toBe(24);
   });
 
+  it('resizing a child does not fix the height of the card and stack around it (found recording the overview)', () => {
+    // The resize step took the card's and the stack's reflowed boxes for a resize by the user and fixed them at their
+    // old height: the card stayed tall around a shorter image, and a repeated list kept every copy that tall.
+    const card = { ...newContainer(containerPreset('card')!, { x: 0, y: 0 }, 342), id: 'card' } as GroupNode;
+    card.children = [inst('i', 'image', { ratio: '16:9' })];
+    const stack = { ...newContainer(containerPreset('vstack')!, { x: 0, y: 0 }, 342), id: 'v' } as GroupNode;
+    stack.children = [card];
+    s().load(wireframe([stack]));
+    const cardH = n<GroupNode>('card').layout!.size!.height;
+    const snap = structuredClone(n('i'));
+    s().beginTransaction('Resize');
+    for (const h of [170, 140, 100]) s().replaceNodes([bakeScale({ ...structuredClone(snap), transform: { ...snap.transform, scaleY: h / snap.component.size!.height } })]);
+    s().commitTransaction();
+    expect(size('i').height).toBe(100);
+    expect(n('i').layoutItem?.height).toBe(100);
+    expect(n<GroupNode>('card').layoutItem?.height).toBeUndefined();
+    expect(n<GroupNode>('v').layoutItem?.height).toBeUndefined();
+    expect(n<GroupNode>('card').layout!.size!.height).toBeCloseTo(cardH - (snap.component.size!.height - 100), 0);
+    // Resizing the card itself still fixes its height.
+    s().replaceNodes([{ ...structuredClone(n<GroupNode>('card')), layout: { ...n<GroupNode>('card').layout!, size: { width: 342, height: 400 } } }]);
+    expect(n<GroupNode>('card').layoutItem?.height).toBe(400);
+  });
+
   it('a box shorter than the content never cuts it: the card keeps its natural height', () => {
     s().load(wireframe([inst('c', 'card')]));
     const natural = size('c').height;

@@ -34,6 +34,14 @@ function resizedToFixed(nodes: readonly SceneNode[], ctx: PipelineContext, path:
         const prev = ctx.previous(c.id);
         if (!prev || prev === c || c.repeatCopy || itemSizing(c).position === 'free') return;
         const now = boxOf(c);
+        // Only a node the user changed: its layoutItem was replaced (a gesture frame re-applies the snapshot's; this
+        // step fixed it in an earlier frame), or, outside the commit of a gesture, its box differs from the last
+        // output. A stack or card that only reflowed around a resized child has neither, and keeps hugging.
+        const last = boxOf(prev);
+        const replaced = c.layoutItem !== (prev as SceneNode & { layoutItem?: unknown }).layoutItem;
+        const resized = !now || !last || Math.abs(now.width - last.width) > 0.5 || Math.abs(now.height - last.height) > 0.5;
+        const touched = replaced || (!ctx.committing && resized);
+        if (!touched) return;
         // Against the gesture's start, not the last frame: every frame re-applies the snapshot's layoutItem,
         // so a frame that doesn't change the size must still keep what the gesture's total change fixed.
         const was = boxOf(ctx.atGestureStart(c.id) ?? prev);
