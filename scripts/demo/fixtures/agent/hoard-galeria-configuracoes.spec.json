@@ -1,0 +1,312 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Hoard",
+  "screens": [
+    {
+      "name": "Galeria",
+      "id": "smwoj5y9kgz4ipgb0",
+      "status": "current",
+      "platform": "phone",
+      "frameId": "nmwoj5y9kh1ujklkg",
+      "root": [
+        {
+          "hstack": [
+            {
+              "heading": {
+                "text": "Galeria",
+                "level": "title"
+              },
+              "id": "nmwoj5y9kh3beuyts"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Search"
+              },
+              "id": "nmwoj5y9kh57dm9vs"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Smartphone"
+              },
+              "id": "nmwoj5y9kh7ich4tu"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Calendar"
+              },
+              "id": "nmwoj5y9kh9o98343"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Filter"
+              },
+              "id": "nmwoj5y9khbof40f2"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Trash2"
+              },
+              "id": "nmwoj5y9khdb0pc0i"
+            },
+            {
+              "icon": {
+                "icon": "lucide:Settings"
+              },
+              "id": "gallery-settings"
+            }
+          ],
+          "gap": 16,
+          "id": "nmwoj5y9kh2mhuc5y"
+        },
+        {
+          "vstack": [
+            {
+              "hstack": [
+                {
+                  "icon": {
+                    "icon": "lucide:Smartphone"
+                  },
+                  "id": "nmwoj5y9khj3sfp7f"
+                },
+                {
+                  "heading": {
+                    "text": "Backup de SM-S928B",
+                    "level": "subheading"
+                  },
+                  "id": "nmwoj5y9khl9qi4gq"
+                },
+                {
+                  "icon": {
+                    "icon": "lucide:X"
+                  },
+                  "id": "nmwoj5y9khn3b2o79"
+                }
+              ],
+              "gap": 12,
+              "id": "nmwoj5y9khiamkts1"
+            },
+            {
+              "section-header": {
+                "label": "Domingo, 25 de outubro de 2026",
+                "action": "9"
+              },
+              "id": "nmwoj5y9khqzrrkzr"
+            },
+            {
+              "grid": [
+                {
+                  "image": {
+                    "ratio": "1:1",
+                    "subject": "screenshot do celular"
+                  },
+                  "id": "nmwoj5y9khtdo8mhj"
+                }
+              ],
+              "gap": 4,
+              "columns": 4,
+              "repeat": 9,
+              "id": "nmwoj5y9khsb1ygt3"
+            },
+            {
+              "section-header": {
+                "label": "Sábado, 24 de outubro de 2026",
+                "action": "12"
+              },
+              "id": "nmwoj5y9khwoals0g"
+            },
+            {
+              "grid": [
+                {
+                  "image": {
+                    "ratio": "1:1",
+                    "subject": "screenshot do celular"
+                  },
+                  "id": "nmwoj5y9khzzx28m2"
+                }
+              ],
+              "gap": 4,
+              "columns": 4,
+              "repeat": 12,
+              "id": "nmwoj5y9khyuvhf6m"
+            }
+          ],
+          "gap": 6,
+          "padding": 12,
+          "style": "outline",
+          "radius": "large",
+          "id": "nmwoj5y9khhny42vc"
+        },
+        {
+          "bottom-navigation": {
+            "labels": [
+              "Galeria",
+              "Arquivos"
+            ],
+            "selected": 1,
+            "icon1": "lucide:Images",
+            "icon2": "lucide:Folder"
+          },
+          "id": "nmwoj5y9ki3o7s3v3",
+          "position": "pinned-bottom"
+        }
+      ]
+    },
+    {
+      "name": "Configurações",
+      "id": "smwoj9g4d17o670qhx",
+      "status": "current",
+      "platform": "phone",
+      "frameId": "nmwoj9g4d17q3uqbu8",
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Configurações",
+            "actions": 0
+          },
+          "id": "nmwoj9g4d17rxjapvr"
+        },
+        {
+          "vstack": [
+            {
+              "text": {
+                "text": "SERVIDOR DE FOTOS",
+                "size": "caption",
+                "tone": "muted"
+              },
+              "id": "nmwoj9g4d17u0dzxzs"
+            },
+            {
+              "text": {
+                "text": "O hoard-server guarda sua biblioteca: o Hoard mostra os itens dele na Galeria e sincroniza suas escolhas e estrelas com o Reveal e a galeria web.",
+                "size": "small",
+                "tone": "muted"
+              },
+              "id": "nmwoj9g4d17wdwozzh"
+            },
+            {
+              "list-row": {
+                "title": "Reveal sync",
+                "subtitle": "Versão 0.12.1 · https://cachyos-fps.tail33e6...",
+                "leading": "icon",
+                "leadingIcon": "lucide:Lock",
+                "trailing": "value",
+                "value": "Endereço",
+                "divider": true
+              },
+              "id": "nmwoj9g4d17ydkmwyh"
+            },
+            {
+              "list-row": {
+                "title": "Situação",
+                "subtitle": "Sincronizado Há 0 minuto...",
+                "leading": "icon",
+                "leadingIcon": "lucide:CircleCheck",
+                "trailing": "none",
+                "divider": true
+              },
+              "id": "nmwoj9g4d18092nh4u"
+            },
+            {
+              "button": {
+                "label": "Sincronizar agora",
+                "variant": "secondary"
+              },
+              "id": "nmwoj9g4d182te4ot3"
+            },
+            {
+              "list-row": {
+                "title": "Este celular",
+                "subtitle": "Agrupado com reveal",
+                "leading": "icon",
+                "leadingIcon": "lucide:Smartphone",
+                "trailing": "none",
+                "divider": true
+              },
+              "id": "nmwoj9g4d1840uincc"
+            },
+            {
+              "list-row": {
+                "title": "Backup do celular",
+                "subtitle": "1 pasta · 0 de 0 com backup · 83,7 MB liberados · 159 arquivos",
+                "leading": "icon",
+                "leadingIcon": "lucide:Upload",
+                "trailing": "none",
+                "divider": true
+              },
+              "id": "nmwoj9g4d18633as3z"
+            },
+            {
+              "list-row": {
+                "title": "Cache de prévias",
+                "subtitle": "51 MB de 1,1 GB",
+                "leading": "icon",
+                "leadingIcon": "lucide:Database",
+                "trailing": "value",
+                "value": "Limpar cache"
+              },
+              "id": "nmwoj9g4d1887wp8qf"
+            },
+            {
+              "radio-group": {
+                "label": "Limite do cache",
+                "options": [
+                  "268 MB",
+                  "1,1 GB",
+                  "4,3 GB"
+                ],
+                "selected": 2
+              },
+              "id": "nmwoj9g4d18aif6qtq"
+            },
+            {
+              "list-row": {
+                "title": "Miniaturas offline",
+                "subtitle": "14501 de 14497 itens · 136 MB",
+                "leading": "icon",
+                "leadingIcon": "lucide:Images",
+                "trailing": "value",
+                "value": "Limpar cache"
+              },
+              "id": "nmwoj9g4d18ckh8xoc"
+            },
+            {
+              "checkbox": {
+                "label": "Guardar miniaturas pequenas da biblioteca inteira (só no Wi-Fi)",
+                "checked": true
+              },
+              "id": "nmwoj9g4d18efg4xv1"
+            }
+          ],
+          "gap": 8,
+          "padding": 12,
+          "style": "outline",
+          "radius": "large",
+          "id": "nmwoj9g4d17tsizeaf"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "nmwoj5ya0okcj5xx5",
+      "text": "Destacado: a origem mostrada (este celular). Toque troca a origem",
+      "on": "nmwoj5y9kh7ich4tu"
+    },
+    {
+      "id": "nmwoj5ya1oodgqwws",
+      "text": "Selo com o número de filtros ativos (2)",
+      "on": "nmwoj5y9khbof40f2"
+    },
+    {
+      "id": "nmwoj5ya1osur3ut7",
+      "text": "Fecha o cartão do backup deste celular",
+      "on": "nmwoj5y9khn3b2o79"
+    },
+    {
+      "id": "nmwoj5ya1owlxrwq9",
+      "text": "✓ em cada miniatura: já tem backup no hoard-server",
+      "on": "nmwoj5y9khsb1ygt3"
+    }
+  ]
+}

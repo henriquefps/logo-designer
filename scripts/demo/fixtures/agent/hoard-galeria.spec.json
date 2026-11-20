@@ -1,0 +1,139 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Hoard",
+  "screens": [
+    {
+      "name": "Galeria",
+      "status": "current",
+      "platform": "phone",
+      "root": [
+        {
+          "hstack": [
+            {
+              "heading": {
+                "text": "Galeria",
+                "level": "title"
+              }
+            },
+            {
+              "icon": {
+                "icon": "search"
+              }
+            },
+            {
+              "icon": {
+                "icon": "smartphone"
+              },
+              "note": "Destacado: a origem mostrada (este celular). Toque troca a origem"
+            },
+            {
+              "icon": {
+                "icon": "calendar"
+              }
+            },
+            {
+              "icon": {
+                "icon": "filter"
+              },
+              "note": "Selo com o número de filtros ativos (2)"
+            },
+            {
+              "icon": {
+                "icon": "trash-2"
+              }
+            },
+            {
+              "icon": {
+                "icon": "settings"
+              },
+              "id": "gallery-settings"
+            }
+          ],
+          "gap": 16
+        },
+        {
+          "vstack": [
+            {
+              "hstack": [
+                {
+                  "icon": {
+                    "icon": "smartphone"
+                  }
+                },
+                {
+                  "heading": {
+                    "text": "Backup de SM-S928B",
+                    "level": "subheading"
+                  }
+                },
+                {
+                  "icon": {
+                    "icon": "x"
+                  },
+                  "note": "Fecha o cartão do backup deste celular"
+                }
+              ],
+              "gap": 12
+            },
+            {
+              "section-header": {
+                "label": "Domingo, 25 de outubro de 2026",
+                "action": "9"
+              }
+            },
+            {
+              "grid": [
+                {
+                  "image": {
+                    "ratio": "1:1",
+                    "subject": "screenshot do celular"
+                  }
+                }
+              ],
+              "columns": 4,
+              "gap": 4,
+              "repeat": 9,
+              "note": "✓ em cada miniatura: já tem backup no hoard-server"
+            },
+            {
+              "section-header": {
+                "label": "Sábado, 24 de outubro de 2026",
+                "action": "12"
+              }
+            },
+            {
+              "grid": [
+                {
+                  "image": {
+                    "ratio": "1:1",
+                    "subject": "screenshot do celular"
+                  }
+                }
+              ],
+              "columns": 4,
+              "gap": 4,
+              "repeat": 12
+            }
+          ],
+          "style": "outline",
+          "radius": "large",
+          "padding": 12,
+          "gap": 6
+        },
+        {
+          "bottom-navigation": {
+            "labels": [
+              "Galeria",
+              "Arquivos"
+            ],
+            "selected": 1,
+            "icon1": "images",
+            "icon2": "folder"
+          },
+          "position": "pinned-bottom"
+        }
+      ]
+    }
+  ]
+}
