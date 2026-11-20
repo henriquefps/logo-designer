@@ -114,6 +114,10 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
   with `columns`), or a shared component (`{ "use": "Tab bar" }`, defined once under `components`).
 - Lists and galleries: one item with `"repeat": N` on its container, not N copies. Anything on several screens
   (tab bar, a card): a shared component.
+- More than the component offers (a top bar with 6 icons, a row with a button on its right): build it from
+  stacks of library pieces (`{ "hstack": [ { "heading": … }, { "icon": { "icon": "search" } }, … ] }`), and put
+  what still cannot be drawn in a note. Icons are Lucide names (`search`, `trash-2`, `settings`); `wf build` warns
+  about a name Lucide does not have.
 - `"opens": "Other screen"` on a node draws a flow; `"note": "…"` attaches a note; `"status"` is `current`
   (as the app is), `changed` (proposed change) or `new`. Write a note wherever behaviour cannot be drawn
   (what a tap does besides navigating, loading/empty/error states, gestures, conditions).
@@ -129,7 +133,8 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
 4. `designer wf compare shot.png app.designer.json --screen "<name>" --overlay 50 -o cmp.png` and **look at the
    image**: missing or extra rows, order, wrong component, wrong selection, heights far off (the overlay panel
    shows drift). Lo-fi is expected: greys, no icons' exact shapes, no colours.
-5. Fix the spec, build `--into`, compare again. Stop when every element of the screenshot has its component and
+5. Fix the spec, build `--into`, compare again. `--into` keeps what the spec leaves out (sizes, positions,
+   note positions): state a value to change it. Stop when every element of the screenshot has its component and
    the order and proportions match; usually 2–3 rounds.
 6. Several screens: add the flows and notes, then `designer wf sheet app.designer.json --notes -o sheet.png`
    and look at the whole flow (names, status badges, arrows) before handing over.
@@ -137,14 +142,18 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
 ### Live, so the person watches
 
 For a working session, run live editing instead of handing a file over at the end (wireframes with screenshots
-are MBs; links are not the way):
+are MBs; links are not the way). Start it **before** the first build, on an empty project, so the person watches
+the screens appear:
 
 ```sh
+designer new --preset wireframe --name "Hoard" -o app.designer.json
 skv run designer-sync -- designer live app.designer.json &   # or DESIGNER_SYNC_URL + DESIGNER_SYNC_KEY
+designer wf build app.spec.json --into app.designer.json     # every round: --into the file live mirrors
 ```
 
 Give the person the printed `?open-project=` link once (or tell them it is in their projects with Sync on).
-Every `wf build --into` then appears in their app within a second. **They may edit too**: before each build,
+Every `wf build --into` then appears in their app within a second. Never `-o` a new file during the session: a
+new file is a new project the person is not watching. **They may edit too**: before each build,
 `designer wf dump app.designer.json --no-geometry -o app.spec.json` and merge their changes into your spec
 (their moves and resizes survive `--into` anyway). Stop `live` with Ctrl+C (SIGINT) when done.
 Without a sync server: `designer open app.designer.json` (big files go through a local `?import=` by
