@@ -517,6 +517,12 @@ reading) or `--json`. Generated from the registry at run time, so it never goes 
   the screenshot and the rendered frame side by side at the same scale (the frame's width), with a
   thin grid, for the "look, fix, render again" loop.
 
+**Done (A3).** `src/cli/wfView.ts`, registered as `wf sheet` / `wf compare` in the CLI command table
+(`case 'wf'`; other `wf` subcommands register beside it). Layout and scaling are pure and tested
+(`sheetLayout`, `compareLayout`, `solveScale`); the image is one SVG (frames as embedded resvg PNGs,
+overlay shapes as markup, labels outlined by the fonts module) rendered by resvg. Name/platform/badge
+fitting is the canvas's own `labelLayout`; arrows use `flowCurve` and `arrowHead`.
+
 ### A4. Rendering fidelity (the `to-png` font bug)
 
 Noticed in the experiment: in `to-png`, Inter 500/600 render lighter than in the browser, and

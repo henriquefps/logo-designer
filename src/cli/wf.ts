@@ -9,7 +9,9 @@ import { serializeProject, validateDocument } from '@/io/projectFile';
 import { buildFromSpec, dumpToSpec, SpecError, type SpecBuildResult } from '@/wireframe/spec';
 import { catalogMarkdown, componentCatalog } from '@/wireframe/spec/catalog';
 import { normalizeIconName, registerIcon, takeMissingIcons, ICON_GLYPH_SIZE } from '@/wireframe/icons';
+import { materializeDocument } from '@/wireframe/pipeline';
 import type { CliIO } from './main';
+import { WfUsageError, wfViewCommand } from './wfView';
 
 export const WF_USAGE = `designer wf — wireframe projects from a spec (docs/wireframe-spec.md)
 
@@ -32,6 +34,14 @@ Usage: designer wf <command> [options]
                      default, options, visibleWhen, help), sizing, placement and an example;
                      Markdown, or JSON with --json. Kinds filter it
 
+  sheet <project> [-o sheet.png] [--platform P] [--notes] [--scale S] [--max N]
+                     one image of every frame as on the canvas: names, platform, status badges
+                     and flow arrows; --notes adds the notes; long side <= --max (default 4096 px)
+  compare <screenshot.png|jpg> <project> --screen N [--platform P] [-o out.png] [--grid N] [--overlay PCT]
+                     the screenshot (scaled to the frame's width) and the rendered frame side by
+                     side; --grid N = a thin grid every N px; --overlay 50 = a third panel with the
+                     frame blended 50% over the screenshot
+
 A spec in one breath: { "screens": [ { "name": "Settings", "root": [
   { "top-app-bar": "Settings" }, { "section-header": "GENERAL" },
   { "list-row": { "title": "Language", "trailing": "value", "value": "English" }, "opens": "Language" } ] },
@@ -46,6 +56,13 @@ const OPTIONS = {
   into: { type: 'string' },
   json: { type: 'boolean' },
   'no-geometry': { type: 'boolean' },
+  platform: { type: 'string' },
+  screen: { type: 'string' },
+  notes: { type: 'boolean' },
+  scale: { type: 'string' },
+  max: { type: 'string' },
+  grid: { type: 'string' },
+  overlay: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -133,11 +150,11 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
     io.out(WF_USAGE);
     return cmd ? 0 : 1;
   }
-  let values: { output?: string; into?: string; json?: boolean; 'no-geometry'?: boolean; help?: boolean };
+  let values: { output?: string; into?: string; json?: boolean; 'no-geometry'?: boolean; help?: boolean; [k: string]: string | boolean | undefined };
   let pos: string[];
   try {
     const parsed = parseArgs({ args: rest, options: OPTIONS, allowPositionals: true, strict: true });
-    values = parsed.values;
+    values = parsed.values as typeof values;
     pos = parsed.positionals;
   } catch (e) {
     io.err(`${e instanceof Error ? e.message : e}\n\n${WF_USAGE}`);
@@ -181,6 +198,19 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
         else await write(catalogMarkdown(cat) + '\n', values.output, io, 'catalog');
         return 0;
       }
+      case 'sheet':
+      case 'compare':
+        try {
+          return await wfViewCommand(cmd, pos, values, values.output, {
+            loadDoc: async (p) => materializeDocument(await loadProject(p, io)),
+            readBytes: async (p) => new Uint8Array(await readFile(resolve(io.cwd ?? process.cwd(), p)).catch(() => { throw new WfUsage(`Cannot read ${p}`); })),
+            write: (p, b) => writeFile(resolve(io.cwd ?? process.cwd(), p), b),
+            err: io.err,
+          });
+        } catch (e) {
+          if (e instanceof WfUsageError) throw new WfUsage(e.message);
+          throw e;
+        }
       default:
         throw new WfUsage(`Unknown wf command “${cmd}”`);
     }
