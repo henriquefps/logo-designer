@@ -10,9 +10,14 @@ export const canvas = (page: Page) => page.locator('[data-slot="canvas"]');
 export const canvasText = (page: Page, text: string | RegExp) =>
   canvas(page).locator('text').filter({ hasText: text });
 
-/** A screen frame's name label above it ("Screen 2"). */
-export const screenLabel = (page: Page, name: string) =>
-  canvas(page).locator('[data-slot="screen-labels"] tspan').filter({ hasText: new RegExp(`^${name}$`) }).first();
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A screen frame's name label above it ("Screen 2"), also when it is cut with "…" at a small zoom ("Configuraç…"). */
+export const screenLabel = (page: Page, name: string) => {
+  const prefixes = Array.from({ length: Math.max(0, name.length - 3) }, (_, i) => esc(name.slice(0, name.length - 1 - i)));
+  const re = new RegExp(`^(${esc(name)}${prefixes.length ? `|(${prefixes.join('|')})…` : ''})$`);
+  return canvas(page).locator('[data-slot="screen-labels"] tspan').filter({ hasText: re }).first();
+};
 
 /** The rendered node with this id (ids are read from the DOM, e.g. a parent of some text). */
 export const node = (page: Page, id: string) => canvas(page).locator(`[data-node-id="${id}"]`).first();

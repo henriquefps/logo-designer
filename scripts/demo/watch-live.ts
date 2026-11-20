@@ -30,9 +30,10 @@ const apiKey = withAgent ? randomBytes(32).toString('hex') : '';
 const sync = await startSyncServer(root, join(dir, 'server'), { apiKey });
 const app = await startApp(root, 'dev');
 writeFileSync(join(dir, 'env.sh'), `export DESIGNER_SYNC_URL=${sync.url}\nexport APP_URL=${app.url}\n${apiKey ? `export DESIGNER_SYNC_KEY=${apiKey}\n` : ''}`, { mode: 0o600 });
-let agent: AgentProcess | null = null;
+// In an object: TypeScript narrows a plain `let` to `null` across the awaits of the loop below.
+const running: { agent: AgentProcess | null } = { agent: null };
 const agentStart = async () => {
-  agent = await startAgent(root, { server: sync.url, apiKey, workdir: join(dir, 'agent'), cwd: dir, onLine: (l) => appendFileSync(join(dir, 'agent.log'), `${l}\n`) });
+  running.agent = await startAgent(root, { server: sync.url, apiKey, workdir: join(dir, 'agent'), cwd: dir, onLine: (l) => appendFileSync(join(dir, 'agent.log'), `${l}\n`) });
   console.log('agent online');
 };
 if (withAgent) await agentStart();
@@ -82,13 +83,13 @@ while (!stop) {
     }
     if (withAgent && existsSync(join(dir, 'agent-stop'))) {
       rmSync(join(dir, 'agent-stop'));
-      await agent?.stop();
-      agent = null;
+      await running.agent?.stop();
+      running.agent = null;
       console.log('agent stopped');
     }
     if (withAgent && existsSync(join(dir, 'agent-start'))) {
       rmSync(join(dir, 'agent-start'));
-      if (!agent) await agentStart();
+      if (!running.agent) await agentStart();
     }
     if (existsSync(join(dir, 'shot'))) {
       const out = take(join(dir, 'shot'));
@@ -100,7 +101,7 @@ while (!stop) {
   }
   await sleep(200);
 }
-await (agent as AgentProcess | null)?.stop();
+await running.agent?.stop();
 await browser.close();
 app.stop();
 sync.stop();

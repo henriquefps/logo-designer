@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Locator, Page } from 'playwright';
 import type { Demo } from './demo.ts';
+import { screenLabel } from './designer.ts';
 import { designer, readProject, startAgent, startSyncServer, waitUntil, type AgentProcess, type SyncServer } from './live.ts';
 
 export interface AgentSession {
@@ -147,10 +148,6 @@ export async function copyImageToClipboard(page: Page, file: string): Promise<vo
   );
 }
 
+
 /** A screen's name label on the canvas, also when it is cut with "…" at a small zoom. */
-export function frameLabel(page: Page, name: string): Locator {
-  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const prefixes = Array.from({ length: Math.max(0, name.length - 3) }, (_, i) => esc(name.slice(0, name.length - 1 - i)));
-  const re = new RegExp(`^(${esc(name)}|(${prefixes.join('|')})…)$`);
-  return page.locator('[data-slot="canvas"] [data-slot="screen-labels"] tspan').filter({ hasText: re }).first();
-}
+export const frameLabel = screenLabel;

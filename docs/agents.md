@@ -246,6 +246,9 @@ Claude Code do is fenced four times:
    "Bash(designer validate *)" "Bash(designer info *)" Read Write Edit` and `--permission-mode dontAsk
    --permission-prompts none`: anything else, including chained commands (`designer wf … && ls /`),
    substitutions (`$(…)`), variable prefixes (`X=… designer …`) and `./designer`, is denied without asking anyone.
+   Seen in the end-to-end run: Claude Code still runs its own built-in **read-only** commands (`grep`, `head`,
+   `sed -n`, `wc`, `cat`, alone or chained after a `designer` command) on files of the job folder; outside it they
+   are refused (`cat /etc/passwd` in `scripts/agent-restrictions.ts`), and `python3`, `curl`, writes are refused.
 2. **Folder and settings.** `--restricted` confines Read / Write / Edit to the job folder and ignores the
    user's and project's settings files (their allow rules cannot widen the list); `--safe-mode
    --strict-mcp-config --disable-slash-commands` leave out CLAUDE.md, skills, plugins, hooks and MCP servers;
@@ -254,8 +257,10 @@ Claude Code do is fenced four times:
    `<workdir>/.bridge/<jobId>/bin/designer` (folder and file read-only, 0500; first on the agent's PATH), with
    the job's stream log next to it. It passes only `wf`, `screen`, `to-png`, `validate` and `info` to this
    checkout's CLI, with the sandbox root baked in, and starts Bun with `--no-install --config=/dev/null
-   --no-env-file --tsconfig-override=<repo>/tsconfig.json`: a `bunfig.toml` (its `preload` would run any
-   script), `.env` or `tsconfig.json` the agent writes into the job folder is never read. The sync server's
+   --no-env-file`: a `bunfig.toml` (its `preload` would run any script) or `.env` the agent writes into the job
+   folder is never read, and a `tsconfig.json` there does not apply (Bun resolves each source file with the
+   tsconfig nearest to it, the checkout's; `bridge.test.ts` runs the real CLI next to hostile ones).
+   `--tsconfig-override` is not used: Bun 1.4 printed "Internal error: directory mismatch" after every command with it. The sync server's
    address and key (`DESIGNER_SYNC_*`, `SYNC_API_KEY`) are removed from the agent's environment: only the bridge
    talks to the server.
 4. **The CLI's sandbox** (`src/cli/sandbox.ts`, on when `DESIGNER_SANDBOX_ROOT` is set, as the wrapper does):

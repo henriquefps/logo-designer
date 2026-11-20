@@ -128,7 +128,7 @@ Screens of the project:
 - "Home" (phone, current)
 - "My trips" (phone, new)
 
-Start by reading the whole project: \`designer wf dump project.designer.json --no-geometry\`.
+Start by reading the whole project: \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then Read spec.json.
 
 Rules:
 1. Work only in this folder. project.designer.json is live: every change to it appears in the person's app within a second, so they watch you work.
@@ -139,10 +139,12 @@ Rules:
 6. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
 7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 8. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-9. Screens with status "current" record the app as it is today: never change their content (notes on them are fine: a note describes the app). When the request changes such a screen, make the change on its "changed" version: the screen named after it with a suffix (e.g. "Configurações (nova)"), if the project has one; otherwise add it, a new screen with status "changed", named after the current one with a suffix in the project's language, placed after it in the spec, same platform. Screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.
-10. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
-11. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-12. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
+9. Screens with status "current" record the app as it is today: never change their content (notes on them are fine: a note describes the app). When the request changes such a screen, make the change on its "changed" version: the screen named after it with a suffix (e.g. "Configurações (nova)"), if the project has one; otherwise add it, a new screen with status "changed", named after the current one with a suffix in the project's language, placed after it in the spec, same platform. Put a note on the changed version's top bar saying which current screen it replaces. Screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.
+10. When you move or reorganize existing content, move it as it is: the same components with the same texts, options, values and states, each exactly once. Do not shorten, reword, merge, split or drop any of it, and do not add labels or help texts it did not have. The only new texts are the ones the new structure needs: entry rows that open the new screens (title and an optional short subtitle), the new screens' top bar titles, and notes.
+11. Every new screen that is opened from another one gets a way back: a top app bar whose back button opens that screen (\`"opens": { "back": "<screen name>" }\` on the top-app-bar), and the entry that opens it has a chevron. Check the flows in the dump before you finish.
+12. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
+13. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+14. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 

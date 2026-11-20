@@ -91,6 +91,10 @@ describe('prompt templates', () => {
     const p = renderPrompt({ type: 'request', input: { text: 'Add an empty state to "My trips"' } }, ctx([], 'request'));
     // Phase 4 end-to-end run: a request edited a "current" screen in place; now the change goes to a "changed" copy.
     expect(p).toContain('Screens with status "current" record the app as it is today: never change their content (notes on them are fine');
+    // Henrique's benchmark, attempt 1: a help text shortened, a label invented, no way back from the sub-screens.
+    expect(p).toContain('move it as it is: the same components with the same texts');
+    expect(p).toContain('"opens": { "back": "<screen name>" }');
+    expect(p).toContain('saying which current screen it replaces');
     expect(stable(p, doc)).toMatchSnapshot();
   });
 
