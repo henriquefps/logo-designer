@@ -1,0 +1,5338 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "title": "Designer wireframe spec",
+  "description": "Screens as a tree of library components, for `designer wf build`. Reference: https://github.com/henriquefps/logo-designer/blob/main/docs/wireframe-spec.md",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Project name."
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SharedComponent"
+      }
+    },
+    "screens": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Screen"
+      }
+    },
+    "canvas": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Node"
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Flow"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Note"
+      }
+    }
+  },
+  "required": [
+    "screens"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "Node": {
+      "description": "A node: a library component, a container, a shared component instance, a plain group or a raw project object.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/component:button"
+        },
+        {
+          "$ref": "#/definitions/component:fab"
+        },
+        {
+          "$ref": "#/definitions/component:segmented-control"
+        },
+        {
+          "$ref": "#/definitions/component:card"
+        },
+        {
+          "$ref": "#/definitions/component:divider"
+        },
+        {
+          "$ref": "#/definitions/component:data-table"
+        },
+        {
+          "$ref": "#/definitions/component:empty-state"
+        },
+        {
+          "$ref": "#/definitions/component:progress"
+        },
+        {
+          "$ref": "#/definitions/component:form-columns"
+        },
+        {
+          "$ref": "#/definitions/component:checkbox"
+        },
+        {
+          "$ref": "#/definitions/component:chip"
+        },
+        {
+          "$ref": "#/definitions/component:radio-group"
+        },
+        {
+          "$ref": "#/definitions/component:search-field"
+        },
+        {
+          "$ref": "#/definitions/component:select"
+        },
+        {
+          "$ref": "#/definitions/component:slider"
+        },
+        {
+          "$ref": "#/definitions/component:text-area"
+        },
+        {
+          "$ref": "#/definitions/component:text-field"
+        },
+        {
+          "$ref": "#/definitions/component:toggle"
+        },
+        {
+          "$ref": "#/definitions/component:cards-grid"
+        },
+        {
+          "$ref": "#/definitions/component:footer"
+        },
+        {
+          "$ref": "#/definitions/component:list-row"
+        },
+        {
+          "$ref": "#/definitions/component:section-header"
+        },
+        {
+          "$ref": "#/definitions/component:avatar"
+        },
+        {
+          "$ref": "#/definitions/component:icon"
+        },
+        {
+          "$ref": "#/definitions/component:image"
+        },
+        {
+          "$ref": "#/definitions/component:image-grid"
+        },
+        {
+          "$ref": "#/definitions/component:bottom-navigation"
+        },
+        {
+          "$ref": "#/definitions/component:breadcrumbs"
+        },
+        {
+          "$ref": "#/definitions/component:web-header"
+        },
+        {
+          "$ref": "#/definitions/component:pagination"
+        },
+        {
+          "$ref": "#/definitions/component:sidebar-nav"
+        },
+        {
+          "$ref": "#/definitions/component:tabs"
+        },
+        {
+          "$ref": "#/definitions/component:toolbar"
+        },
+        {
+          "$ref": "#/definitions/component:top-app-bar"
+        },
+        {
+          "$ref": "#/definitions/component:bottom-sheet"
+        },
+        {
+          "$ref": "#/definitions/component:dialog"
+        },
+        {
+          "$ref": "#/definitions/component:modal"
+        },
+        {
+          "$ref": "#/definitions/component:snackbar"
+        },
+        {
+          "$ref": "#/definitions/component:heading"
+        },
+        {
+          "$ref": "#/definitions/component:paragraph"
+        },
+        {
+          "$ref": "#/definitions/component:text"
+        },
+        {
+          "$ref": "#/definitions/ExplicitComponent"
+        },
+        {
+          "$ref": "#/definitions/container:vstack"
+        },
+        {
+          "$ref": "#/definitions/container:hstack"
+        },
+        {
+          "$ref": "#/definitions/container:grid"
+        },
+        {
+          "$ref": "#/definitions/Use"
+        },
+        {
+          "$ref": "#/definitions/Group"
+        },
+        {
+          "$ref": "#/definitions/RawNode"
+        }
+      ]
+    },
+    "ExplicitComponent": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "button",
+            "fab",
+            "segmented-control",
+            "card",
+            "divider",
+            "data-table",
+            "empty-state",
+            "progress",
+            "form-columns",
+            "checkbox",
+            "chip",
+            "radio-group",
+            "search-field",
+            "select",
+            "slider",
+            "text-area",
+            "text-field",
+            "toggle",
+            "cards-grid",
+            "footer",
+            "list-row",
+            "section-header",
+            "avatar",
+            "icon",
+            "image",
+            "image-grid",
+            "bottom-navigation",
+            "breadcrumbs",
+            "web-header",
+            "pagination",
+            "sidebar-nav",
+            "tabs",
+            "toolbar",
+            "top-app-bar",
+            "bottom-sheet",
+            "dialog",
+            "modal",
+            "snackbar",
+            "heading",
+            "paragraph",
+            "text"
+          ]
+        },
+        "props": {
+          "type": "object"
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "Use": {
+      "type": "object",
+      "properties": {
+        "use": {
+          "type": "string",
+          "description": "A shared component's name (or id)."
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "use"
+      ],
+      "additionalProperties": false
+    },
+    "Group": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "additionalProperties": false
+    },
+    "RawNode": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "object",
+          "description": "A node as stored in a project file (designer-project.schema.json)."
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "node"
+      ],
+      "additionalProperties": false
+    },
+    "FrameLayout": {
+      "anyOf": [
+        {
+          "const": "free",
+          "description": "No stack: content placed freely (x / y)."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "vstack",
+                "hstack",
+                "grid"
+              ]
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0
+            },
+            "padding": {
+              "type": "number",
+              "minimum": 0
+            },
+            "align": {
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "stretch"
+              ]
+            },
+            "columns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12,
+              "description": "Grids only."
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "Root layout of a frame (default: a vertical stack with the platform's padding and gap)."
+    },
+    "Variant": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "enum": [
+            "phone",
+            "tablet",
+            "desktop"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "The frame's node id."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "layout": {
+          "$ref": "#/definitions/FrameLayout"
+        },
+        "root": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        }
+      },
+      "required": [
+        "platform"
+      ],
+      "additionalProperties": false
+    },
+    "Screen": {
+      "type": "object",
+      "description": "A logical screen: one frame (platform, root… on the screen) or several (variants).",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "description": "The logical screen's id."
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "current",
+                "changed",
+                "new"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform": {
+          "enum": [
+            "phone",
+            "tablet",
+            "desktop"
+          ],
+          "default": "phone"
+        },
+        "frameId": {
+          "type": "string",
+          "description": "The frame's node id (one-frame form)."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "layout": {
+          "$ref": "#/definitions/FrameLayout"
+        },
+        "root": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Variant"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "SharedComponent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "content": {
+          "$ref": "#/definitions/Node"
+        }
+      },
+      "required": [
+        "name",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "Flow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string",
+          "description": "A node id or a path: \"Settings/Language\", \"Settings@tablet/Language\"."
+        },
+        "to": {
+          "type": "string",
+          "description": "A screen name or id."
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "Note": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "on": {
+          "type": "string",
+          "description": "A node id or path (absent: a free note)."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "container:vstack": {
+      "type": "object",
+      "properties": {
+        "vstack": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0
+        },
+        "padding": {
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Grids only."
+        },
+        "style": {
+          "enum": [
+            "none",
+            "outline",
+            "filled",
+            "outline-filled"
+          ]
+        },
+        "radius": {
+          "enum": [
+            "none",
+            "small",
+            "large"
+          ]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Repeat the first child N times (a list of anything)."
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "vstack"
+      ],
+      "additionalProperties": false
+    },
+    "container:hstack": {
+      "type": "object",
+      "properties": {
+        "hstack": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0
+        },
+        "padding": {
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Grids only."
+        },
+        "style": {
+          "enum": [
+            "none",
+            "outline",
+            "filled",
+            "outline-filled"
+          ]
+        },
+        "radius": {
+          "enum": [
+            "none",
+            "small",
+            "large"
+          ]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Repeat the first child N times (a list of anything)."
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "hstack"
+      ],
+      "additionalProperties": false
+    },
+    "container:grid": {
+      "type": "object",
+      "properties": {
+        "grid": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          }
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0
+        },
+        "padding": {
+          "type": "number",
+          "minimum": 0
+        },
+        "align": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Grids only."
+        },
+        "style": {
+          "enum": [
+            "none",
+            "outline",
+            "filled",
+            "outline-filled"
+          ]
+        },
+        "radius": {
+          "enum": [
+            "none",
+            "small",
+            "large"
+          ]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Repeat the first child N times (a list of anything)."
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "grid"
+      ],
+      "additionalProperties": false
+    },
+    "component:button": {
+      "type": "object",
+      "description": "Button (Actions).",
+      "properties": {
+        "button": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Button"
+                },
+                "variant": {
+                  "description": "Variant",
+                  "enum": [
+                    "primary",
+                    "secondary",
+                    "text"
+                  ],
+                  "default": "primary"
+                },
+                "icon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "button"
+      ],
+      "additionalProperties": false
+    },
+    "component:fab": {
+      "type": "object",
+      "description": "FAB (Actions).",
+      "properties": {
+        "fab": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Plus"
+                },
+                "label": {
+                  "description": "Label. With a label the button is extended (a pill).",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "fab"
+      ],
+      "additionalProperties": false
+    },
+    "component:segmented-control": {
+      "type": "object",
+      "description": "Segmented control (Actions).",
+      "properties": {
+        "segmented-control": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "description": "Segments",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2,
+                  "maxItems": 5,
+                  "default": [
+                    "Day",
+                    "Week",
+                    "Month"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected segment. 1 = the first segment.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "default": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"labels\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 5,
+              "default": [
+                "Day",
+                "Week",
+                "Month"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "segmented-control"
+      ],
+      "additionalProperties": false
+    },
+    "component:card": {
+      "type": "object",
+      "description": "Card (Content).",
+      "properties": {
+        "card": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Card title"
+                },
+                "bodyLines": {
+                  "description": "Body lines. Grey bars for the description (0 = none).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 8,
+                  "default": 2
+                },
+                "image": {
+                  "description": "Image on top",
+                  "type": "boolean",
+                  "default": false
+                },
+                "actions": {
+                  "description": "Actions. Buttons along the bottom.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 0,
+                  "maxItems": 3,
+                  "default": []
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            },
+            {
+              "description": "Short form: sets \"actions\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0,
+              "maxItems": 3,
+              "default": []
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "card"
+      ],
+      "additionalProperties": false
+    },
+    "component:divider": {
+      "type": "object",
+      "description": "Divider (Content).",
+      "properties": {
+        "divider": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label. A short word in the middle, like \"or\".",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "divider"
+      ],
+      "additionalProperties": false
+    },
+    "component:data-table": {
+      "type": "object",
+      "description": "Data table (Data).",
+      "properties": {
+        "data-table": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Columns",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "default": [
+                    "Name",
+                    "Size",
+                    "Modified"
+                  ]
+                },
+                "rows": {
+                  "description": "Rows",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 8
+                },
+                "selectable": {
+                  "description": "Checkbox column",
+                  "type": "boolean",
+                  "default": false
+                },
+                "rowActions": {
+                  "description": "Row actions",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"columns\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 8,
+              "default": [
+                "Name",
+                "Size",
+                "Modified"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "data-table"
+      ],
+      "additionalProperties": false
+    },
+    "component:empty-state": {
+      "type": "object",
+      "description": "Empty state (Feedback).",
+      "properties": {
+        "empty-state": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Inbox"
+                },
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Nothing here yet"
+                },
+                "message": {
+                  "description": "Message",
+                  "type": "string",
+                  "default": "Items you add will show up here."
+                },
+                "buttonLabel": {
+                  "description": "Button. Leave empty for no button.",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "empty-state"
+      ],
+      "additionalProperties": false
+    },
+    "component:progress": {
+      "type": "object",
+      "description": "Progress bar (Feedback).",
+      "properties": {
+        "progress": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Uploading"
+                },
+                "value": {
+                  "description": "Value",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "default": 60
+                },
+                "showValue": {
+                  "description": "Show percentage",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "progress"
+      ],
+      "additionalProperties": false
+    },
+    "component:form-columns": {
+      "type": "object",
+      "description": "Form in columns (Forms).",
+      "properties": {
+        "form-columns": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Columns",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 3,
+                  "default": 2
+                },
+                "fields": {
+                  "description": "Fields. Label of each input, in reading order.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 24,
+                  "default": [
+                    "First name",
+                    "Last name",
+                    "Email",
+                    "Phone"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"fields\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 24,
+              "default": [
+                "First name",
+                "Last name",
+                "Email",
+                "Phone"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "form-columns"
+      ],
+      "additionalProperties": false
+    },
+    "component:checkbox": {
+      "type": "object",
+      "description": "Checkbox (Inputs).",
+      "properties": {
+        "checkbox": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Checkbox label"
+                },
+                "checked": {
+                  "description": "Checked",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "checkbox"
+      ],
+      "additionalProperties": false
+    },
+    "component:chip": {
+      "type": "object",
+      "description": "Chip (Inputs).",
+      "properties": {
+        "chip": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Chip"
+                },
+                "selected": {
+                  "description": "Selected",
+                  "type": "boolean",
+                  "default": false
+                },
+                "icon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": ""
+                },
+                "closable": {
+                  "description": "Close button",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "chip"
+      ],
+      "additionalProperties": false
+    },
+    "component:radio-group": {
+      "type": "object",
+      "description": "Radio group (Inputs).",
+      "properties": {
+        "radio-group": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Group label",
+                  "type": "string",
+                  "default": "Choose one"
+                },
+                "options": {
+                  "description": "Options",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 12,
+                  "default": [
+                    "Option A",
+                    "Option B",
+                    "Option C"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected option. Position in the list, starting at 1 (0 = none selected).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 11,
+                  "default": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            },
+            {
+              "description": "Short form: sets \"options\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 12,
+              "default": [
+                "Option A",
+                "Option B",
+                "Option C"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "radio-group"
+      ],
+      "additionalProperties": false
+    },
+    "component:search-field": {
+      "type": "object",
+      "description": "Search field (Inputs).",
+      "properties": {
+        "search-field": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "placeholder": {
+                  "description": "Placeholder",
+                  "type": "string",
+                  "default": "Search"
+                },
+                "value": {
+                  "description": "Value. Text already typed in. Empty shows the placeholder.",
+                  "type": "string",
+                  "default": ""
+                },
+                "focused": {
+                  "description": "Focused",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"placeholder\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "search-field"
+      ],
+      "additionalProperties": false
+    },
+    "component:select": {
+      "type": "object",
+      "description": "Select (Inputs).",
+      "properties": {
+        "select": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Label"
+                },
+                "value": {
+                  "description": "Selected value. Empty shows the placeholder.",
+                  "type": "string",
+                  "default": ""
+                },
+                "placeholder": {
+                  "description": "Placeholder",
+                  "type": "string",
+                  "default": "Select an option"
+                },
+                "options": {
+                  "description": "Options. Not drawn (the menu is closed); read by the AI export.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 0,
+                  "maxItems": 30,
+                  "default": [
+                    "Option 1",
+                    "Option 2",
+                    "Option 3"
+                  ]
+                },
+                "state": {
+                  "description": "State",
+                  "enum": [
+                    "normal",
+                    "focused",
+                    "error"
+                  ],
+                  "default": "normal"
+                },
+                "helper": {
+                  "description": "Helper text",
+                  "type": "string",
+                  "default": ""
+                },
+                "error": {
+                  "description": "Error text",
+                  "type": "string",
+                  "default": "Choose an option"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            },
+            {
+              "description": "Short form: sets \"options\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0,
+              "maxItems": 30,
+              "default": [
+                "Option 1",
+                "Option 2",
+                "Option 3"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "select"
+      ],
+      "additionalProperties": false
+    },
+    "component:slider": {
+      "type": "object",
+      "description": "Slider (Inputs).",
+      "properties": {
+        "slider": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Volume"
+                },
+                "value": {
+                  "description": "Value",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "default": 40
+                },
+                "showValue": {
+                  "description": "Show value",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "slider"
+      ],
+      "additionalProperties": false
+    },
+    "component:text-area": {
+      "type": "object",
+      "description": "Text area (Inputs).",
+      "properties": {
+        "text-area": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Message"
+                },
+                "placeholder": {
+                  "description": "Placeholder",
+                  "type": "string",
+                  "default": "Write something…"
+                },
+                "value": {
+                  "description": "Value. Text already typed in. Empty shows the placeholder.",
+                  "type": "string",
+                  "default": ""
+                },
+                "rows": {
+                  "description": "Rows",
+                  "type": "number",
+                  "minimum": 2,
+                  "maximum": 12,
+                  "default": 4
+                },
+                "state": {
+                  "description": "State",
+                  "enum": [
+                    "normal",
+                    "focused",
+                    "error"
+                  ],
+                  "default": "normal"
+                },
+                "helper": {
+                  "description": "Helper text",
+                  "type": "string",
+                  "default": ""
+                },
+                "error": {
+                  "description": "Error text",
+                  "type": "string",
+                  "default": "This field is required"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "text-area"
+      ],
+      "additionalProperties": false
+    },
+    "component:text-field": {
+      "type": "object",
+      "description": "Text field (Inputs).",
+      "properties": {
+        "text-field": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Label"
+                },
+                "placeholder": {
+                  "description": "Placeholder",
+                  "type": "string",
+                  "default": "Placeholder"
+                },
+                "value": {
+                  "description": "Value. Text already typed in. Empty shows the placeholder.",
+                  "type": "string",
+                  "default": ""
+                },
+                "inputType": {
+                  "description": "Input type",
+                  "enum": [
+                    "text",
+                    "email",
+                    "password",
+                    "number",
+                    "phone",
+                    "url"
+                  ],
+                  "default": "text"
+                },
+                "icon": {
+                  "description": "Leading icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": ""
+                },
+                "state": {
+                  "description": "State",
+                  "enum": [
+                    "normal",
+                    "focused",
+                    "error"
+                  ],
+                  "default": "normal"
+                },
+                "helper": {
+                  "description": "Helper text",
+                  "type": "string",
+                  "default": ""
+                },
+                "error": {
+                  "description": "Error text",
+                  "type": "string",
+                  "default": "This field is required"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "text-field"
+      ],
+      "additionalProperties": false
+    },
+    "component:toggle": {
+      "type": "object",
+      "description": "Toggle (Inputs).",
+      "properties": {
+        "toggle": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Toggle label"
+                },
+                "description": {
+                  "description": "Description",
+                  "type": "string",
+                  "default": ""
+                },
+                "on": {
+                  "description": "On",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "toggle"
+      ],
+      "additionalProperties": false
+    },
+    "component:cards-grid": {
+      "type": "object",
+      "description": "Cards grid (Layout).",
+      "properties": {
+        "cards-grid": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Columns",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 6,
+                  "default": 3
+                },
+                "rows": {
+                  "description": "Rows",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 2
+                },
+                "cardStyle": {
+                  "description": "Card style",
+                  "enum": [
+                    "image",
+                    "text",
+                    "horizontal"
+                  ],
+                  "default": "image"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "cards-grid"
+      ],
+      "additionalProperties": false
+    },
+    "component:footer": {
+      "type": "object",
+      "description": "Footer (Layout).",
+      "properties": {
+        "footer": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Columns. Heading of each column of links.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 6,
+                  "default": [
+                    "Product",
+                    "Company",
+                    "Support"
+                  ]
+                },
+                "links": {
+                  "description": "Links per column",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 4
+                },
+                "logo": {
+                  "description": "Logo",
+                  "type": "boolean",
+                  "default": true
+                },
+                "legal": {
+                  "description": "Legal row. Copyright line at the bottom.",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"columns\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 6,
+              "default": [
+                "Product",
+                "Company",
+                "Support"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "footer"
+      ],
+      "additionalProperties": false
+    },
+    "component:list-row": {
+      "type": "object",
+      "description": "List row (Lists).",
+      "properties": {
+        "list-row": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Title"
+                },
+                "subtitle": {
+                  "description": "Subtitle",
+                  "type": "string",
+                  "default": ""
+                },
+                "leading": {
+                  "description": "Leading",
+                  "enum": [
+                    "none",
+                    "icon",
+                    "avatar"
+                  ],
+                  "default": "none"
+                },
+                "leadingIcon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Star"
+                },
+                "trailing": {
+                  "description": "Trailing",
+                  "enum": [
+                    "none",
+                    "chevron",
+                    "toggle",
+                    "value",
+                    "checkbox"
+                  ],
+                  "default": "chevron"
+                },
+                "value": {
+                  "description": "Value",
+                  "type": "string",
+                  "default": "Value"
+                },
+                "checked": {
+                  "description": "On",
+                  "type": "boolean",
+                  "default": true
+                },
+                "divider": {
+                  "description": "Divider",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "list-row"
+      ],
+      "additionalProperties": false
+    },
+    "component:section-header": {
+      "type": "object",
+      "description": "Section header (Lists).",
+      "properties": {
+        "section-header": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Label",
+                  "type": "string",
+                  "default": "Section"
+                },
+                "action": {
+                  "description": "Action. Text on the right, e.g. \"See all\".",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"label\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "section-header"
+      ],
+      "additionalProperties": false
+    },
+    "component:avatar": {
+      "type": "object",
+      "description": "Avatar (Media).",
+      "properties": {
+        "avatar": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "size": {
+                  "description": "Size",
+                  "enum": [
+                    "small",
+                    "medium",
+                    "large",
+                    "xlarge"
+                  ],
+                  "default": "medium"
+                },
+                "content": {
+                  "description": "Shows",
+                  "enum": [
+                    "initials",
+                    "image"
+                  ],
+                  "default": "initials"
+                },
+                "initials": {
+                  "description": "Initials",
+                  "type": "string",
+                  "default": "AB"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"initials\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "avatar"
+      ],
+      "additionalProperties": false
+    },
+    "component:icon": {
+      "type": "object",
+      "description": "Icon (Media).",
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "icon": {
+                  "description": "Icon. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Star"
+                },
+                "size": {
+                  "description": "Size",
+                  "type": "number",
+                  "minimum": 12,
+                  "maximum": 128,
+                  "default": 24
+                },
+                "tone": {
+                  "description": "Emphasis",
+                  "enum": [
+                    "normal",
+                    "muted"
+                  ],
+                  "default": "normal"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "icon"
+      ],
+      "additionalProperties": false
+    },
+    "component:image": {
+      "type": "object",
+      "description": "Image (Media).",
+      "properties": {
+        "image": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "ratio": {
+                  "description": "Aspect ratio",
+                  "enum": [
+                    "1:1",
+                    "4:3",
+                    "16:9",
+                    "3:4",
+                    "free"
+                  ],
+                  "default": "16:9"
+                },
+                "subject": {
+                  "description": "What it shows. Not drawn; the AI export reads it.",
+                  "type": "string",
+                  "default": ""
+                },
+                "caption": {
+                  "description": "Caption",
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"subject\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "additionalProperties": false
+    },
+    "component:image-grid": {
+      "type": "object",
+      "description": "Image grid (Media).",
+      "properties": {
+        "image-grid": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "description": "Columns",
+                  "type": "number",
+                  "minimum": 2,
+                  "maximum": 4,
+                  "default": 3
+                },
+                "rows": {
+                  "description": "Rows",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 2
+                },
+                "gap": {
+                  "description": "Gap",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 24,
+                  "default": 4
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "image-grid"
+      ],
+      "additionalProperties": false
+    },
+    "component:bottom-navigation": {
+      "type": "object",
+      "description": "Bottom navigation (Navigation).",
+      "properties": {
+        "bottom-navigation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "description": "Tabs",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2,
+                  "maxItems": 5,
+                  "default": [
+                    "Gallery",
+                    "Albums",
+                    "Settings"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected tab. 1 = the first tab.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "default": 1
+                },
+                "icon1": {
+                  "description": "Icon, tab 1. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Image"
+                },
+                "icon2": {
+                  "description": "Icon, tab 2. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:FolderOpen"
+                },
+                "icon3": {
+                  "description": "Icon, tab 3. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Settings"
+                },
+                "icon4": {
+                  "description": "Icon, tab 4. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Circle"
+                },
+                "icon5": {
+                  "description": "Icon, tab 5. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Circle"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"labels\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 5,
+              "default": [
+                "Gallery",
+                "Albums",
+                "Settings"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "bottom-navigation"
+      ],
+      "additionalProperties": false
+    },
+    "component:breadcrumbs": {
+      "type": "object",
+      "description": "Breadcrumbs (Navigation).",
+      "properties": {
+        "breadcrumbs": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "description": "Items. The last one is the current page.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "default": [
+                    "Home",
+                    "Projects",
+                    "Designer"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"items\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 8,
+              "default": [
+                "Home",
+                "Projects",
+                "Designer"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "breadcrumbs"
+      ],
+      "additionalProperties": false
+    },
+    "component:web-header": {
+      "type": "object",
+      "description": "Header with navigation (Navigation).",
+      "properties": {
+        "web-header": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "description": "Links",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 0,
+                  "maxItems": 8,
+                  "default": [
+                    "Home",
+                    "Products",
+                    "Pricing",
+                    "About"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected link. Position in the list, starting at 1.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 1
+                },
+                "search": {
+                  "description": "Search",
+                  "type": "boolean",
+                  "default": false
+                },
+                "actions": {
+                  "description": "Actions. Buttons on the right; the last one is filled.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 0,
+                  "maxItems": 3,
+                  "default": []
+                },
+                "avatar": {
+                  "description": "Avatar",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"links\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0,
+              "maxItems": 8,
+              "default": [
+                "Home",
+                "Products",
+                "Pricing",
+                "About"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "web-header"
+      ],
+      "additionalProperties": false
+    },
+    "component:pagination": {
+      "type": "object",
+      "description": "Pagination (Navigation).",
+      "properties": {
+        "pagination": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "pages": {
+                  "description": "Pages",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 999,
+                  "default": 10
+                },
+                "current": {
+                  "description": "Current page",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 999,
+                  "default": 1
+                },
+                "align": {
+                  "description": "Align",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ],
+                  "default": "center"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "pagination"
+      ],
+      "additionalProperties": false
+    },
+    "component:sidebar-nav": {
+      "type": "object",
+      "description": "Sidebar navigation (Navigation).",
+      "properties": {
+        "sidebar-nav": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title. App or section name above the items.",
+                  "type": "string",
+                  "default": ""
+                },
+                "items": {
+                  "description": "Items. Start an entry with # to make it a section label.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "default": [
+                    "Dashboard",
+                    "Projects",
+                    "Team",
+                    "Settings"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected item. Position among the items (not the labels), starting at 1.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "default": 1
+                },
+                "icons": {
+                  "description": "Icons",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            },
+            {
+              "description": "Short form: sets \"items\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "default": [
+                "Dashboard",
+                "Projects",
+                "Team",
+                "Settings"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "sidebar-nav"
+      ],
+      "additionalProperties": false
+    },
+    "component:tabs": {
+      "type": "object",
+      "description": "Tabs (Navigation).",
+      "properties": {
+        "tabs": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "description": "Tabs",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2,
+                  "maxItems": 6,
+                  "default": [
+                    "Photos",
+                    "Albums",
+                    "Shared"
+                  ]
+                },
+                "selected": {
+                  "description": "Selected tab. 1 = the first tab.",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 6,
+                  "default": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "description": "Short form: sets \"labels\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 2,
+              "maxItems": 6,
+              "default": [
+                "Photos",
+                "Albums",
+                "Shared"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "tabs"
+      ],
+      "additionalProperties": false
+    },
+    "component:toolbar": {
+      "type": "object",
+      "description": "Toolbar (Navigation).",
+      "properties": {
+        "toolbar": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": ""
+                },
+                "actions": {
+                  "description": "Actions",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 0,
+                  "maxItems": 8,
+                  "default": [
+                    "New",
+                    "Upload",
+                    "Filter",
+                    "Sort"
+                  ]
+                },
+                "icons": {
+                  "description": "Icons",
+                  "type": "boolean",
+                  "default": false
+                },
+                "search": {
+                  "description": "Search on the right",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            },
+            {
+              "description": "Short form: sets \"actions\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0,
+              "maxItems": 8,
+              "default": [
+                "New",
+                "Upload",
+                "Filter",
+                "Sort"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "toolbar"
+      ],
+      "additionalProperties": false
+    },
+    "component:top-app-bar": {
+      "type": "object",
+      "description": "Top app bar (Navigation).",
+      "properties": {
+        "top-app-bar": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Title"
+                },
+                "leading": {
+                  "description": "Leading",
+                  "enum": [
+                    "none",
+                    "back",
+                    "menu",
+                    "close"
+                  ],
+                  "default": "back"
+                },
+                "actions": {
+                  "description": "Actions. How many icons on the right (0–3).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3,
+                  "default": 1
+                },
+                "action1": {
+                  "description": "Action 1. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Search"
+                },
+                "action2": {
+                  "description": "Action 2. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:Share2"
+                },
+                "action3": {
+                  "description": "Action 3. An icon name: \"heart\", \"lucide:Heart\", \"ph:heart\" ('' = none).",
+                  "type": "string",
+                  "default": "lucide:EllipsisVertical"
+                },
+                "large": {
+                  "description": "Large title. The title sits on its own line under the icons.",
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "top-app-bar"
+      ],
+      "additionalProperties": false
+    },
+    "component:bottom-sheet": {
+      "type": "object",
+      "description": "Bottom sheet (Overlays).",
+      "properties": {
+        "bottom-sheet": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Title"
+                },
+                "rows": {
+                  "description": "Rows",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "default": [
+                    "Copy link",
+                    "Send as message",
+                    "More options"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            },
+            {
+              "description": "Short form: sets \"rows\".",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 8,
+              "default": [
+                "Copy link",
+                "Send as message",
+                "More options"
+              ]
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "bottom-sheet"
+      ],
+      "additionalProperties": false
+    },
+    "component:dialog": {
+      "type": "object",
+      "description": "Dialog (Overlays).",
+      "properties": {
+        "dialog": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Delete photo?"
+                },
+                "message": {
+                  "description": "Message",
+                  "type": "string",
+                  "default": "This photo will be removed from all your albums."
+                },
+                "primary": {
+                  "description": "Main action",
+                  "type": "string",
+                  "default": "Delete"
+                },
+                "secondary": {
+                  "description": "Other action. Leave empty for a dialog with one action.",
+                  "type": "string",
+                  "default": "Cancel"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "dialog"
+      ],
+      "additionalProperties": false
+    },
+    "component:modal": {
+      "type": "object",
+      "description": "Modal window (Overlays).",
+      "properties": {
+        "modal": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "description": "Title",
+                  "type": "string",
+                  "default": "Modal title"
+                },
+                "lines": {
+                  "description": "Body lines",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 3
+                },
+                "primary": {
+                  "description": "Primary action",
+                  "type": "string",
+                  "default": "Confirm"
+                },
+                "secondary": {
+                  "description": "Secondary action",
+                  "type": "string",
+                  "default": "Cancel"
+                },
+                "close": {
+                  "description": "Close button",
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"title\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "modal"
+      ],
+      "additionalProperties": false
+    },
+    "component:snackbar": {
+      "type": "object",
+      "description": "Snackbar (Overlays).",
+      "properties": {
+        "snackbar": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "description": "Message",
+                  "type": "string",
+                  "default": "Photo deleted"
+                },
+                "action": {
+                  "description": "Action",
+                  "type": "string",
+                  "default": "Undo"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"message\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "snackbar"
+      ],
+      "additionalProperties": false
+    },
+    "component:heading": {
+      "type": "object",
+      "description": "Heading (Text).",
+      "properties": {
+        "heading": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "description": "Text",
+                  "type": "string",
+                  "default": "Heading"
+                },
+                "level": {
+                  "description": "Level",
+                  "enum": [
+                    "title",
+                    "heading",
+                    "subheading"
+                  ],
+                  "default": "heading"
+                },
+                "align": {
+                  "description": "Align",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ],
+                  "default": "left"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"text\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "heading"
+      ],
+      "additionalProperties": false
+    },
+    "component:paragraph": {
+      "type": "object",
+      "description": "Paragraph (Text).",
+      "properties": {
+        "paragraph": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "lines": {
+                  "description": "Lines",
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "default": 3
+                },
+                "size": {
+                  "description": "Size",
+                  "enum": [
+                    "body",
+                    "small"
+                  ],
+                  "default": "body"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "paragraph"
+      ],
+      "additionalProperties": false
+    },
+    "component:text": {
+      "type": "object",
+      "description": "Text (Text).",
+      "properties": {
+        "text": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "description": "Text",
+                  "type": "string",
+                  "default": "Body text. Replace it with the words this screen needs."
+                },
+                "size": {
+                  "description": "Size",
+                  "enum": [
+                    "body",
+                    "small",
+                    "caption"
+                  ],
+                  "default": "body"
+                },
+                "tone": {
+                  "description": "Emphasis",
+                  "enum": [
+                    "normal",
+                    "muted"
+                  ],
+                  "default": "normal"
+                },
+                "align": {
+                  "description": "Align",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ],
+                  "default": "left"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "description": "Short form: sets \"text\"."
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/definitions/common.id"
+        },
+        "name": {
+          "$ref": "#/definitions/common.name"
+        },
+        "hidden": {
+          "$ref": "#/definitions/common.hidden"
+        },
+        "locked": {
+          "$ref": "#/definitions/common.locked"
+        },
+        "opacity": {
+          "$ref": "#/definitions/common.opacity"
+        },
+        "width": {
+          "$ref": "#/definitions/common.width"
+        },
+        "height": {
+          "$ref": "#/definitions/common.height"
+        },
+        "position": {
+          "$ref": "#/definitions/common.position"
+        },
+        "bleed": {
+          "$ref": "#/definitions/common.bleed"
+        },
+        "x": {
+          "$ref": "#/definitions/common.x"
+        },
+        "y": {
+          "$ref": "#/definitions/common.y"
+        },
+        "rotation": {
+          "$ref": "#/definitions/common.rotation"
+        },
+        "scale": {
+          "$ref": "#/definitions/common.scale"
+        },
+        "size": {
+          "$ref": "#/definitions/common.size"
+        },
+        "opens": {
+          "$ref": "#/definitions/common.opens"
+        },
+        "note": {
+          "$ref": "#/definitions/common.note"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "common.id": {
+      "type": "string",
+      "description": "Stable id (dump writes one for every node; build --into updates the node with this id)."
+    },
+    "common.name": {
+      "type": "string",
+      "description": "Layer name (default: the component label / container kind)."
+    },
+    "common.hidden": {
+      "type": "boolean"
+    },
+    "common.locked": {
+      "type": "boolean"
+    },
+    "common.opacity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "common.width": {
+      "anyOf": [
+        {
+          "enum": [
+            "fill",
+            "hug"
+          ]
+        },
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      ],
+      "description": "Width in its stack: \"fill\", \"hug\" or px (default: the component's sizing)."
+    },
+    "common.height": {
+      "anyOf": [
+        {
+          "enum": [
+            "fill",
+            "hug"
+          ]
+        },
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      ],
+      "description": "Height in its stack: \"fill\", \"hug\" or px (only for components with a resizable height)."
+    },
+    "common.position": {
+      "enum": [
+        "flow",
+        "pinned-bottom",
+        "free"
+      ],
+      "description": "\"flow\" (default), \"pinned-bottom\" (screen children: bottom bars) or \"free\" (absolute, x / y)."
+    },
+    "common.bleed": {
+      "type": "boolean",
+      "description": "Edge to edge: ignore the stack's side padding."
+    },
+    "common.x": {
+      "type": "number",
+      "description": "Free / unstacked nodes: left in the parent."
+    },
+    "common.y": {
+      "type": "number",
+      "description": "Free / unstacked nodes: top in the parent."
+    },
+    "common.rotation": {
+      "type": "number"
+    },
+    "common.scale": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "common.size": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "description": "Box of a node no layout places (free, in a free screen)."
+    },
+    "common.opens": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "description": "Screen(s) this element opens (adds flows)."
+    },
+    "common.note": {
+      "type": "string",
+      "description": "A note attached to this node."
+    }
+  }
+}
