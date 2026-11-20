@@ -71,6 +71,10 @@ describe('prompt templates', () => {
   it('screenshot', () => {
     const p = renderPrompt({ type: 'screenshot', input: { platform: 'phone', name: 'Settings', hint: 'The dark theme toggle is ON' } }, ctx(['attachments/shot.png'], 'screenshot'));
     expect(p).toContain('wf compare attachments/shot.png');
+    // Phase 4 end-to-end run: the agent built a second round and finished without looking at its compare.
+    expect(p).toContain('After your last build, run the compare once more and look at it before you finish');
+    // The summary goes into a small panel: short and plain (the real ones were several paragraphs with lists).
+    expect(p).toContain('plain text, at most 3 sentences, no lists or headings');
     expect(stable(p, doc)).toMatchSnapshot();
   });
 
@@ -82,6 +86,8 @@ describe('prompt templates', () => {
 
   it('request', () => {
     const p = renderPrompt({ type: 'request', input: { text: 'Add an empty state to "My trips"' } }, ctx([], 'request'));
+    // Phase 4 end-to-end run: a request edited a "current" screen in place; now the change goes to a "changed" copy.
+    expect(p).toContain('Screens with status "current" record the app as it is today: never change them.');
     expect(stable(p, doc)).toMatchSnapshot();
   });
 

@@ -102,7 +102,7 @@ export function rules(maxRounds: number, extra: string[] = []): string {
     `At most ${maxRounds} rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.`,
     ...extra,
     `Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".`,
-    `End with one paragraph for the person: what you built, and anything you could not do.`,
+    `End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.`,
   ];
   return `Rules:\n${list.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 }

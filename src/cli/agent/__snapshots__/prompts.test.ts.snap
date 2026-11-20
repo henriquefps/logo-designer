@@ -51,7 +51,7 @@ Rules:
 7. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 8. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
 9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+10. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -111,7 +111,7 @@ Rules:
 8. Add "opens" links from the new screen only where the target screen already exists (a back button to "Home", for example); describe other navigation in a note.
 9. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
 10. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-11. End with one paragraph for the person: what you built, and anything you could not do.
+11. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -136,9 +136,10 @@ Rules:
 5. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
 6. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
 7. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-8. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
-9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+8. Screens with status "current" record the app as it is today: never change them. When the request changes such a screen, add the changed version as a new screen with status "changed", named after it with a suffix in the project's language (e.g. "Configurações (nova)"), placed after it in the spec, and with the same platform; screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.
+9. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
+10. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+11. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -147,7 +148,7 @@ exports[`prompt templates > screenshot 1`] = `
 
 Name the new screen "Settings" (status "current": it is the app as it is today).
 
-Follow "Screenshot → wireframe" from your instructions: open the image, list its parts top to bottom, map each to a library component, write the screen into spec.json (add it to the screens of a fresh dump), build it --into the project, then \`designer wf compare attachments/shot.png project.designer.json --screen "<name>" --overlay 50 -o compare.png\` and look at compare.png. Fix and compare again until every element has its component and the order and proportions match.
+Follow "Screenshot → wireframe" from your instructions: open the image, list its parts top to bottom, map each to a library component, write the screen into spec.json (add it to the screens of a fresh dump), build it --into the project, then \`designer wf compare attachments/shot.png project.designer.json --screen "<name>" --overlay 50 -o compare.png\` and look at compare.png. Fix and compare again until every element has its component and the order and proportions match. After your last build, run the compare once more and look at it before you finish: your summary says what still differs.
 
 Screens already in the project (keep them as they are):
 - "Home" (phone, current)
@@ -169,6 +170,6 @@ Rules:
 7. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
 8. Real texts and states from the screenshot (which tab is selected, toggles, values); no tracing of shapes or pixel positions.
 9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+10. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
