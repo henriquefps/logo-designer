@@ -35,6 +35,12 @@ export function installOverlay(opts: OverlayOptions): void {
       padding: 6px 12px; border-radius: 8px; background: rgba(17,17,17,.88); color: #fff;
       font: 600 15px/1.2 Inter, system-ui, sans-serif; opacity: 0; transition: opacity .2s; }
     #demo-keys.on { opacity: 1; }
+    #demo-term { position: fixed; left: 76px; bottom: 44px; width: 640px; z-index: 2147483645; pointer-events: none;
+      padding: 8px 12px; border-radius: 8px; background: rgba(11, 15, 20, .94); color: #d4d4d8; display: none;
+      font: 12.5px/1.45 ui-monospace, 'JetBrains Mono', 'DejaVu Sans Mono', monospace; white-space: pre; overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+    #demo-term .cmd { color: #86efac; }
+    #demo-term .dim { color: #a1a1aa; }
     #demo-paste { position: fixed; z-index: 2147483640; display: flex; flex-direction: column;
       background: #fff; border: 1px solid #d4d4d4; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.25); overflow: hidden; }
     #demo-paste header { padding: 10px 14px; background: #f4f4f5; border-bottom: 1px solid #e4e4e7;
@@ -53,11 +59,13 @@ export function installOverlay(opts: OverlayOptions): void {
     '<svg width="26" height="26" viewBox="0 0 26 26"><path d="M3 2 L3 20 L8 15.5 L11.5 23 L14.5 21.6 L11 14.4 L17.5 14.4 Z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
   const keys = document.createElement('div');
   keys.id = 'demo-keys';
+  const term = document.createElement('div');
+  term.id = 'demo-term';
 
   const mount = () => {
     if (!document.body) return void requestAnimationFrame(mount);
     document.head.appendChild(style);
-    document.body.append(caption, cursor, keys);
+    document.body.append(caption, cursor, keys, term);
   };
   mount();
 
@@ -115,6 +123,18 @@ export function installOverlay(opts: OverlayOptions): void {
       area.spellcheck = false;
       box.append(head, area);
       document.body.appendChild(box);
+    },
+    /** A terminal strip (bottom left, over the canvas): the agent's commands and their output. [] hides it. */
+    __demoTerminal(lines: string[]) {
+      term.replaceChildren(
+        ...lines.map((l) => {
+          const row = document.createElement('div');
+          row.className = l.startsWith('$ ') ? 'cmd' : 'dim';
+          row.textContent = l;
+          return row;
+        }),
+      );
+      term.style.display = lines.length ? 'block' : 'none';
     },
     __demoKeys(label: string) {
       keys.textContent = label;

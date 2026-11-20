@@ -69,6 +69,17 @@ export class Demo {
     await this.pause(800);
   }
 
+  private termLines: string[] = [];
+
+  /**
+   * The terminal strip: appends lines (a command starts with "$ ", the rest is its output), keeping the
+   * last `keep`; `{ clear: true }` starts over, no lines and `clear` hides it.
+   */
+  async terminal(lines: string[], opts: { clear?: boolean; keep?: number } = {}): Promise<void> {
+    this.termLines = [...(opts.clear ? [] : this.termLines), ...lines].slice(-(opts.keep ?? 3));
+    await this.page.evaluate((l) => (window as unknown as { __demoTerminal(l: string[]): void }).__demoTerminal(l), this.termLines);
+  }
+
   async pause(ms = 550): Promise<void> {
     if (this.fast) ms = Math.min(ms, 120);
     await this.page.waitForTimeout(ms);

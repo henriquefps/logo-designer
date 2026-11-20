@@ -267,6 +267,8 @@ skv run designer-sync -- bun run designer live hoard.designer.json &
   | Project | File | Compact JSON | `#open=` link |
   | --- | --- | --- | --- |
   | App icon glyph | 3–10 KB | 1–4 KB | 1–5 KB |
+  | Wireframe: Hoard Gallery + Settings (the phase 3 e2e run: 2 screens, 7 notes, 2 flows) | 398 KB | 114 KB | 13 KB |
+  | … plus its two screenshots embedded as references | 2.3 MB | 2.0 MB | 1.8 MB |
   | Wireframe: 10 phone screens × ~100 components (shared tab bar, a 6-card carousel, a 24-image grid and a 20-row list per screen, flows, notes) | 4.4 MB | 1.4 MB | 99 KB |
   | … plus one embedded reference screenshot (1080×2243 JPEG, 437 KB) | 5.0 MB | 2.0 MB | 611 KB |
   | … plus two (437 KB + 986 KB) | 6.3 MB | 3.3 MB | 1.8 MB |

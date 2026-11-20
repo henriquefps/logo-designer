@@ -607,6 +607,27 @@ an agent that **receives** an "Export for AI" package should read it to build th
 end-to-end run: an agent turns real screenshots (Hoard's Gallery and Settings) into a wireframe
 project through the CLI only, live, recorded as the round's demo video.
 
+#### As built (A7)
+
+- The skill (`skills/designer/SKILL.md` → Wireframes): wireframe vs logo document, the spec and the catalog,
+  composing what a component lacks from stacks, the screenshot → wireframe loop (look, spec with library
+  components, `wf build`, `wf compare --overlay`, fix, repeat; `wf sheet` for the flow), live sessions (start
+  `designer live` on an empty project before the first build; always `--into` the mirrored file; `wf dump` before
+  each build), and how an agent that receives an Export for AI package reads it.
+- End-to-end run (2026-11-19), CLI only, live against a local designer-sync with the app in Chromium: Hoard's
+  Gallery and Settings (dark Android screenshots) became one project with both screens, two flows and seven notes
+  in four rounds. Specs of each round: `scripts/demo/fixtures/hoard-e2e/`. Replayed as demo `08-agente-ao-vivo`
+  (with Henrique's edits in the app flowing back to the file) and toured in `09-sheet-e-compare`.
+- Bugs it found, fixed, each with a regression test: the app saved an opened live project as an app edit when an
+  autosave of the previous project was pending, and that empty copy replaced the agent's build (`activate()`;
+  `projectsStore.test.ts`, `bun run e2e:live` step 6); `build --into` dropped default placements (a pinned bottom
+  navigation fell into the flow; `roundtrip.test.ts`); notes of the left screen covered the next screen (now left
+  of their screen when the right side is taken; `notes.test.ts`); Lucide aliases (`filter`, `check-circle`) drew
+  placeholders silently (now resolved, unknown names warn; `wf.test.ts`); CLI stdout into a pipe was cut at 64 KB
+  and `| head` raised EPIPE (`bin.test.ts`).
+- Limits seen, not bugs: a list row's subtitle and a checkbox label are one line (ellipsis); a top app bar has at
+  most 3 actions (compose with an `hstack` of icons); the wireframes are greyscale (a dark theme is a note).
+
 ### Phase 3 workstreams
 
 1. **A1 + A2** (first; Opus): spec format, build/dump with round trip, catalog.
