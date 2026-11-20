@@ -545,6 +545,17 @@ nothing changes for people who don't use it.
   one-off transfers. Conflicts follow today's rules (last-write-wins, loser kept).
 - Security: no new exposure; the stream carries only ids and timestamps.
 
+#### As built (A5)
+
+- Server: `GET /api/events` in `sync-server/events.go` (broker with per-client buffer, slow clients dropped,
+  256 streams max, per-write deadlines so the 2 min `WriteTimeout` does not cut a stream, streams closed on
+  shutdown); `/api/health` reports `events: true`.
+- App: `src/sync/events.ts` (SSE over `fetch`, shared with the CLI), the engine subscribes and syncs on each
+  change; the live mark is `live: { editedBy }` in the document (`"cli"` / `"app:<device>"`); `LiveIndicator`
+  in the top bar; `?open-project=<id>`. Opening a live project or filling in its icons is not an edit.
+- CLI: `src/cli/sync.ts` (`designer live`, `designer sync push|pull|list`). Proof: `bun run e2e:live`
+  (Go server + Chromium + `designer live`, both conflict directions) and `bun run demo 07`.
+
 ### A6. Handing over big projects
 
 `#open=` links stop at about 2 MB. Check how big real wireframe projects get (10 screens with
