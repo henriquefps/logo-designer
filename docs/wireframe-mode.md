@@ -381,8 +381,8 @@ says "List of 6 × (Card container: …)". Turning repeat off keeps only the tem
   opens a small menu at the drop point: **New screen** (same platform, placed there, named after the
   source's label, e.g. "Language") and **Generate with AI** (shown disabled with "Coming later" until
   phase 4). A Flow tool is optional; the handle is the main way.
-- Arrows are a canvas overlay (never in screen exports): a curve from the source element to the
-  target frame's nearest edge, with an arrowhead, following moves. When the target logical screen has
+- Arrows are a canvas overlay (never in screen exports): from the source element to a side of the
+  target frame, routed around the other screens (see Arrow routing below), with an arrowhead, following moves. When the target logical screen has
   several variants, point at the one with the same platform as the source frame, else the first.
   Selecting an arrow lets you delete it or edit its label. Deleting a source element or a logical
   screen removes its flows (inside the same undo step).
@@ -394,7 +394,7 @@ says "List of 6 × (Card container: …)". Turning repeat off keeps only the tem
 - The handle shows for one selected element inside a screen (select tool); releasing on the source's own screen (or
   a click on the handle) links nothing. A second link between the same element and screen reuses the flow. Drop on
   empty canvas → **New screen** puts the frame's top-left at the drop point and selects it. Arrows start at the
-  element's right (or left) edge and end on the target frame's nearest side, with the label on a pill at the middle;
+  element's right (or left) edge and end on a side of the target frame, with the label on a pill on a clear stretch;
   clicking an arrow selects it (label field and delete under it; Delete / Backspace delete, Escape deselects).
 - Properties → Flows lists "→ Screen" rows (click selects the arrow, × removes) and a **Link to screen…** select
   (works without dragging, e.g. on a phone).
@@ -402,6 +402,33 @@ says "List of 6 × (Card container: …)". Turning repeat off keeps only the tem
   deleted is not enough. Duplicate as… gives the copied elements the same flows. Files: unknown `from` / `to` are
   dropped with a warning.
 - Status badge: right end of the frame's name strip (Current outlined, Changed filled, New dashed).
+
+#### Arrow routing
+
+An arrow never passes over a screen other than its source and target (it used to be a near-straight curve: with
+screens in a row, back arrows ran across every top bar in between). `src/wireframe/routing.ts`, pure geometry shared
+by the canvas overlay, arrow picking, the arrow editor and `designer wf sheet`; Present mode has no arrows.
+
+- **Orthogonal routes on gutter lanes.** A short stub leaves the source frame from the element (left or right; up or
+  down for a part in a row), the route runs on lanes around and between the frames (frame edges ± a clearance, the
+  middles of gutters), and enters the target from its left, right or bottom side. The top is a last resort: the
+  screen's name strip is there. Frames are hard obstacles, grown upwards by the name strip (`band`: 30 screen px on
+  the canvas, the label strip in the sheet); notes are soft (crossed only when going around costs much more). An A*
+  search on the sparse lane grid keeps arrows short with few bends; a self-link loops out of the nearest side.
+- **Busy gutters.** Arrows are routed shortest first; a later one pays for running next to earlier ones where the
+  gutter is narrow, so it takes another gutter (above or below the row, the other side) when that is cheap.
+- **Spreading.** Arrows that share a lane (or close parallel lanes in one gutter) get their own tracks, `gap` apart
+  (less in a narrow gutter, twice as much for arrowheads on a frame edge), keeping the clearance from frames when
+  there is room. The order follows where two arrows part, so a bundle never crosses itself: back arrows from a row of
+  screens to the first one nest, the farthest outermost.
+- **Labels** go on the longest clear stretch of their arrow, off frames (and their name strips), notes and other
+  labels; the arrow editor opens at the arrow's middle.
+- **Cost.** Routing depends on every arrow (busy gutters, spreading), so it is memoized per set of arrow ends and
+  frame/note rects (`flowLayout`), and per frozen document state (re-renders and pointer moves cost a lookup). A
+  drag that moves no arrow end or frame costs nothing; moving a frame re-routes everything, ~5 ms for the 16 arrows
+  of the Hoard benchmark (10 screens). Canvas zoom is quantized to powers of two for the band and spacing, so a
+  zoom gesture re-routes only when it crosses one. The sheet's bounds grow to hold arrows routed above or below
+  the frames.
 
 ### Present mode
 
@@ -520,7 +547,7 @@ keeps the old fixed behaviour.
   screens would be sixteen arrows. Shared arrows are dashed. Detach and Delete master turn the master's links into
   links of each copy, so nothing is lost.
 - **Drawing:** the part's handle is on its top edge when parts share a row (tabs), else on its right edge; a tab's
-  arrow leaves upwards from its top, so arrows do not run along the bar over the next screens' tabs. A part can be
+  arrow leaves vertically (from its top or bottom: routing picks), so arrows do not run along the bar over the next screens' tabs. A part can be
   dragged onto its own screen (a real drag, not a click on the handle): that is how a tab becomes the selected one
   there. The scope choice appears after the drop (on a screen: the two choices; on empty canvas: a radio group
   next to New screen, default "Every screen using …"). Properties → Flows has From (whole element / each part) and
@@ -594,7 +621,7 @@ reading) or `--json`. Generated from the registry at run time, so it never goes 
 (`case 'wf'`; other `wf` subcommands register beside it). Layout and scaling are pure and tested
 (`sheetLayout`, `compareLayout`, `solveScale`); the image is one SVG (frames as embedded resvg PNGs,
 overlay shapes as markup, labels outlined by the fonts module) rendered by resvg. Name/platform/badge
-fitting is the canvas's own `labelLayout`; arrows use `flowCurve` and `arrowHead`.
+fitting is the canvas's own `labelLayout`; arrows use the canvas routing (`flowLayout`, `placeLabels`) and `arrowHead`.
 
 ### A4. Rendering fidelity (the `to-png` font bug)
 

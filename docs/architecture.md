@@ -550,7 +550,7 @@ present mode:
 | `canFlowFrom`, `flowSource`, `flowSourceLabel` (label / title / text / message prop, a text's content, else the node name) | sources |
 | `newScreenFromFlow(doc, fromId, at)` | the drop menu's **New screen**: same platform, top-left at `at`, named after the source, linked |
 | `pruneFlows(doc)` | drops flows whose source node or target screen is gone: the **`flows`** step (950, settle + load) runs it, so a delete and its flows are one undo step |
-| `flowCurve(doc, flow)`, `curveBetween`, `flowAt(doc, p, tol)`, `frameAt` | arrow geometry (cubic from the element's right/left edge to the target frame's nearest edge) and picking |
+| `flowLayout(doc, opts)` → `{ arrows, avoid }`, `flowArrows(doc, flow)`, `flowRoute(doc, flow)`, `flowAt(doc, p, tol, opts)`, `canvasArrowOptions(zoom, selection)`, `frameAt` | arrows routed around the other frames (`routing.ts`: `routeFlows`, `nudge`, `placeLabels`, `routePath`, `distanceToRoute`; docs/wireframe-mode.md → Arrow routing), memoized per layout, and picking |
 
 `duplicateScreenAs` copies the flows of the copied elements. App: `flowCommands.ts` (`useFlowStore`: the selected arrow,
 the drag, the drop menu; commands with undo labels), `flowDrag.ts` (the select tool's handle hit, the drag gesture,
@@ -576,7 +576,7 @@ Contract: docs/wireframe-mode.md → Links from parts of a component.
   index memoized per `doc.children`), `flowsAt(doc, node)` = its own + its master node's flows, `masterRef(doc, node)`
   = the innermost instance, its master and the node's master id. `addFlow(…, { part, shared })`,
   `newScreenFromFlow(…, { part, shared })` (named after the part), `partsOfNode` / `partWorldRect` / `partAt` /
-  `partLabel`, `flowCurves` (one arrow per source; a shared flow draws none on the screen it opens),
+  `partLabel`, `flowArrows` (one arrow per source; a shared flow draws none on the screen it opens),
   `localizeSharedFlows` (Detach / Delete master keep the links as each copy's own), `remapPartKey`.
 - **Steps**: `partFlows` (425, settle) compares each part flow's component props before/after (the master's content for
   shared flows, after `symbols` wrote an edit made through an instance into it). `autoSelect` (430) writes
