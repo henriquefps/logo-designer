@@ -132,8 +132,12 @@ function layoutItemOf(n: NormNode, prev: SceneNode | undefined, base?: LayoutIte
   const height = n.height ?? prev?.layoutItem?.height;
   if (width !== undefined) item.width = width;
   if (height !== undefined) item.height = height;
-  if (n.position !== undefined) item.position = n.position;
-  if (n.bleed !== undefined) item.bleed = n.bleed;
+  // Placement left out of the spec is kept like geometry (`build --into`): a pinned nav, a FAB placed by default
+  // or a node Henrique unpinned stays as it is. New nodes get theirs from `base` (the default placement).
+  const position = n.position ?? prev?.layoutItem?.position;
+  const bleed = n.bleed ?? prev?.layoutItem?.bleed;
+  if (position !== undefined) item.position = position;
+  if (bleed !== undefined) item.bleed = bleed;
   return Object.keys(item).length ? item : undefined;
 }
 

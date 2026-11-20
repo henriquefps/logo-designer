@@ -186,6 +186,24 @@ describe('build --into', () => {
     expect(doc.wireframe!.screens.map((s) => s.id)).toEqual(p.wireframe!.screens.map((s) => s.id));
   });
 
+  it('the same spec built --into its own project keeps default placements (a pinned nav stays pinned)', () => {
+    // Regression (phase 3 e2e run): rebuilding an unchanged spec that leaves `position` out turned the pinned
+    // bottom navigation (and any FAB / free node placed by default) into a flow item under the content.
+    const spec = { screens: [{ name: 'Gallery', root: [{ heading: 'Gallery' }, { 'bottom-navigation': ['Gallery', 'Files'] }, { fab: {} }] }] };
+    const first = buildFromSpec(spec).doc;
+    const again = buildFromSpec(spec, first).doc;
+    const kids = (d: DesignDocument) => (d.children[0] as ScreenNode).children as GroupNode[];
+    expect(kids(again).map((k) => k.layoutItem)).toEqual(kids(first).map((k) => k.layoutItem));
+    expect(kids(again)[1].layoutItem).toEqual({ position: 'pinned-bottom' });
+    expect(kids(again)[2].transform).toEqual(kids(first)[2].transform);
+    // A placement Henrique changed in the app (nav unpinned) also survives a spec that does not mention it…
+    const unpinned = produce(first, (d) => void ((d.children[0] as ScreenNode).children[1].layoutItem = { position: 'flow' }));
+    expect(kids(buildFromSpec(spec, unpinned).doc)[1].layoutItem).toEqual({ position: 'flow' });
+    // …and a spec that states one wins.
+    const pinnedSpec = { screens: [{ name: 'Gallery', root: [{ heading: 'Gallery' }, { 'bottom-navigation': ['Gallery', 'Files'], position: 'pinned-bottom' }, { fab: {} }] }] };
+    expect(kids(buildFromSpec(pinnedSpec, unpinned).doc)[1].layoutItem).toEqual({ position: 'pinned-bottom' });
+  });
+
   it('refuses a project that is not a wireframe', () => {
     const p = settingsProject();
     expect(() => buildFromSpec({ screens: [] }, { ...p, wireframe: undefined })).toThrow(/wireframe/);
