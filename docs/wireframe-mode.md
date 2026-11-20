@@ -459,6 +459,49 @@ README gets a **Flow** section (a list "Settings → Language (from "Language" r
 `flowchart` of logical screens) and each screen's status; each screen file lists its outgoing flows
 next to their source elements ("→ opens Language").
 
+## Links from parts of a component (2026-11-20)
+
+Henrique's report: a bottom navigation takes up to 5 items, but they can't link to other screens —
+a flow starts at a whole node, and a bottom navigation is one component. Same for tabs, segmented
+control, sidebar navigation, web header links, breadcrumbs, toolbar actions, top app bar back/actions,
+bottom sheet rows, dialog/modal/card actions, and similar.
+
+### Parts
+
+- A component definition may declare **parts**: the pieces of its drawing a person taps
+  (`parts(props, size) → { key, label, rect }[]`, rects in the instance's local space). Keys are
+  stable: for list props, the item index (`item:2`); for fixed pieces, a name (`back`, `action:1`).
+  Every component above declares its parts; the contract test checks rects lie inside the build.
+- A flow can start at a part: `from` stays the instance id and a new optional `part` holds the key.
+  Validation, schema, docs/project-format.md.
+- **Reorder/rename safety:** when a list prop changes, flows on its parts are remapped in the same
+  undo step: an item keeps its flow if its label still exists (found by label, first match), else
+  by its old index if still in range, else the flow is removed.
+- **UI:** with an instance selected, hovering a part highlights it and shows a flow handle on it
+  (the whole-instance handle stays). Drag from a part's handle like today (to a screen, or empty
+  canvas → New screen named after the part's label). The Flows section lists flows per part
+  ("Arquivos → Arquivos screen"). Arrows start at the part.
+- **Present mode:** each linked part is its own hotspot.
+- **Export for AI:** "Bottom navigation: Galeria (selected) → opens Galeria; Arquivos → opens
+  Arquivos". **Spec format:** `"opens": { "Arquivos": "Arquivos screen" }` on a component (part by
+  label or key) besides the plain `"opens": "<screen>"`; `from` paths accept `…/Bottom navigation#Arquivos`;
+  dump writes them.
+
+### Links defined once for shared navigation
+
+A bottom navigation is usually the same on every screen (a shared component). Flows that start at an
+element or part **inside a shared component's master content** apply to every instance (one link, all
+screens). Flows started on one instance's content stay on that instance (today's rule) — the UI asks
+which when drawing from inside an instance ("This screen only" / "Every screen using Tab bar").
+
+### Selected item follows the screen
+
+Navigation components with a selected index (bottom navigation, tabs, segmented control, sidebar
+navigation, web header) get `selected: 'auto'` as an option (default for new instances): the item
+whose part links to the **current screen** is drawn selected; with no such link, the first. This
+makes one shared tab bar show the right tab on each screen with no per-instance overrides. A number
+keeps the old fixed behaviour.
+
 ## Phase 3: agents (detailed)
 
 Goal: an agent (Claude Code, Codex, a script) creates, reads and edits wireframe projects as well as
