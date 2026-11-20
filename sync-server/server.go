@@ -30,12 +30,14 @@ type Config struct {
 
 // Server is the HTTP layer around a Store.
 type Server struct {
-	store   *Store
-	maxBody int64
-	apiKey  string
-	origins map[string]bool // nil means any origin
-	log     *slog.Logger
-	now     func() time.Time
+	store     *Store
+	maxBody   int64
+	apiKey    string
+	origins   map[string]bool // nil means any origin
+	log       *slog.Logger
+	now       func() time.Time
+	events    *Broker
+	heartbeat time.Duration
 }
 
 // NewServer builds the HTTP server state.
@@ -44,7 +46,7 @@ func NewServer(cfg Config, store *Store, logger *slog.Logger) *Server {
 	if mb <= 0 {
 		mb = defaultMaxBodyMB
 	}
-	s := &Server{store: store, maxBody: int64(mb) << 20, apiKey: cfg.APIKey, log: logger, now: time.Now}
+	s := &Server{store: store, maxBody: int64(mb) << 20, apiKey: cfg.APIKey, log: logger, now: time.Now, events: NewBroker(), heartbeat: heartbeatEvery}
 	if len(cfg.AllowedOrigins) > 0 {
 		s.origins = map[string]bool{}
 		for _, o := range cfg.AllowedOrigins {
@@ -54,11 +56,16 @@ func NewServer(cfg Config, store *Store, logger *slog.Logger) *Server {
 	return s
 }
 
+// Close ends the open event streams (call it when the HTTP server shuts down,
+// which otherwise waits for them).
+func (s *Server) Close() { s.events.Close() }
+
 // Handler returns the full HTTP handler: CORS first (so even error responses
 // are readable by the browser), then access control, then the routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.handleHealth)
+	mux.HandleFunc("GET /api/events", s.requireAPIKey(s.handleEvents))
 	mux.HandleFunc("GET /api/{kind}", s.requireAPIKey(s.handleList))
 	mux.HandleFunc("GET /api/{kind}/{id}", s.requireAPIKey(s.handleGet))
 	mux.HandleFunc("PUT /api/{kind}/{id}", s.requireAPIKey(s.handlePut))
@@ -198,6 +205,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"ok":           true,
 		"projectCount": s.store.Count(KindProjects),
 		"fontCount":    s.store.Count(KindFonts),
+		"events":       true, // this server has GET /api/events (live updates)
 		"serverTime":   s.now().UnixMilli(),
 	})
 }
@@ -260,6 +268,9 @@ func (s *Server) handlePut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("put", "kind", kind, "id", id, "applied", applied, "deleted", meta.Deleted, "bytes", meta.Size)
+	if applied {
+		s.events.Publish(Event{Kind: kind, ID: id, UpdatedAt: meta.UpdatedAt})
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"applied": applied, "item": meta})
 }
 
