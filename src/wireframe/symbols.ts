@@ -294,11 +294,13 @@ export function makeSymbolProblem(n: SceneNode | null | undefined, path: readonl
 
 const LABEL_PROPS = ['title', 'label', 'text', 'message'];
 
-/** Default name for a new shared component: the container's own name when the user gave one, else the first label inside. */
+/** Default name for a new shared component: the container's own name when the user gave one, else the first label inside, else the first component's kind ("Bottom navigation"). */
 export function defaultSymbolName(n: GroupNode): string {
   const generic = /^(group|vertical stack|horizontal stack|grid|card container|layer)( \d+)?$/i;
   if (n.name.trim() && !generic.test(n.name.trim())) return n.name.trim();
   let found = '';
+  // A wrapper of one library component without a label of its own (a bottom navigation): that component's name.
+  let kind = '';
   const visit = (nodes: readonly SceneNode[]) => {
     for (const c of nodes) {
       if (found || !c.visible || c.repeatCopy) continue;
@@ -307,12 +309,13 @@ export function defaultSymbolName(n: GroupNode): string {
         const def = getComponent(c.component.kind);
         const props = def ? (resolveProps(def, c.component.props) as Record<string, unknown>) : c.component.props;
         for (const k of LABEL_PROPS) if (!found && typeof props[k] === 'string' && (props[k] as string).trim()) found = props[k] as string;
+        if (!kind && def) kind = def.label;
       } else if (c.type === 'group') visit(c.children);
     }
   };
   visit(n.children);
   const label = found.replace(/\s+/g, ' ').trim().slice(0, 40);
-  return label || 'Component';
+  return label || kind || 'Component';
 }
 
 function prefixTree(n: SceneNode, prefix: string, map: Map<Id, Id>): SceneNode {
