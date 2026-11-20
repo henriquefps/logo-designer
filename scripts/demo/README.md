@@ -18,6 +18,23 @@ Scenario `07-edicao-ao-vivo` (live editing) also needs Go: it builds and starts 
 runs `designer live` on a file and edits that file from the scenario (as an agent would), then stops both
 in `teardown()`. The same pieces back `bun run e2e:live` (`scripts/live-e2e.ts`, helpers in `lib/live.ts`).
 
+Scenario `08-agente-ao-vivo` (an agent builds a wireframe live, the phase 3 end-to-end run) also needs Go: a real
+`designer-sync`, `designer live` on an empty project, then the three rounds of the real run
+(`fixtures/hoard-e2e/round-*.spec.json`) built `--into` it with the CLI while the app shows them; every command and
+its real output appear in a terminal strip (`demo.terminal()`). Then Henrique's edits in the app reach the file.
+`09-sheet-e-compare` opens the `wf sheet` / `wf compare` images and the to-png before/after in a page. Both read the
+Hoard screenshots from `HOARD_SHOTS=<dir>` (`hoard-galeria.jpg`, `hoard-configuracoes.jpg`; without it 08 skips
+`wf compare` and 09 shows only the sheet and the fidelity image) and keep their project and images in
+`DEMO_E2E_DIR=<dir>` when set:
+
+```sh
+HOARD_SHOTS=~/designer-demos/inputs/hoard DEMO_E2E_DIR=/tmp/e2e bun run demo 08 09
+```
+
+`node scripts/demo/watch-live.ts <dir>` runs the same pieces for a session driven by hand or by an agent: a
+designer-sync on localhost, the app in Chromium with Sync on, and a control folder (`echo <id> > <dir>/open`,
+`echo shot.png > <dir>/shot`); see the comment at its top.
+
 Needs ffmpeg on the PATH and Playwright's Chromium (`bunx playwright install chromium`). Output:
 1280 × 840 (the app at 1280 × 800 plus the 40 px caption bar), H.264, 25 fps, a few hundred KB per
 video. `demo-out/` is git-ignored; the raw `.webm` stays next to each MP4, and a failing scenario
@@ -30,7 +47,7 @@ leaves `<name>.error.png` and exits non-zero.
 - `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, a paste box).
   It only listens to events; it never touches the app.
 - `lib/demo.ts`: the driver: `move`, `click`, `dblclick`, `drag`, `type`, `fill`, `key`, `menu`,
-  `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `pause`.
+  `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and output), `pause`.
 - `lib/designer.ts`: where things are in Designer's UI (library items, Properties fields by their
   aria-label, screens by their name label, canvas nodes by the text they draw) and common gestures
   (`insertFromLibrary`, `dragFromLibrary`, `setField`, `choose`, `focusScreen`, …).

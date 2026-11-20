@@ -116,4 +116,42 @@ describe('opening a live project', () => {
     expect((await loadDocument(id))!.updatedAt).toBe(2_000_000);
     expect((await loadDocument(id))!.live).toEqual({ editedBy: 'cli' });
   });
+
+  it('an autosave pending on the project being closed is not saved into the live project opened next', async () => {
+    // Regression (phase 3 e2e run): the app was open on another project with an autosave pending when
+    // `?open-project=` switched to the live project; the sync engine's flush() then saved the live project as
+    // "edited in the app", with a newer timestamp, and that empty copy replaced the agent's `wf build --into`.
+    await p().init();
+    const liveId = await p().create('Agent project');
+    const doc = useDocStore.getState().doc;
+    await p().applyRemote({ ...doc, live: { editedBy: 'cli' }, updatedAt: 3_000_000 });
+    const otherId = await p().create('Other');
+    const r = createRect();
+    useDocStore.getState().addNodes([r]); // an edit, autosave pending
+    expect(p().saveState).toBe('pending');
+    await p().open(liveId); // open() flushes; also cover a change that lands while it loads:
+    expect(useDocStore.getState().doc.id).toBe(liveId);
+    await p().flush(); // what the sync engine does before every sync
+    await wait(AUTOSAVE_DELAY + 100);
+    expect((await loadDocument(liveId))!.updatedAt).toBe(3_000_000);
+    expect((await loadDocument(liveId))!.live).toEqual({ editedBy: 'cli' });
+    expect((await loadDocument(otherId))!.children.map((c) => c.id)).toEqual([r.id]); // its edit was kept
+  });
+
+  it('…also when the pending autosave starts while the live project is loading', async () => {
+    await p().init();
+    const liveId = await p().create('Agent project 2');
+    const doc = useDocStore.getState().doc;
+    await p().applyRemote({ ...doc, live: { editedBy: 'cli' }, updatedAt: 4_000_000 });
+    const otherId = await p().create('Other 2');
+    const opening = p().open(liveId); // flush() has run, loadDocument() is in flight…
+    const r = createRect();
+    useDocStore.getState().addNodes([r]); // …when the old project changes (a load, icons filled in, an edit)
+    await opening;
+    expect(useDocStore.getState().doc.id).toBe(liveId);
+    await p().flush();
+    await wait(AUTOSAVE_DELAY + 100);
+    expect((await loadDocument(liveId))!.updatedAt).toBe(4_000_000);
+    expect((await loadDocument(otherId))!.children.map((c) => c.id)).toEqual([r.id]);
+  });
 });

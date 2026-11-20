@@ -141,8 +141,8 @@ name or id. A path that matches nothing is an error that says which segment fail
   flows, notes, status, pinned / free placement and multi-variant screens).
 - `build --into project` updates that project **by id** (an id-less node updates the node at the same place in the
   same parent when it is the same kind). What the spec states wins: props, structure, order, names, layout,
-  status. The **geometry the spec leaves out is kept**: x / y / width / height / size of nodes, frame positions and
-  widths, note positions. Only what the spec no longer lists is removed (a flow from a removed node goes, a note on
+  status. The **geometry the spec leaves out is kept**: x / y / width / height / size of nodes, their placement
+  (`position`, `bleed`: a nav pinned by default stays pinned), frame positions and widths, note positions. Only what the spec no longer lists is removed (a flow from a removed node goes, a note on
   it stays, detached, both with a warning). Top-level `components`, `notes`, `flows` or `canvas` left out entirely
   are kept as they are; an empty list removes them.
 - `dump --no-geometry` writes no positions or sizes at all: edit that and `build --into`, and every move or resize

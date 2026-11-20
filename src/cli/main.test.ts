@@ -280,6 +280,62 @@ describe('open / present', () => {
     expect(readLaunchRequest(opened[0])).toMatchObject({ kind: 'data', name: 'glyph' });
   });
 
+  describe('open: a file too big for an open link', () => {
+    // ~200 KB of incompressible path data: well over the 64 KB #open= limit, like a wireframe with screenshots.
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 48271) % 2147483647) / 2147483647) * 128;
+    const BIG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path d="M0 0${Array.from({ length: 12000 }, () => ` L${rnd().toFixed(3)} ${rnd().toFixed(3)}`).join('')}" fill="none" stroke="#000"/></svg>`;
+    beforeAll(() => writeFile(join(dir, 'big.svg'), BIG));
+
+    it('serves it on localhost, opens a ?import= link and stops once Designer downloaded it', async () => {
+      const opened: string[] = [];
+      let fetched: Promise<string> = Promise.resolve('');
+      const out: string[] = [];
+      const err: string[] = [];
+      const code = await main(['open', 'big.svg', '--origin', 'https://app.test'], {
+        out: (s) => out.push(s),
+        err: (s) => err.push(s),
+        cwd: dir,
+        // The "browser": opens the link, and the app downloads the file (it does so before asking to confirm).
+        openUrl: async (u) => {
+          opened.push(u);
+          const req = readLaunchRequest(u);
+          if (req?.kind !== 'url') return true;
+          fetched = new Promise((done) => setTimeout(() => done(fetch(req.url).then((r) => r.text())), 50));
+          return true;
+        },
+      });
+      expect(code).toBe(0);
+      expect(opened).toHaveLength(1);
+      expect(opened[0].length).toBeLessThan(200);
+      const req = readLaunchRequest(opened[0]);
+      expect(req).toMatchObject({ kind: 'url' });
+      expect(opened[0].startsWith('https://app.test/?import=')).toBe(true);
+      expect((req as { url: string }).url).toMatch(/^http:\/\/localhost:\d+\/big\.svg$/);
+      expect(await fetched).toBe(BIG);
+      expect(err.join('\n')).toMatch(/'big' is too big for an open link \(\d+ KB\): Designer downloads it from http:\/\/localhost/);
+      expect(out.join('')).toBe("Opened 'big' in Designer — confirm the import in the browser.");
+      // The server is gone once it was downloaded.
+      const { connect } = await import('node:net');
+      const port = Number(new URL((req as { url: string }).url).port);
+      await expect(new Promise((ok, fail) => connect(port, '127.0.0.1').once('connect', ok).once('error', fail))).rejects.toThrow(/ECONNREFUSED/);
+    });
+
+    it('Ctrl+C before the download stops with exit 1', async () => {
+      const ctrl = new AbortController();
+      const err: string[] = [];
+      const code = await main(['open', 'big.svg'], {
+        out: () => {},
+        err: (s) => err.push(s),
+        cwd: dir,
+        signal: ctrl.signal,
+        openUrl: async () => (setTimeout(() => ctrl.abort(), 20), true),
+      });
+      expect(code).toBe(1);
+      expect(err.join('\n')).toContain('Stopped before Designer downloaded the file.');
+    });
+  });
+
   it('link warns on stderr only when stdout is a TTY', async () => {
     const run = async (isTTY: boolean) => {
       const err: string[] = [];

@@ -30,7 +30,7 @@ const node = <T,>(id: string) => findNode(s().doc, id) as T;
 function setup() {
   const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
   const home = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0 });
-  const wide = addScreen(doc, { platform: 'tablet', name: 'Wide', x: 600, y: 0 });
+  const wide = addScreen(doc, { platform: 'tablet', name: 'Wide', x: 700, y: 0 });
   const box = createRect({ name: 'Box', width: 100, height: 40, transform: { x: 100, y: 100 } });
   (doc.children.find((c) => c.id === home) as GroupNode).children.push(box);
   s().load(doc);
@@ -124,6 +124,26 @@ describe('attach and detach', () => {
     expect(notePositionFor(doc, 'missing')).toBeNull();
     expect(() => addNote(doc, { target: 'missing' })).toThrow(/No node/);
     expect(home).toBeTruthy();
+  });
+
+  it('a note never covers the next screen: left of its screen when the right side is taken, right when both are', () => {
+    // Regression (phase 3 e2e run): screens built side by side (80 px apart) got their notes on the next screen.
+    const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
+    const a = addScreen(doc, { platform: 'phone', name: 'A', x: 0, y: 0 });
+    const b = addScreen(doc, { platform: 'phone', name: 'B', x: 470, y: 0 });
+    const c = addScreen(doc, { platform: 'phone', name: 'C', x: 940, y: 0 });
+    const added = (target: string) => {
+      const id = addNote(doc, { text: `on ${target}`, target });
+      return doc.children.find((n) => n.id === id) as GroupNode;
+    };
+    const onA = added(a);
+    expect(onA.transform.x).toBe(-24 - 200); // left of A: its right side is B
+    // B has screens on both sides: right, as before.
+    const onB = added(b);
+    expect(onB.transform.x).toBe(470 + 390 + 24);
+    // C is the last one: right.
+    const onC = added(c);
+    expect(onC.transform.x).toBe(940 + 390 + 24);
   });
 
   it('attaches to a screen, a component or a shape, re-attaches, and detaches', () => {

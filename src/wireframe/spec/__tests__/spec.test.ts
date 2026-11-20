@@ -77,7 +77,8 @@ describe('the Hoard settings example (docs/wireframe-spec.md)', () => {
       ['Hidden when automatic backup is off', byName(doc, 'Settings').children[6].id],
     ]);
     // Placed right of the screen, not on top of each other.
-    expect(notes[0].transform.x).toBeGreaterThan(byName(doc, 'Settings').transform.x + 390);
+    // Next to the Settings frame, on its left: the right column would cover the Server frame beside it.
+    expect(notes[0].transform.x + 200).toBeLessThanOrEqual(byName(doc, 'Settings').transform.x);
     expect(notes[1].transform.y).not.toBe(notes[0].transform.y);
   });
 

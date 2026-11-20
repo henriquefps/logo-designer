@@ -54,7 +54,7 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure. For icon projects, a `note:` (not an error) when the glyph is off its keyline |
 | `designer info <project> [--json]` | artboard, `icon`, content bounds and the node tree with names, world bounds and ids (`[id]` at the end of each line); for icon projects also `keyline: …, on keyline: yes/no` (`keyline` in `--json`): use them to address objects in `knockout` |
 | `designer knockout <project> --cutter <id\|name>[,…] [--targets <id\|name>,…] [--gap N\|NT] [--outline-only] [-o file]` | **cut the objects behind a shape where it sits, with a small gap**, like the app's Object → Knock out (same code). The cutter stays as it is; each target becomes target − (cutter's silhouette grown by the gap; an unfilled closed shape counts as solid, `--outline-only` cuts only under its strokes), strokes outlined first, as plain editable paths keeping name, opacity and z-order. Targets default to everything drawn below the cutter. Gap in document units, or a tile fraction on icon projects (`0.03T`, the default there; 4 px elsewhere). Names must be unique, else use ids. Prints what was cut to stderr |
-| `designer open <project\|svg> [more…] [--no-wait]` | **the way to hand a file over.** One file: opens Designer in the default browser (macOS `open`, Linux `xdg-open`, Windows) with the file and prints one short line; the browser asks Henrique to confirm the import. Several files, or no GUI (SSH without a display): same as `present` |
+| `designer open <project\|svg> [more…]` | **the way to hand a file over.** One file: opens Designer in the default browser (macOS `open`, Linux `xdg-open`, Windows) with the file and prints one short line; the browser asks Henrique to confirm the import. A file whose `#open=` link would be over 64 KB (30 000 characters on Windows), such as a 10-screen wireframe or anything with an embedded screenshot, is served on `localhost` instead and opened with a short `?import=` link; the command waits until Designer has downloaded it, then exits ([sizes](#open-links-in-detail)). Several files, or no GUI (SSH without a display): same as `present` |
 | `designer present <files…> [--port 8765] [--no-open]` | **the way to hand over several files.** Local gallery at `http://localhost:<port>/`: a card per file (SVG preview, name, artboard size) with an **Open in Designer** button. Opens the browser unless `--no-open`, prints one short URL, runs until Ctrl+C (run it in the background) |
 | `designer link <project\|svg> [--name N]` | (avoid; for scripts) prints a `https://designer.hfps.dev/#open=…` link that carries the file |
 | `designer link <file> --github` | prints a `?import=` link to the file's raw URL on GitHub (current branch; it must be pushed) |
@@ -162,6 +162,9 @@ bun run designer wf build hoard.spec.json --into hoard.designer.json
   longer lists is removed. `build(dump(p))` gives `p` back.
 - Lucide icons (`"icon": "heart"`) are drawn by the CLI too; Iconify ones (`"ph:heart"`) show a placeholder until
   the app opens the file.
+- **Hand a wireframe over with live editing**, not a link: wireframes are big (a 10-screen project is ~1.4 MB
+  of JSON, several MB with a reference screenshot), and live editing keeps Henrique's copy and the file in step
+  for the rest of the session. `designer open` still works for a one-off (it switches to `?import=` by itself).
 - While Henrique watches: run [`designer live`](#live-editing) on the project; every `wf build --into` then shows
   up in his app within a second, and his edits are written back to the file (`wf dump` it before the next build).
 - Then `export-ai` packages the result for the agent that builds the app.
@@ -255,6 +258,24 @@ skv run designer-sync -- bun run designer live hoard.designer.json &
   device for `http://localhost` URLs; `designer serve` answers the Private Network Access preflight.
 - Both remove themselves from the address bar right away, so a reload does not import twice. A
   link pasted into an open tab works too (`hashchange`).
+- **Big projects:** `designer open` picks the path by itself. Up to 64 KB of link (30 000 characters on
+  Windows) it opens the `#open=` link; above that it serves the file on `localhost` and opens a
+  `?import=` link, because the OS opener refuses long arguments well before Chrome's 2 MB (Linux: 128 KB
+  per argument, `E2BIG`; macOS: 1 MB; Windows: 32 767 characters). `present` always uses `?import=`.
+  Measured (2026-11-19):
+
+  | Project | File | Compact JSON | `#open=` link |
+  | --- | --- | --- | --- |
+  | App icon glyph | 3–10 KB | 1–4 KB | 1–5 KB |
+  | Wireframe: Hoard Gallery + Settings (the phase 3 e2e run: 2 screens, 7 notes, 2 flows) | 398 KB | 114 KB | 13 KB |
+  | … plus its two screenshots embedded as references | 2.3 MB | 2.0 MB | 1.8 MB |
+  | Wireframe: 10 phone screens × ~100 components (shared tab bar, a 6-card carousel, a 24-image grid and a 20-row list per screen, flows, notes) | 4.4 MB | 1.4 MB | 99 KB |
+  | … plus one embedded reference screenshot (1080×2243 JPEG, 437 KB) | 5.0 MB | 2.0 MB | 611 KB |
+  | … plus two (437 KB + 986 KB) | 6.3 MB | 3.3 MB | 1.8 MB |
+
+  Image *components* are placeholders and cost nothing; embedded bitmaps (reference screenshots, dropped
+  photos) are base64 and do not compress, so they decide the size. For an agent session on a wireframe,
+  prefer [live editing](#live-editing) (up to 64 MB per project, no link at all) over `open`.
 - **Size:** the practical limit of an `#open=` link is Chrome's 2 MB URL limit; the CLI refuses
   longer links and warns above 64 KB, because chat apps and mail clients may cut long links. A
   typical icon project is 1–5 KB of link; a detailed illustration with hundreds of paths can reach

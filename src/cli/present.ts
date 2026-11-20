@@ -27,6 +27,29 @@ export function pickOpener(platform: string, env: Record<string, string | undefi
   return null;
 }
 
+/**
+ * Longest `#open=` link `designer open` hands to the OS opener; above it, `open` serves the file on
+ * localhost and opens a short `?import=` link instead. Chrome takes URLs up to 2 MB, but the opener
+ * does not: Linux refuses one argument over 128 KB (`E2BIG`: a 10-screen wireframe with one embedded
+ * screenshot is ~600 KB of link), Windows a command line over 32 767 characters, macOS everything
+ * over 1 MB. 64 KB also stays clear of the size where long links get slow to handle.
+ */
+export function openLinkLimit(platform: string): number {
+  return platform === 'win32' ? 30_000 : 64 * 1024;
+}
+
+/** How `designer open` hands one file over: the `#open=` link itself, or `?import=` from a local server. */
+export function chooseHandover(linkLength: number, platform: string): 'open-link' | 'import' {
+  return linkLength <= openLinkLimit(platform) ? 'open-link' : 'import';
+}
+
+/** "1.9 MB", "640 KB", "812 B". */
+export function formatBytes(n: number): string {
+  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n >= 1024) return `${Math.round(n / 1024)} KB`;
+  return `${n} B`;
+}
+
 export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 export interface GalleryItem {
@@ -35,6 +58,8 @@ export interface GalleryItem {
   height: number;
   /** Same-origin URL of the SVG preview image. */
   previewUrl: string;
+  /** Wireframes: how many screen frames (shown instead of the artboard size). */
+  screens?: number;
   /** `?import=` link into Designer (short: it only carries the file's localhost URL). */
   importLink: string;
 }
@@ -48,7 +73,7 @@ export function galleryHtml(items: GalleryItem[]): string {
       (it) => `    <article class="card">
       <div class="thumb"><img src="${escapeHtml(it.previewUrl)}" alt="${escapeHtml(it.name)}"></div>
       <h2>${escapeHtml(it.name)}</h2>
-      <p>${fmtNum(it.width)} × ${fmtNum(it.height)} px</p>
+      <p>${it.screens !== undefined ? `Wireframe · ${it.screens} ${it.screens === 1 ? 'screen' : 'screens'}` : `${fmtNum(it.width)} × ${fmtNum(it.height)} px`}</p>
       <a class="btn" href="${escapeHtml(it.importLink)}" target="_blank" rel="noopener">Open in Designer</a>
     </article>`,
     )

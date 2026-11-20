@@ -22,7 +22,7 @@ import {
   type SceneNode,
   type Vec,
 } from '@/model';
-import { frameOf, frameRect } from './screens';
+import { frameOf, frameRect, frames } from './screens';
 import { WF } from './style';
 
 export type NoteNode = GroupNode & { note: NoteInfo };
@@ -118,22 +118,34 @@ const targetRect = (doc: DocLike, id: Id): Rect | null => {
   return worldBounds(doc as DesignDocument, id);
 };
 
-/** Top-left for a new note next to `targetId` (right of its screen, or of the node itself), clear of other notes. Null when the target does not exist. */
+/**
+ * Top-left for a new note next to `targetId`: right of its screen (or of the node itself), clear of other notes.
+ * When that column would cover the next screen (screens sit 80 px apart, a note is 200 px wide), the column
+ * left of the screen is used instead if it is free of screens; with no room on either side, the right one.
+ * Null when the target does not exist.
+ */
 export function notePositionFor(doc: DocLike, targetId: Id): Vec | null {
   const t = targetRect(doc, targetId);
   if (!t) return null;
   const frame = frameOf(doc, targetId);
   const right = frame ? frameRect(frame) : t;
-  const x = Math.round(right.x + right.width + NOTE_GAP);
-  let y = Math.round(t.y);
   const others = notesOf(doc).map(noteRect);
+  const screens = frames(doc).filter((f) => f.id !== frame?.id).map(frameRect);
   const h = MIN_HEIGHT;
-  for (let guard = 0; guard < 200; guard++) {
-    const hit = others.find((r) => rectsIntersect(r, { x, y, width: NOTE_WIDTH, height: h + NOTE_GAP }));
-    if (!hit) break;
-    y = Math.round(hit.y + hit.height + NOTE_GAP / 2);
-  }
-  return { x, y };
+  const stack = (x: number): Vec => {
+    let y = Math.round(t.y);
+    for (let guard = 0; guard < 200; guard++) {
+      const hit = others.find((r) => rectsIntersect(r, { x, y, width: NOTE_WIDTH, height: h + NOTE_GAP }));
+      if (!hit) break;
+      y = Math.round(hit.y + hit.height + NOTE_GAP / 2);
+    }
+    return { x, y };
+  };
+  const coversScreen = (p: Vec) => screens.some((r) => rectsIntersect(r, { x: p.x, y: p.y, width: NOTE_WIDTH, height: h }));
+  const onRight = stack(Math.round(right.x + right.width + NOTE_GAP));
+  if (!frame || !coversScreen(onRight)) return onRight;
+  const onLeft = stack(Math.round(right.x - NOTE_GAP - NOTE_WIDTH));
+  return coversScreen(onLeft) ? onRight : onLeft;
 }
 
 /** Adds a note (mutates `doc`, a draft or a fresh copy). `target` attaches it and, without a position, places it next to the target. Returns the note id. */

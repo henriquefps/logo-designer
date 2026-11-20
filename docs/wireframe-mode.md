@@ -580,6 +580,24 @@ nothing changes for people who don't use it.
 images), make sure `designer open` / `present` pick the `?import=` path automatically when needed,
 and that live editing (A5) is the recommended path for agent sessions.
 
+#### As built (A6)
+
+- Measured (`docs/agents.md` → Open links in detail has the table): 10 phone screens of ~100 components each
+  are 1.4 MB of compact JSON and a 99 KB `#open=` link; one embedded 1080×2243 screenshot makes it 611 KB, two
+  1.8 MB. Image components are placeholders; embedded bitmaps decide the size.
+- The real limit was not Chrome's 2 MB but the OS opener: `designer open` died with `E2BIG` on Linux above
+  128 KB of link (one screenshot was enough). `designer open` now opens the `#open=` link only up to 64 KB
+  (30 000 characters on Windows) and otherwise serves the file on `localhost`, opens a `?import=` link and
+  exits once the app has downloaded it (the app fetches before asking to confirm). `present` always used
+  `?import=`; its cards now say "Wireframe · N screens" instead of the unused artboard size. Code:
+  `chooseHandover` / `openLinkLimit` in `src/cli/present.ts`, `openViaImport` in `src/cli/main.ts`; tests in
+  `present.test.ts` (the decision, with the measured sizes) and `main.test.ts` (the served path end to end).
+- Live editing (`designer live`, A5) is the recommended handover for agent sessions on wireframes (64 MB per
+  project on the sync server, no link); `docs/agents.md` and the skill say so.
+- Found on the way: CLI output into a pipe was cut at 64 KB (`designer to-svg big.json | wc -c` → 65537), and
+  Bun's async stdout writes repeated 64 KB chunks; `bin/designer.ts` now writes stdout synchronously
+  (`src/cli/bin.test.ts`).
+
 ### A7. The `designer` skill and an end-to-end run
 
 The skill (`skills/designer/`) gets a **Wireframes** section: when to use wireframe mode, the spec
@@ -588,6 +606,27 @@ library components, `wf build`, `wf compare`, fix, repeat), flows and notes, liv
 an agent that **receives** an "Export for AI" package should read it to build the app. Then an
 end-to-end run: an agent turns real screenshots (Hoard's Gallery and Settings) into a wireframe
 project through the CLI only, live, recorded as the round's demo video.
+
+#### As built (A7)
+
+- The skill (`skills/designer/SKILL.md` → Wireframes): wireframe vs logo document, the spec and the catalog,
+  composing what a component lacks from stacks, the screenshot → wireframe loop (look, spec with library
+  components, `wf build`, `wf compare --overlay`, fix, repeat; `wf sheet` for the flow), live sessions (start
+  `designer live` on an empty project before the first build; always `--into` the mirrored file; `wf dump` before
+  each build), and how an agent that receives an Export for AI package reads it.
+- End-to-end run (2026-11-19), CLI only, live against a local designer-sync with the app in Chromium: Hoard's
+  Gallery and Settings (dark Android screenshots) became one project with both screens, two flows and seven notes
+  in four rounds. Specs of each round: `scripts/demo/fixtures/hoard-e2e/`. Replayed as demo `08-agente-ao-vivo`
+  (with Henrique's edits in the app flowing back to the file) and toured in `09-sheet-e-compare`.
+- Bugs it found, fixed, each with a regression test: the app saved an opened live project as an app edit when an
+  autosave of the previous project was pending, and that empty copy replaced the agent's build (`activate()`;
+  `projectsStore.test.ts`, `bun run e2e:live` step 6); `build --into` dropped default placements (a pinned bottom
+  navigation fell into the flow; `roundtrip.test.ts`); notes of the left screen covered the next screen (now left
+  of their screen when the right side is taken; `notes.test.ts`); Lucide aliases (`filter`, `check-circle`) drew
+  placeholders silently (now resolved, unknown names warn; `wf.test.ts`); CLI stdout into a pipe was cut at 64 KB
+  and `| head` raised EPIPE (`bin.test.ts`).
+- Limits seen, not bugs: a list row's subtitle and a checkbox label are one line (ellipsis); a top app bar has at
+  most 3 actions (compose with an `hstack` of icons); the wireframes are greyscale (a dark theme is a note).
 
 ### Phase 3 workstreams
 

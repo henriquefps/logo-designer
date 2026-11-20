@@ -3,6 +3,7 @@
 // `bunx --bun github:henriquefps/logo-designer designer …` anywhere. See docs/agents.md.
 // The glob loader goes first: registries (wireframe components and pipeline steps) use
 // `import.meta.glob`, which only Vite expands; so everything else is imported after it.
+import { writeSync } from 'node:fs';
 import { installGlobPlugin } from '../src/cli/globPlugin.ts';
 
 installGlobPlugin();
@@ -13,9 +14,28 @@ await setupHeadless();
 // `bunx … designer <cmd>` passes the bin name along; accept it.
 const args = process.argv.slice(2);
 if (args[0] === 'designer') args.shift();
+// Output is written synchronously, all of it, before `process.exit`. With `console.log`, a big stdout
+// into a pipe came out cut (`designer to-svg big.json | wc -c` printed 65537); `process.stdout.write`
+// and `Bun.write(Bun.stdout, …)` cut or repeated 64 KB chunks the same way (Bun 1.4).
+// A reader that went away (`designer … | head`) ends the output quietly, as it did with console.log.
+const closed = new Set<number>();
+function writeAll(fd: number, s: string) {
+  if (closed.has(fd)) return;
+  const bytes = Buffer.from(s + '\n');
+  for (let off = 0; off < bytes.length; ) {
+    try {
+      off += writeSync(fd, bytes, off, bytes.length - off);
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code === 'EPIPE') return void closed.add(fd);
+      if (code !== 'EAGAIN') throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1); // a full non-blocking pipe: let the reader catch up
+    }
+  }
+}
 const code = await main(args, {
-  out: (s) => console.log(s),
-  err: (s) => console.error(s),
+  out: (s) => writeAll(1, s),
+  err: (s) => writeAll(2, s),
   isTTY: !!process.stdout.isTTY,
   stdin: async () => {
     let text = '';

@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import type { DesignDocument } from '@/model';
 import { serializeProject, validateDocument } from '@/io/projectFile';
 import { buildFromSpec, dumpToSpec, SpecError, type SpecBuildResult } from '@/wireframe/spec';
+import { suggest } from '@/wireframe/spec/parse';
 import { catalogMarkdown, componentCatalog } from '@/wireframe/spec/catalog';
 import { normalizeIconName, registerIcon, takeMissingIcons, ICON_GLYPH_SIZE } from '@/wireframe/icons';
 import { materializeDocument } from '@/wireframe/pipeline';
@@ -105,14 +106,16 @@ async function write(text: string, output: string | undefined, io: CliIO, what: 
 
 /**
  * Loads the Lucide glyphs a build asked for (the kit draws a placeholder for icons not loaded yet; the app
- * would fill them in on open). Iconify icons need the network and are left to the app. Returns how many loaded.
+ * would fill them in on open). Iconify icons need the network and are left to the app. Returns how many
+ * loaded and a warning per name Lucide does not have (it stays a placeholder in the app too).
  */
-async function loadIcons(keys: string[]): Promise<number> {
+async function loadIcons(keys: string[]): Promise<{ loaded: number; warnings: string[] }> {
   const lucide = [...new Set(keys.map(normalizeIconName))].filter((k) => k.startsWith('lucide:'));
-  if (!lucide.length) return 0;
+  const warnings: string[] = [];
+  if (!lucide.length) return { loaded: 0, warnings };
   let loaded = 0;
   try {
-    const [{ bundledSvg }, { svgToNodes }] = await Promise.all([import('@/assets-icons/catalog'), import('@/assets-icons/svgToNodes')]);
+    const [{ bundledSvg, kebab, lucideNames }, { svgToNodes }] = await Promise.all([import('@/assets-icons/catalog'), import('@/assets-icons/svgToNodes')]);
     for (const key of lucide) {
       try {
         const node = svgToNodes(await bundledSvg(key.slice(7)), { color: '#000000', size: ICON_GLYPH_SIZE, name: key });
@@ -121,20 +124,26 @@ async function loadIcons(keys: string[]): Promise<number> {
           loaded++;
         }
       } catch {
-        // An unknown name keeps its placeholder.
+        const name = kebab(key.slice(7));
+        const names = await lucideNames();
+        const close = suggest(name, names);
+        const containing = names.filter((n) => n.includes(name)).slice(0, 3);
+        const hint = close || (containing.length ? ` (names with "${name}": ${containing.map((n) => `"${n}"`).join(', ')})` : '');
+        warnings.push(`icon "${name}" is not a Lucide icon, so it is drawn as a placeholder${hint}; names: https://lucide.dev/icons`);
       }
     }
   } catch {
     // No icon libraries here: placeholders until the app opens the file.
   }
-  return loaded;
+  return { loaded, warnings };
 }
 
 async function build(spec: unknown, into: DesignDocument | null): Promise<SpecBuildResult> {
   takeMissingIcons();
   let r = buildFromSpec(spec, into);
-  if (await loadIcons(takeMissingIcons())) r = buildFromSpec(spec, into);
-  return r;
+  const icons = await loadIcons(takeMissingIcons());
+  if (icons.loaded) r = buildFromSpec(spec, into);
+  return { ...r, warnings: [...r.warnings, ...icons.warnings] };
 }
 
 function summaryLine(r: SpecBuildResult, into: boolean): string {
