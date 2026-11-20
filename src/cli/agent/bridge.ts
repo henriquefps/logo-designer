@@ -8,7 +8,7 @@ import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DesignDocument } from '@/model';
-import type { Connection } from '@/sync/api';
+import { getItem, putItem, SyncError, type Connection } from '@/sync/api';
 import { subscribeEvents } from '@/sync/events';
 import { LiveMirror, parseFileDoc, syncPull } from '../sync';
 import { agentEnv, ALLOWED_DESIGNER, startClaude, type ClaudeRun } from './claude';
@@ -364,6 +364,9 @@ export class AgentBridge {
     }
     // The last edits go up (without the live mark) before the app hears the job is over.
     if (mirror) await mirror.stop().catch((e: unknown) => this.log(`! mirror: ${e instanceof Error ? e.message : e}`));
+    // The app does not clear the live mark when a job ends: the bridge does, also when the job failed before the
+    // mirror ran (or the mirror's last push did not land).
+    await this.clearLiveMark(meta.projectId);
     await progressChain;
     try {
       await finishJob(this.o.conn, meta.id, { agentId: this.agentId, ...finish });
@@ -372,6 +375,20 @@ export class AgentBridge {
     }
     this.finished.push({ id: meta.id, status: finish.status });
     this.log(`job ${meta.id}: ${finish.status}${finish.error ? ` — ${finish.error}` : ''}`);
+  }
+
+  /** Pushes the project without its `live` mark when the server copy still carries one (no-op otherwise). */
+  private async clearLiveMark(projectId: string) {
+    try {
+      const rec = await getItem(this.o.conn, 'projects', projectId);
+      if (rec.deleted || rec.data == null || !(rec.data as { live?: unknown }).live) return;
+      const data = { ...(rec.data as DesignDocument) };
+      delete data.live;
+      const updatedAt = Math.max(Date.now(), rec.updatedAt + 1);
+      await putItem(this.o.conn, 'projects', projectId, { name: rec.name, createdAt: rec.createdAt, updatedAt, deleted: false, base: rec.updatedAt, data: { ...data, updatedAt } });
+    } catch (e) {
+      if (!(e instanceof SyncError && e.status === 404)) this.log(`! could not clear the live mark of ${projectId}: ${e instanceof Error ? e.message : e}`);
+    }
   }
 
   /** Job folders and the bridge's files of each job (wrapper, stream log) are kept a day for debugging, then deleted. */

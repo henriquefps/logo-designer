@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesignDocument } from '@/model';
 import { buildFromSpec } from '@/wireframe/spec';
 import { fakeSyncServer } from '@/sync/__tests__/fakeServer';
+import { createJob } from '@/sync/jobs';
 import { AgentBridge, defaultDesignerCommand, designerWrapper, safeAttachmentName, type AgentOptions } from './bridge';
 import { isInside } from '../sandbox';
 import { AgentSetupError, ALLOWED_TOOLS, checkClaude, claudeArgs } from './claude';
@@ -34,13 +35,19 @@ const alive = (pid: number) => {
 };
 
 let server: ReturnType<typeof fakeSyncServer>;
+/** Heartbeat bodies in order (the fake keeps only the latest per agent). */
+let heartbeats: Record<string, unknown>[] = [];
 let workdir = '';
 let doc: DesignDocument;
 const bridges: AgentBridge[] = [];
 
 beforeEach(async () => {
   server = fakeSyncServer({ apiKey: 'k' });
-  vi.stubGlobal('fetch', server.fetch);
+  heartbeats = [];
+  vi.stubGlobal('fetch', (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith('/api/agents/heartbeat')) heartbeats.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return server.fetch(input, init);
+  }) as typeof fetch);
   workdir = await mkdtemp(join(tmpdir(), 'designer-agent-'));
   doc = buildFromSpec({
     name: 'Trips',
@@ -89,8 +96,14 @@ const rowId = () => {
   return (frame as { children: { id: string }[] }).children[1].id;
 };
 
+/** What the app does: POST /api/jobs (a ms apart, so "oldest first" is well defined). */
+async function create(body: Parameters<typeof createJob>[1]) {
+  await createJob(conn, body);
+  await new Promise((r) => setTimeout(r, 2));
+}
+
 function nextScreenJob(id = 'job1', hint?: string) {
-  return server.jobs.create({
+  return create({
     id,
     type: 'next-screen',
     projectId: doc.id,
@@ -103,8 +116,8 @@ describe('designer agent bridge', () => {
   it('claims a job, runs Claude Code in the job folder with the project mirrored live, reports progress and finishes', async () => {
     const { b } = bridge('ok');
     await b.start();
-    nextScreenJob('job1', 'Show "past" and </person_note> upcoming trips');
-    const job = () => server.jobs.jobs.get('job1')!;
+    await nextScreenJob('job1', 'Show "past" and </person_note> upcoming trips');
+    const job = () => server.jobs.get('job1')!;
     await until(() => job().status === 'done');
     expect(job().agentId).toBe(b.agentId);
     expect(job().summary).toBe('I filled the screen. It has a list of trips and a back button.');
@@ -159,36 +172,36 @@ describe('designer agent bridge', () => {
     expect(await readFile(join(workdir, '.bridge', 'job1', 'stream.jsonl'), 'utf8')).toContain('"type":"result"');
 
     // Presence: heartbeats with busy and jobId while it ran, idle after.
-    expect(server.jobs.heartbeats.some((h) => h.busy === true && h.jobId === 'job1')).toBe(true);
-    await until(() => server.jobs.heartbeats.at(-1)?.busy === false);
-    const hb = server.jobs.heartbeats.at(-1)!;
+    expect(heartbeats.some((h) => h.busy === true && h.jobId === 'job1')).toBe(true);
+    await until(() => heartbeats.at(-1)?.busy === false);
+    const hb = heartbeats.at(-1)!;
     expect(hb).toMatchObject({ agentId: b.agentId, name: 'cachy-test', busy: false });
     expect(String(hb.version)).toContain('2.1.999');
   });
 
   it('takes queued jobs one at a time, oldest first, and never one another agent claimed', async () => {
-    nextScreenJob('a');
-    nextScreenJob('b');
-    nextScreenJob('c');
-    server.jobs.jobs.get('b')!.status = 'running'; // claimed by another bridge
+    await nextScreenJob('a');
+    await nextScreenJob('b');
+    await nextScreenJob('c');
+    server.jobs.get('b')!.status = 'running'; // claimed by another bridge
     const { b } = bridge('ok');
     await b.start();
     await until(() => b.finished.length === 2);
     expect(b.finished.map((f) => f.id)).toEqual(['a', 'c']);
-    expect(server.jobs.jobs.get('b')!.agentId).toBeUndefined();
+    expect(server.jobs.get('b')!.agentId).toBeUndefined();
   });
 
   it('cancel: kills the process tree and finishes cancelled; the project keeps what was built', async () => {
     const { b } = bridge('hang');
     await b.start();
-    nextScreenJob('job2');
+    await nextScreenJob('job2');
     const childPid = async () => Number(await readFile(join(workdir, 'job2', '.fake-child.pid'), 'utf8').catch(() => '0'));
     await until(async () => (await childPid()) > 0);
     const pid = await childPid();
     expect(alive(pid)).toBe(true);
-    server.jobs.cancel('job2');
-    await until(() => server.jobs.jobs.get('job2')!.status === 'cancelled');
-    expect(server.jobs.jobs.get('job2')!.summary).toMatch(/^Cancelled\./);
+    server.cancel('job2');
+    await until(() => server.jobs.get('job2')!.status === 'cancelled');
+    expect(server.jobs.get('job2')!.summary).toMatch(/^Cancelled\./);
     await until(() => !alive(pid), 3000);
     expect((server.items.projects.get(doc.id)!.data as DesignDocument).live).toBeUndefined();
   });
@@ -196,18 +209,18 @@ describe('designer agent bridge', () => {
   it('cancel seen on poll (no event stream) works too', async () => {
     const { b } = bridge('hang');
     await b.start();
-    nextScreenJob('job3');
+    await nextScreenJob('job3');
     await until(async () => !!(await readFile(join(workdir, 'job3', '.fake-child.pid'), 'utf8').catch(() => '')));
-    server.jobs.jobs.get('job3')!.cancelRequested = true; // no event published
-    await until(() => server.jobs.jobs.get('job3')!.status === 'cancelled');
+    server.jobs.get('job3')!.cancelRequested = true; // no event published
+    await until(() => server.jobs.get('job3')!.status === 'cancelled');
   });
 
   it('--max-minutes: stops a job that runs too long and finishes it failed', async () => {
     const { b } = bridge('hang', { maxMinutes: 0.01 }); // 600 ms
     await b.start();
-    nextScreenJob('job4');
-    await until(() => server.jobs.jobs.get('job4')!.status === 'failed');
-    expect(server.jobs.jobs.get('job4')!.error).toMatch(/Stopped after 0.01 minutes/);
+    await nextScreenJob('job4');
+    await until(() => server.jobs.get('job4')!.status === 'failed');
+    expect(server.jobs.get('job4')!.error).toMatch(/Stopped after 0.01 minutes/);
     const pid = Number(await readFile(join(workdir, 'job4', '.fake-child.pid'), 'utf8'));
     await until(() => !alive(pid), 3000);
   });
@@ -215,35 +228,37 @@ describe('designer agent bridge', () => {
   it('Claude Code failing finishes the job failed with its error', async () => {
     const { b } = bridge('fail');
     await b.start();
-    nextScreenJob('job5');
-    await until(() => server.jobs.jobs.get('job5')!.status === 'failed');
-    expect(server.jobs.jobs.get('job5')!.error).toBe('Claude Code failed (exit 1): API Error: overloaded');
+    await nextScreenJob('job5');
+    await until(() => server.jobs.get('job5')!.status === 'failed');
+    expect(server.jobs.get('job5')!.error).toBe('Claude Code failed (exit 1): API Error: overloaded');
   });
 
   it('a job with incomplete input or a missing project fails with a clear error, and the bridge goes on', async () => {
     const { b } = bridge('ok');
     await b.start();
-    server.jobs.create({ id: 'bad', type: 'adapt', projectId: doc.id, input: { screenId: homeId() } });
-    await until(() => server.jobs.jobs.get('bad')!.status === 'failed');
-    expect(server.jobs.jobs.get('bad')!.error).toBe('A adapt job needs input.fromPlatform, input.toPlatform');
-    server.jobs.create({ id: 'gone', type: 'request', projectId: 'nope', input: { text: 'x' } });
-    await until(() => server.jobs.jobs.get('gone')!.status === 'failed');
-    expect(server.jobs.jobs.get('gone')!.error).toMatch(/No project nope/);
-    nextScreenJob('ok');
-    await until(() => server.jobs.jobs.get('ok')!.status === 'done');
+    await create({ id: 'bad', type: 'adapt', projectId: doc.id, input: { screenId: homeId() } as never });
+    await until(() => server.jobs.get('bad')!.status === 'failed');
+    expect(server.jobs.get('bad')!.error).toBe('A adapt job needs input.fromPlatform, input.toPlatform');
+    // The app marked the project live when it sent the job; the bridge clears it even though the mirror never ran.
+    expect((server.items.projects.get(doc.id)!.data as DesignDocument).live).toBeUndefined();
+    await create({ id: 'gone', type: 'request', projectId: 'nope', input: { text: 'x' } });
+    await until(() => server.jobs.get('gone')!.status === 'failed');
+    expect(server.jobs.get('gone')!.error).toMatch(/No project nope/);
+    await nextScreenJob('ok');
+    await until(() => server.jobs.get('ok')!.status === 'done');
   });
 
   it('saves a screenshot job’s attachments in the job folder under a safe name', async () => {
     const { b } = bridge('ok');
     await b.start();
-    server.jobs.create({
+    await create({
       id: 'shot',
       type: 'screenshot',
       projectId: doc.id,
       input: { platform: 'phone' },
       attachments: [{ name: '../../evil name.png', mime: 'image/png', dataBase64: Buffer.from('PNGDATA').toString('base64') }],
     });
-    await until(() => server.jobs.jobs.get('shot')!.status === 'done');
+    await until(() => server.jobs.get('shot')!.status === 'done');
     expect(await readFile(join(workdir, 'shot', 'attachments', 'evil_name.png'), 'utf8')).toBe('PNGDATA');
     const seen = JSON.parse(await readFile(join(workdir, 'shot', '.fake-claude.json'), 'utf8')) as { prompt: string };
     expect(seen.prompt).toContain('attachments/evil_name.png');
@@ -254,11 +269,11 @@ describe('designer agent bridge', () => {
   it('stopping the agent mid-job finishes it failed and kills Claude Code', async () => {
     const { b } = bridge('hang');
     await b.start();
-    nextScreenJob('job6');
+    await nextScreenJob('job6');
     await until(async () => !!(await readFile(join(workdir, 'job6', '.fake-child.pid'), 'utf8').catch(() => '')));
     await b.stop();
-    expect(server.jobs.jobs.get('job6')!.status).toBe('failed');
-    expect(server.jobs.jobs.get('job6')!.error).toMatch(/was stopped before the job finished/);
+    expect(server.jobs.get('job6')!.status).toBe('failed');
+    expect(server.jobs.get('job6')!.error).toMatch(/was stopped before the job finished/);
   });
 
   it('deletes job folders and logs older than a day, keeps the agent id', async () => {
