@@ -6,6 +6,8 @@ import { defineComponent } from '../types';
 
 const RATIOS = { '1:1': 1, '4:3': 4 / 3, '16:9': 16 / 9, '3:4': 3 / 4 } as const;
 const CAPTION_GAP = 8;
+/** The shortest picture box a fixed height may give. */
+const MIN_IMAGE = 24;
 
 export default defineComponent({
   kind: 'image',
@@ -21,11 +23,13 @@ export default defineComponent({
   sizing: { width: 'fill', height: 'hug' },
   resizable: { height: true },
   defaultSize: { width: 342, height: 192 },
+  // The ratio is only what it hugs to: any height from a thin strip up (plus the caption).
+  minHeight: (p) => MIN_IMAGE + (p.caption ? CAPTION_GAP + Math.ceil(lineHeight('caption')) : 0),
   build(p, { width, height }) {
     const capH = p.caption ? CAPTION_GAP + Math.ceil(lineHeight('caption')) : 0;
     const ratio = RATIOS[p.ratio as keyof typeof RATIOS];
     // A given height wins over the ratio (the ratio is what it hugs to): the image fills its box.
-    const imgH = Math.max(1, Math.round(height !== undefined ? height - capH : ratio ? width / ratio : width * 0.6));
+    const imgH = Math.max(height !== undefined ? MIN_IMAGE : 1, Math.round(height !== undefined ? height - capH : ratio ? width / ratio : width * 0.6));
     const children = nodes(
       imagePlaceholder({ x: 0, y: 0, width, height: imgH, radius: WF_RADIUS.md }),
       p.caption && text(truncate(p.caption, width, 'caption'), { x: 0, y: imgH + CAPTION_GAP, style: 'caption', tone: 'inkMuted', name: 'Caption' }),

@@ -88,8 +88,19 @@ function childAxes(n: SceneNode): { width: boolean; height: boolean } {
 const takesRowHeight = (n: SceneNode, s: { height: LayoutSize }, align: LayoutInfo['align']) =>
   !isPlain(n) && childAxes(n).height && (s.height === 'fill' || (s.height === 'hug' && align === 'stretch'));
 
-/** Height of a child with a fixed height: a component never gets shorter than its content. */
-const fixedHeight = (n: SceneNode, h: number, w: number) => (n.type === 'group' && n.component ? Math.max(h, hugHeight(n, w)) : h);
+/** Height of a child with a fixed height: a component never gets shorter than its content (its `minHeight`, else its hug height). */
+const fixedHeight = (n: SceneNode, h: number, w: number) => (n.type === 'group' && n.component ? Math.max(h, minComponentHeight(n as Parameters<typeof componentHeight>[0], w)) : h);
+
+/** The shortest height a component can be given at `width`: its definition's `minHeight`, else its hug height. */
+function minComponentHeight(c: GroupNode & { component: NonNullable<GroupNode['component']> }, width: number): number {
+  const def = getComponent(c.component.kind);
+  if (!def?.minHeight) return componentHeight(c, width);
+  try {
+    return def.minHeight(resolveProps(def, c.component.props as Record<string, unknown>, c.component.resolved), { width });
+  } catch {
+    return componentHeight(c, width);
+  }
+}
 
 /** Plain shapes and groups keep their size: the layout only moves them. */
 const isPlain = (n: SceneNode) => !(n.type === 'group' && (n.component || isLayoutContainer(n)));

@@ -128,6 +128,12 @@ export interface ComponentDef<S extends PropSpecs = PropSpecs> {
    * follows the content"); the layout ignores any size set for it. See `resizableAxes`.
    */
   resizable?: { width?: boolean; height?: boolean };
+  /**
+   * The shortest box (resizable height) that still shows the content, at `width`. Default: the hug height. Set it
+   * when the hug height is a preference rather than content (an image hugs to its aspect ratio but may be made
+   * shorter), or a fixed height below it would be a silent no-op.
+   */
+  minHeight?(props: PropsOf<S>, size: { width: number }): number;
   /** Size of a new instance outside a stack (and of instances without `component.size`). */
   defaultSize: { width: number; height: number };
   /** Pure and deterministic: same props + size → same children. */

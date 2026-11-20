@@ -15,7 +15,7 @@ export function installOverlay(opts: OverlayOptions): void {
 
   const style = document.createElement('style');
   style.textContent = `
-    #root { position: fixed !important; top: ${H}px !important; left: 0; right: 0; bottom: 0; }
+    #root { position: fixed !important; top: ${H}px !important; left: 0; right: 0; bottom: 0; height: auto !important; }
     #root .h-dvh { height: 100% !important; }
     #demo-caption { position: fixed; top: 0; left: 0; right: 0; height: ${H}px; z-index: 2147483646;
       display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 20px;
@@ -44,6 +44,27 @@ export function installOverlay(opts: OverlayOptions): void {
     #demo-speed { position: fixed; top: ${H + 12}px; left: 50%; transform: translateX(-50%); z-index: 2147483646;
       pointer-events: none; padding: 6px 14px; border-radius: 999px; background: #ff5c00; color: #fff; display: none;
       font: 700 15px/1.2 Inter, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+    #demo-card { position: fixed; inset: 0; z-index: 2147483647; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px; background: #0f1115; color: #fff; pointer-events: none;
+      font-family: Inter, system-ui, sans-serif; opacity: 0; transition: opacity .35s ease; text-align: center; padding: 0 80px; }
+    #demo-card.on { opacity: 1; }
+    #demo-card .num { font: 700 15px/1 Inter, system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #ff7a2e; }
+    #demo-card .title { font: 800 54px/1.1 Inter, system-ui, sans-serif; letter-spacing: -.02em; }
+    #demo-card .line { font: 400 22px/1.4 Inter, system-ui, sans-serif; color: #b4b8c2; max-width: 900px; }
+    #demo-card .rule { width: 56px; height: 4px; border-radius: 2px; background: #ff7a2e; }
+    #demo-card ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; text-align: left;
+      font: 400 20px/1.35 Inter, system-ui, sans-serif; color: #d4d7de; }
+    #demo-card li::before { content: '→ '; color: #ff7a2e; font-weight: 700; }
+    #demo-doc { position: fixed; z-index: 2147483640; display: flex; flex-direction: column; background: #fff;
+      border: 1px solid #d4d4d4; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.25); overflow: hidden; }
+    #demo-doc header { padding: 10px 14px; background: #f4f4f5; border-bottom: 1px solid #e4e4e7;
+      font: 600 14px/1.3 Inter, system-ui, sans-serif; color: #18181b; }
+    #demo-doc .body { flex: 1; display: flex; min-height: 0; }
+    #demo-doc .tree { width: 290px; overflow: auto; padding: 10px 12px; border-right: 1px solid #e4e4e7; background: #fafafa;
+      font: 13px/1.6 ui-monospace, 'DejaVu Sans Mono', monospace; color: #27272a; white-space: pre; }
+    #demo-doc .tree .on { background: #ffedd5; border-radius: 4px; }
+    #demo-doc .text { flex: 1; overflow: auto; padding: 12px 16px; font: 13px/1.55 ui-monospace, 'DejaVu Sans Mono', monospace;
+      color: #18181b; white-space: pre-wrap; }
     #demo-paste { position: fixed; z-index: 2147483640; display: flex; flex-direction: column;
       background: #fff; border: 1px solid #d4d4d4; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.25); overflow: hidden; }
     #demo-paste header { padding: 10px 14px; background: #f4f4f5; border-bottom: 1px solid #e4e4e7;
@@ -66,11 +87,13 @@ export function installOverlay(opts: OverlayOptions): void {
   term.id = 'demo-term';
   const speed = document.createElement('div');
   speed.id = 'demo-speed';
+  const card = document.createElement('div');
+  card.id = 'demo-card';
 
   const mount = () => {
     if (!document.body) return void requestAnimationFrame(mount);
     document.head.appendChild(style);
-    document.body.append(caption, cursor, keys, term, speed);
+    document.body.append(caption, cursor, keys, term, speed, card);
   };
   mount();
 
@@ -116,6 +139,59 @@ export function installOverlay(opts: OverlayOptions): void {
     __demoSpeed(label: string) {
       speed.textContent = label;
       speed.style.display = label ? 'block' : 'none';
+    },
+    /** A full-screen chapter card (over everything, the cursor too); `null` fades it out. */
+    __demoCard(c: { num: string; title: string; line?: string; items?: string[] } | null) {
+      if (!c) {
+        card.classList.remove('on');
+        setTimeout(() => (card.style.display = card.classList.contains('on') ? 'flex' : 'none'), 380);
+        return;
+      }
+      const el = (tag: string, cls: string, text: string) => {
+        const e = document.createElement(tag);
+        e.className = cls;
+        e.textContent = text;
+        return e;
+      };
+      const parts: HTMLElement[] = [el('div', 'num', c.num), el('div', 'title', c.title), el('div', 'rule', '')];
+      if (c.line) parts.push(el('div', 'line', c.line));
+      if (c.items?.length) {
+        const ul = document.createElement('ul');
+        for (const i of c.items) ul.appendChild(el('li', '', i));
+        parts.push(ul);
+      }
+      card.replaceChildren(...parts);
+      card.style.display = 'flex';
+      requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('on')));
+    },
+    /**
+     * A file viewer outside the app (a floating panel): a list of files on the left (`on` = the one shown) and a
+     * text on the right; `null` removes it.
+     */
+    __demoDoc(d: { title: string; files: string[]; on?: number; text: string; rect: { x: number; y: number; width: number; height: number } } | null) {
+      document.getElementById('demo-doc')?.remove();
+      if (!d) return;
+      const box = document.createElement('div');
+      box.id = 'demo-doc';
+      Object.assign(box.style, { left: `${d.rect.x}px`, top: `${d.rect.y}px`, width: `${d.rect.width}px`, height: `${d.rect.height}px` });
+      const head = document.createElement('header');
+      head.textContent = d.title;
+      const body = document.createElement('div');
+      body.className = 'body';
+      const tree = document.createElement('div');
+      tree.className = 'tree';
+      d.files.forEach((f, i) => {
+        const row = document.createElement('div');
+        row.textContent = f;
+        if (i === d.on) row.className = 'on';
+        tree.appendChild(row);
+      });
+      const text = document.createElement('div');
+      text.className = 'text';
+      text.textContent = d.text;
+      body.append(tree, text);
+      box.append(head, body);
+      document.body.appendChild(box);
     },
     __demoCursor(cx: number, cy: number) {
       place(cx, cy);

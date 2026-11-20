@@ -60,11 +60,17 @@ export class Demo {
     await this.pause(400);
   }
 
+  /** Multiplies every pause and move (1 = the normal pace; a long overview runs a little faster). */
+  pace = 1;
+
+  /** Shown left of the caption instead of the step count when set (e.g. the chapter: "3 · Editar à mão"). */
+  label: string | null = null;
+
   /** Shows a caption (Portuguese, one short sentence) for the next step. */
   async caption(text: string): Promise<void> {
     if (this.fast) return;
     this.stepNo += 1;
-    const step = this.stepCount ? `${this.stepNo}/${this.stepCount}` : '';
+    const step = this.label ?? (this.stepCount ? `${this.stepNo}/${this.stepCount}` : '');
     await this.page.evaluate(([s, t]) => (window as unknown as { __demoCaption(s: string, t: string): void }).__demoCaption(s, t), [step, text]);
     await this.pause(800);
   }
@@ -101,8 +107,27 @@ export class Demo {
     await this.page.evaluate(([l, w]) => (window as unknown as { __demoTerminal(l: string[], w?: number): void }).__demoTerminal(l as string[], w as number | undefined), [this.termLines, opts.width] as const);
   }
 
+  /**
+   * A full-screen chapter card (number, title, one line or a list) held for `ms`, then faded out; the caption bar
+   * then shows the chapter's number and title next to each caption. Times of every card are kept in `chapters`.
+   */
+  async chapter(num: number, title: string, line?: string, opts: { ms?: number; items?: string[]; label?: string } = {}): Promise<void> {
+    this.label = opts.label ?? `${num} · ${title}`;
+    if (this.fast) return;
+    this.chapters.push({ num, title, at: Date.now() - this.openedAt });
+    await this.page.evaluate((c) => (window as unknown as { __demoCard(c: unknown): void }).__demoCard(c), { num: num ? `Capítulo ${num}` : '', title, line, items: opts.items });
+    await this.page.evaluate(() => (window as unknown as { __demoCaption(s: string, t: string): void }).__demoCaption('', ''));
+    await this.page.waitForTimeout((opts.ms ?? 2600) * this.pace);
+    await this.page.evaluate(() => (window as unknown as { __demoCard(c: unknown): void }).__demoCard(null));
+    await this.page.waitForTimeout(400);
+  }
+
+  /** The chapter cards shown so far (ms since the page opened), for the timestamps of a long video. */
+  readonly chapters: { num: number; title: string; at: number }[] = [];
+
   async pause(ms = 550): Promise<void> {
     if (this.fast) ms = Math.min(ms, 120);
+    else ms *= this.pace;
     await this.page.waitForTimeout(ms);
   }
 
@@ -126,7 +151,7 @@ export class Demo {
     const to = await this.point(target, aim);
     const from = this.pos;
     const dist = Math.hypot(to.x - from.x, to.y - from.y);
-    const duration = this.fast ? 60 : (opts.duration ?? Math.min(750, 220 + dist * 0.7));
+    const duration = this.fast ? 60 : (opts.duration ?? Math.min(750, 220 + dist * 0.7)) * this.pace;
     const n = Math.max(2, Math.round(duration / 16));
     for (let i = 1; i <= n; i++) {
       const t = opts.linear ? i / n : ease(i / n);
@@ -208,7 +233,7 @@ export class Demo {
 
   /** Types into the focused field, one key at a time. */
   async type(text: string, opts: { delay?: number } = {}): Promise<void> {
-    await this.page.keyboard.type(text, { delay: this.fast ? 0 : (opts.delay ?? 70) });
+    await this.page.keyboard.type(text, { delay: this.fast ? 0 : (opts.delay ?? 70) * this.pace });
     await this.pause(400);
   }
 

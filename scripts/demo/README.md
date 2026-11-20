@@ -42,6 +42,21 @@ Settings screen reorganized; `BENCH_OUT=<dir>` keeps the project, sheet, coverag
 wait is not cut: `demo.speedUp(n, wait)` plays it n× faster with an orange "⏩ acelerado ×n" badge, and the
 terminal strip shows `designer agent`'s own progress lines. Results differ from run to run (it is a real model).
 
+Scenario `16-overview` (`bun run demo overview`) is the wireframe mode **overview**: one continuous project in ten
+chapters, each opened by a full-screen title card (`demo.chapter()`; the caption bar then shows the chapter), the
+three real agent jobs of phase 4 (paste a screenshot, Generate with AI from a flow, Henrique's benchmark request on
+the Settings fixture opened with File → Open project file…) sped up, Present, and Export for AI shown in a file viewer
+(`__demoDoc`) from the real downloaded zip. It runs at `demo.pace = 0.75` (every pause, move and keystroke a little
+quicker) and writes `<name>.chapters.txt` with the chapter times in the video. ~5 min, ~10 MB; ~8 min to record.
+The agent builds different structures from run to run, so the scenario finds nodes by what they are (`findId`: kind,
+text, ancestors) rather than by fixed paths. While the agent works the job panel is hidden (its status is read from
+the server) so the screens it builds stay in view.
+
+`node scripts/demo/dev-scenario.ts <scenario> <dir>` develops such a long scenario one chapter at a time against a live
+app (no recording; the scenario module exports `chapters`): `echo setup > <dir>/cmd`, `echo "ch 3" > <dir>/cmd` (add
+`slow` for real pace and a screenshot every 1.5 s in `<dir>/frames`), `echo "eval x.js" > <dir>/cmd`, `echo quit`.
+Editing the scenario reloads the dev page (Vite); the overview hides the job panel again at each chapter.
+
 `node scripts/demo/watch-live.ts <dir>` runs the same pieces for a session driven by hand or by an agent: a
 designer-sync on localhost, the app in Chromium with Sync on, and a control folder (`echo <id> > <dir>/open`,
 `echo shot.png > <dir>/shot`); see the comment at its top. With `--agent` it is the phase 4 setup (API key, `designer agent` with real Claude
@@ -56,7 +71,9 @@ leaves `<name>.error.png` and exits non-zero.
 
 - `run.ts`: starts the app (`lib/server.ts`), records each scenario in a fresh browser context,
   cuts the setup and converts webm → mp4 (`lib/encode.ts`).
-- `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, a paste box).
+- `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, a paste box, chapter
+  cards, a file viewer). The app is pushed down by the caption bar and shortened by it (the status bar used to sit
+  40 px below the window).
   It only listens to events; it never touches the app.
 - `lib/demo.ts`: the driver: `move`, `click`, `dblclick`, `drag`, `type`, `fill`, `key`, `menu`,
   `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and output), `pause`,

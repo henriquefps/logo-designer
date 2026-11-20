@@ -106,6 +106,9 @@ describe('make component', () => {
     expect(makeSymbolProblem({ ...card('x'), symbol: { id: 's' } })).toMatch(/already/);
     expect(defaultSymbolName(card('x'))).toBe('x'); // a name the user gave it
     expect(defaultSymbolName({ ...card('x'), name: 'Card container' })).toBe('Lisbon'); // generic name: the first label
+    // No label inside (a bottom navigation wrapped in a stack): the component's kind, not "Component".
+    const nav: ComponentNode = { ...createGroup({ name: 'nav' }), id: 'nav', component: { kind: 'bottom-navigation', props: { labels: ['Galeria', 'Arquivos'] } } };
+    expect(defaultSymbolName({ ...createGroup({ name: 'Vertical stack' }), children: [nav] })).toBe('Bottom navigation');
   });
 
   it('keeps the flows and notes of the elements inside', () => {

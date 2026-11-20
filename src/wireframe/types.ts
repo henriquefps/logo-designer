@@ -27,6 +27,11 @@ export interface PipelineContext {
    */
   atGestureStart: (id: Id) => SceneNode | null;
   /**
+   * The settle run at the end of a gesture (`commitTransaction`): `before` is the gesture's base and the input has
+   * already been through a `change` run per frame, so a box that differs from `before` may be the layout's doing.
+   */
+  committing?: boolean;
+  /**
    * True when `value` (a node or any part of one, draft or plain) differs from `prev`. Earlier
    * steps' writes count: a draft that a step modified is a change.
    */

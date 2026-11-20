@@ -204,7 +204,7 @@ export const useDocStore = create<DocState>()((set, get) => {
       if (!txn) return;
       let doc = get().doc;
       if (doc !== txn.base) {
-        const settled = runWireframePipeline(doc, txn.base, 'settle', { patches: false });
+        const settled = runWireframePipeline(doc, txn.base, 'settle', { patches: false, committing: true });
         if (settled) {
           doc = settled.doc;
           set((s) => ({ doc, version: s.version + 1 }));

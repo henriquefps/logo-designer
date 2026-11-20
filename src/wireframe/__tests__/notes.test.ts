@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { canResizeNode, canResizeSelection, createDocument, createRect, isUserPaintable, findNode, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
+import { canResizeNode, canResizeSelection, createDocument, createRect, isUserPaintable, findNode, worldBounds, type DesignDocument, type GroupNode, type ScreenNode } from '@/model';
 import { validateDocument } from '@/io/projectFile';
 import { exportSvg } from '@/io/svgExport';
 import { useDocStore } from '@/store/useDocStore';
@@ -10,6 +10,7 @@ import {
   attachNote,
   buildNoteChildren,
   connectorOf,
+  connectorPoints,
   detachNote,
   isNoteNode,
   noteHeight,
@@ -21,7 +22,8 @@ import {
   wrapNoteText,
 } from '../notes';
 import { materializeDocument } from '../pipeline';
-import { addScreen } from '../screens';
+import { addScreen, frameRect, frames } from '../screens';
+import { segmentHitsRect } from '../routing';
 
 const s = () => useDocStore.getState();
 const node = <T,>(id: string) => findNode(s().doc, id) as T;
@@ -186,6 +188,71 @@ describe('attach and detach', () => {
     expect(connectorOf(s().doc, node(id))!.to.x).toBeCloseTo(290);
     s().updateNodes([home], (n) => void (n.visible = false));
     expect(connectorOf(s().doc, node(id))).toBeNull();
+  });
+});
+
+describe('note connectors around other screens', () => {
+  /** Three phone screens in a row 80 apart (A, B, C) with a box on C; a note left of A attached to the box. */
+  function row() {
+    const doc: DesignDocument = createDocument({ name: 'W', wireframe: { screens: [] } });
+    const a = addScreen(doc, { platform: 'phone', name: 'A', x: 0, y: 0 });
+    const b = addScreen(doc, { platform: 'phone', name: 'B', x: 470, y: 0 });
+    const c = addScreen(doc, { platform: 'phone', name: 'C', x: 940, y: 0 });
+    const box = createRect({ name: 'Box', width: 100, height: 40, transform: { x: 100, y: 300 } });
+    (doc.children.find((n) => n.id === c) as GroupNode).children.push(box);
+    s().load(doc);
+    return { a, b, c, box: box.id };
+  }
+  const band = 30;
+  const grown = (r: { x: number; y: number; width: number; height: number }) => ({ ...r, y: r.y - band, height: r.height + band });
+
+  it('stays a straight line when it crosses no other screen', () => {
+    const { box } = row();
+    let id = '';
+    s().apply((d) => void (id = addNote(d, { text: 'next to its screen', target: box })));
+    const pts = connectorPoints(s().doc, node(id), { band })!;
+    const c = connectorOf(s().doc, node(id))!;
+    expect(pts).toEqual([c.from, c.to]);
+  });
+
+  it('goes around the screens between the note and its target, then runs to the target', () => {
+    const { a, b, c, box } = row();
+    let id = '';
+    s().apply((d) => void (id = addNote(d, { text: 'far from its screen', target: box, x: -280, y: 320 })));
+    const straight = connectorOf(s().doc, node(id))!;
+    const others = frames(s().doc).filter((f) => f.id === a || f.id === b).map(frameRect);
+    // The old straight line cut through A and B.
+    expect(others.some((r) => segmentHitsRect(straight.from, straight.to, r))).toBe(true);
+    const pts = connectorPoints(s().doc, node(id), { band })!;
+    expect(pts.length).toBeGreaterThan(2);
+    for (let i = 1; i < pts.length; i++) for (const r of others) expect(segmentHitsRect(pts[i - 1], pts[i], grown(r))).toBe(false);
+    // Starts on the note's edge, ends on the box's edge inside C.
+    const n = noteRect(node(id));
+    const p0 = pts[0];
+    expect([p0.x - n.x, n.x + n.width - p0.x, p0.y - n.y, n.y + n.height - p0.y].some((d) => Math.abs(d) < 1e-6)).toBe(true);
+    const end = pts[pts.length - 1];
+    const cr = frameRect(frames(s().doc).find((f) => f.id === c)!);
+    expect(end.x).toBeGreaterThanOrEqual(cr.x);
+    const t = worldBounds(s().doc, box)!;
+    const onBox = [end.x - t.x, t.x + t.width - end.x, end.y - t.y, t.y + t.height - end.y].some((d) => Math.abs(d) < 1e-6);
+    expect(onBox).toBe(true);
+    expect(end.y).toBeGreaterThanOrEqual(t.y - 1e-6);
+    expect(end.y).toBeLessThanOrEqual(t.y + t.height + 1e-6);
+    // Follows a move of the target's screen.
+    s().updateNodes([c], (fr) => void (fr.transform.y += 200));
+    const moved = connectorPoints(s().doc, node(id), { band })!;
+    expect(moved[moved.length - 1].y).not.toBeCloseTo(end.y);
+  });
+
+  it('is null for a free note and when the target is hidden', () => {
+    const { box } = row();
+    let id = '';
+    s().apply((d) => void (id = addNote(d, { text: 'free', x: -280, y: 0 })));
+    expect(connectorPoints(s().doc, node(id))).toBeNull();
+    s().apply((d) => void attachNote(d, id, box));
+    expect(connectorPoints(s().doc, node(id))).not.toBeNull();
+    s().updateNodes([box], (n) => void (n.visible = false));
+    expect(connectorPoints(s().doc, node(id))).toBeNull();
   });
 });
 

@@ -174,6 +174,14 @@ describe('New screen from a dropped flow', () => {
     expect(flowSourceLabel(doc, 'grp')).toBe('Plain group');
   });
 
+  it('a custom card is named after the first label inside it, not "Card container" (found recording the overview)', () => {
+    const card = { ...createGroup({ name: 'Card container' }), id: 'card', children: [comp('img', 'image', {}), comp('h', 'heading', { text: 'Câmera' }), comp('t', 'text', { text: '1.248 fotos' })] };
+    const named = { ...createGroup({ name: 'Album' }), id: 'album', children: [comp('h2', 'heading', { text: 'Viagens' })] };
+    const doc = { children: [card, named], wireframe: { screens: [] } } as unknown as DesignDocument;
+    expect(flowSourceLabel(doc, 'card')).toBe('Câmera');
+    expect(flowSourceLabel(doc, 'album')).toBe('Album');
+  });
+
   it('is one undo step in the app', () => {
     const { doc } = fixture();
     s().load(doc);
