@@ -59,6 +59,20 @@ export const useSyncStore = create<SyncStoreState>()((set, get) => {
 
 export const isSyncConfigured = () => configured(useSyncStore.getState().settings);
 
+/** The connection to use now, or null while sync is off. */
+export const syncConnection = (): Connection | null => {
+  const { settings } = useSyncStore.getState();
+  return configured(settings) ? { url: settings.url, apiKey: settings.apiKey } : null;
+};
+
+/** Listeners for the stream's other events (jobs, agent presence: src/agent) and for each (re)connect. */
+type StreamListener = { onOther?: (name: string, data: string) => void; onOpen?: () => void };
+const streamListeners = new Set<StreamListener>();
+export function onSyncStream(l: StreamListener): () => void {
+  streamListeners.add(l);
+  return () => void streamListeners.delete(l);
+}
+
 // ---------- one sync cycle ----------
 
 /** `kind:id:updatedAt` of revisions this device pushed: their echo on the event stream needs no sync. */
@@ -325,7 +339,13 @@ export function startSync(): () => void {
     stopStream = subscribeEvents(
       { url, apiKey },
       {
-        onOpen: onEvent, // catch up with whatever changed while the stream was down
+        onOpen: () => {
+          onEvent(); // catch up with whatever changed while the stream was down
+          for (const l of streamListeners) l.onOpen?.();
+        },
+        onOther: (name, data) => {
+          for (const l of streamListeners) l.onOther?.(name, data);
+        },
         onChange: (e) => {
           if (ownPushes.delete(`${e.kind}:${e.id}:${e.updatedAt}`)) return;
           if (e.kind === 'fonts' && !useSyncStore.getState().settings.syncFonts) return;

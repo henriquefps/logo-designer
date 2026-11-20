@@ -6,7 +6,12 @@ import { hasClipboard, parseClipboardPayload, pasteNodes } from '@/store/clipboa
 import { isFontFile } from '@/fonts/store';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Vec } from '@/model';
+import { useDocStore } from '@/store/useDocStore';
+import { openAgentDialog } from '@/agent/commands';
 import { importFiles, isImageFile, isSvgFile, placeReferenceImage } from './importActions';
+
+/** One screenshot pasted or dropped on a wireframe: ask whether to place it or turn it into a wireframe with AI. */
+const isScreenshot = (files: File[]) => !!useDocStore.getState().doc.wireframe && files.length === 1 && isImageFile(files[0]) && !isSvgFile(files[0]);
 
 /** Document point under a client position when it is over the canvas, else undefined. */
 function dropPoint(e: { clientX: number; clientY: number; target: EventTarget | null }): Vec | undefined {
@@ -39,6 +44,10 @@ export function useImportHandlers() {
       if (!data) return;
       e.preventDefault();
       const files = [...data.files].filter((f) => isSvgFile(f) || isImageFile(f));
+      if (isScreenshot(files)) {
+        openAgentDialog({ kind: 'screenshot', file: files[0] });
+        return;
+      }
       if (files.length) {
         void importFiles(files);
         return;
@@ -73,6 +82,10 @@ export function useImportHandlers() {
       const at = dropPoint(e);
       if (e.altKey && files.every(isImageFile)) {
         void Promise.all(files.map((f) => placeReferenceImage(f)));
+        return;
+      }
+      if (at && isScreenshot(files)) {
+        openAgentDialog({ kind: 'screenshot', file: files[0], at });
         return;
       }
       const routed = files.filter((f) => importerForFile(f));

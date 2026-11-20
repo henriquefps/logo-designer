@@ -1,24 +1,57 @@
 // An in-memory stand-in for designer-sync (sync-server/) for unit tests: the same routes, last-write-wins
 // on PUT, and the /api/events stream. The real server has its own Go tests and the e2e script
-// (scripts/live-e2e.ts) runs against it.
+// (scripts/live-e2e.ts) runs against it. Jobs and agent presence follow the phase 4 protocol
+// (docs/wireframe-mode.md → Phase 4 → Protocol) for the app's and the bridge's tests.
 import type { ServerMeta, ServerRecord } from '../api';
+
+export interface FakeJob {
+  id: string;
+  type: string;
+  projectId: string;
+  screenId?: string;
+  frameId?: string;
+  input: unknown;
+  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number;
+  finishedAt?: number;
+  agentId?: string;
+  cancelRequested?: boolean;
+  summary?: string;
+  error?: string;
+  progress: { at: number; message: string; stage?: string }[];
+  attachments: { name: string; mime: string; dataBase64: string }[];
+}
+
+export interface FakeAgent {
+  agentId: string;
+  name: string;
+  host: string;
+  version?: string;
+  busy: boolean;
+  jobId?: string;
+  seenAt: number;
+}
 
 interface Stored extends ServerRecord {
   data?: unknown;
 }
 
-export function fakeSyncServer(opts: { events?: boolean; apiKey?: string } = {}) {
+export function fakeSyncServer(opts: { events?: boolean; apiKey?: string; jobs?: boolean } = {}) {
   const items = { projects: new Map<string, Stored>(), fonts: new Map<string, Stored>() };
   const streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
   const enc = new TextEncoder();
   const archived: Stored[] = [];
   let eventRequests = 0;
+  const jobs = new Map<string, FakeJob>();
+  const agents = new Map<string, FakeAgent>();
 
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
   const meta = (r: Stored): ServerMeta => ({ id: r.id, name: r.name, createdAt: r.createdAt, updatedAt: r.updatedAt, deleted: r.deleted, size: r.size });
 
-  function publish(kind: string, id: string, updatedAt: number) {
-    const chunk = enc.encode(`event: change\ndata: ${JSON.stringify({ kind, id, updatedAt })}\n\n`);
+  function publish(kind: string, id: string, updatedAt: number, extra: Record<string, unknown> = {}) {
+    const chunk = enc.encode(`event: change\ndata: ${JSON.stringify({ kind, id, updatedAt, ...extra })}\n\n`);
     for (const c of streams) {
       try {
         c.enqueue(chunk);
@@ -46,6 +79,146 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string } = {})
     items[kind].set(id, rec);
     publish(kind, id, rec.updatedAt);
     return { applied: true, item: meta(rec) };
+  }
+
+  // ---------- jobs and presence ----------
+
+  /** Metadata (lists): no progress, no attachment data. */
+  const jobMeta = (j: FakeJob) => {
+    const { progress: _p, attachments, ...rest } = j;
+    void _p;
+    return { ...rest, attachments: attachments.map((a) => ({ name: a.name, mime: a.mime })) };
+  };
+  const jobFull = (j: FakeJob) => ({ ...jobMeta(j), progress: structuredClone(j.progress) });
+  const touch = (j: FakeJob) => {
+    j.updatedAt = Math.max(Date.now(), j.updatedAt + 1);
+    publish('jobs', j.id, j.updatedAt, { status: j.status });
+  };
+  const liveAgents = () => [...agents.values()].filter((a) => Date.now() - a.seenAt < 45_000);
+
+  function createJob(body: Partial<FakeJob>): { status: number; body: unknown } {
+    if (!body.id || !body.type || !body.projectId) return { status: 400, body: { error: 'id, type and projectId are required.' } };
+    if (jobs.has(body.id)) return { status: 409, body: { error: 'A job with this id exists.' } };
+    const now = Date.now();
+    const j: FakeJob = {
+      id: body.id,
+      type: body.type,
+      projectId: body.projectId,
+      ...(body.screenId ? { screenId: body.screenId } : {}),
+      ...(body.frameId ? { frameId: body.frameId } : {}),
+      input: body.input ?? {},
+      status: 'queued',
+      createdAt: now,
+      updatedAt: now,
+      progress: [],
+      attachments: body.attachments ?? [],
+    };
+    jobs.set(j.id, j);
+    publish('jobs', j.id, j.updatedAt, { status: j.status });
+    return { status: 200, body: jobFull(j) };
+  }
+
+  function claim(id: string, agentId: string): boolean {
+    const j = jobs.get(id);
+    if (!j || j.status !== 'queued') return false;
+    j.status = 'running';
+    j.agentId = agentId;
+    j.startedAt = Date.now();
+    touch(j);
+    return true;
+  }
+
+  function progress(id: string, message: string, stage?: string) {
+    const j = jobs.get(id);
+    if (!j) return;
+    j.progress.push({ at: Date.now(), message, ...(stage ? { stage } : {}) });
+    if (j.progress.length > 200) j.progress.splice(0, j.progress.length - 200);
+    touch(j);
+  }
+
+  function finish(id: string, status: 'done' | 'failed' | 'cancelled', opts: { summary?: string; error?: string } = {}) {
+    const j = jobs.get(id);
+    if (!j) return;
+    j.status = status;
+    j.finishedAt = Date.now();
+    if (opts.summary) j.summary = opts.summary;
+    if (opts.error) j.error = opts.error;
+    touch(j);
+  }
+
+  function cancel(id: string) {
+    const j = jobs.get(id);
+    if (!j) return false;
+    if (j.status === 'queued') {
+      j.status = 'cancelled';
+      j.finishedAt = Date.now();
+    } else if (j.status === 'running') j.cancelRequested = true;
+    touch(j);
+    return true;
+  }
+
+  function heartbeat(a: Omit<FakeAgent, 'seenAt'>) {
+    const was = agents.get(a.agentId);
+    agents.set(a.agentId, { ...a, seenAt: Date.now() });
+    if (!was || was.busy !== a.busy || was.jobId !== a.jobId) publish('agents', a.agentId, Date.now());
+  }
+
+  function goAway(agentId: string) {
+    if (agents.delete(agentId)) publish('agents', agentId, Date.now());
+  }
+
+  async function jobsRoute(method: string, url: URL, parts: string[], body: unknown): Promise<Response | null> {
+    if (opts.jobs === false) return json(404, { error: 'Not found.' }); // a server before 0.3.0
+    if (parts[1] === 'agents') {
+      if (parts[2] === 'heartbeat' && method === 'POST') {
+        heartbeat(body as Omit<FakeAgent, 'seenAt'>);
+        return json(200, { ok: true });
+      }
+      if (!parts[2] && method === 'GET') return json(200, { items: liveAgents() });
+      return json(404, { error: 'Not found.' });
+    }
+    if (parts[1] !== 'jobs') return null;
+    const id = parts[2] ? decodeURIComponent(parts[2]) : undefined;
+    if (!id && method === 'POST') {
+      const r = createJob(body as Partial<FakeJob>);
+      return json(r.status, r.body);
+    }
+    if (!id && method === 'GET') {
+      const projectId = url.searchParams.get('projectId');
+      const active = url.searchParams.get('active') === '1';
+      const list = [...jobs.values()]
+        .filter((j) => (projectId ? j.projectId === projectId : true) && (active ? j.status === 'queued' || j.status === 'running' : true))
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(jobMeta);
+      return json(200, { items: list });
+    }
+    const j = id ? jobs.get(id) : undefined;
+    if (!j) return json(404, { error: 'Not found.' });
+    const action = parts[3];
+    if (!action && method === 'GET') return json(200, jobFull(j));
+    if (action === 'attachments' && method === 'GET') {
+      const a = j.attachments.find((x) => x.name === decodeURIComponent(parts[4] ?? ''));
+      if (!a) return json(404, { error: 'Not found.' });
+      const bin = atob(a.dataBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Response(bytes, { status: 200, headers: { 'Content-Type': a.mime } });
+    }
+    const b = (body ?? {}) as { agentId?: string; message?: string; stage?: string; status?: 'done' | 'failed' | 'cancelled'; summary?: string; error?: string };
+    if (action === 'claim' && method === 'POST') return claim(j.id, b.agentId ?? '') ? json(200, jobFull(j)) : json(409, { error: 'Already claimed.' });
+    if (action === 'progress' && method === 'POST') {
+      progress(j.id, b.message ?? '', b.stage);
+      return json(200, { ok: true });
+    }
+    if (action === 'finish' && method === 'POST') {
+      finish(j.id, b.status ?? 'done', b);
+      return json(200, jobFull(j));
+    }
+    if (action === 'cancel' && method === 'POST') {
+      cancel(j.id);
+      return json(200, jobFull(j));
+    }
+    return json(404, { error: 'Not found.' });
   }
 
   const fetchImpl = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
@@ -78,6 +251,10 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string } = {})
       });
       return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
     }
+    if (parts[1] === 'jobs' || parts[1] === 'agents') {
+      const r = await jobsRoute(method, url, parts, init.body ? JSON.parse(String(init.body)) : undefined);
+      if (r) return r;
+    }
     const kind = parts[1] as 'projects' | 'fonts';
     if (kind !== 'projects' && kind !== 'fonts') return json(404, { error: 'Not found.' });
     const id = parts[2] ? decodeURIComponent(parts[2]) : undefined;
@@ -95,6 +272,14 @@ export function fakeSyncServer(opts: { events?: boolean; apiKey?: string } = {})
     items,
     archived,
     put,
+    jobs,
+    agents,
+    claim,
+    progress,
+    finish,
+    cancel,
+    heartbeat,
+    goAway,
     /** Ends every open stream (a dropped connection). */
     dropStreams() {
       for (const c of streams) {

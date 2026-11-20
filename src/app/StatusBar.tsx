@@ -4,6 +4,7 @@ import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { formatShortcut, runAction } from '@/actions/registry';
+import { AgentStatus } from '@/agent/ui/AgentStatus';
 
 const fmt = (n: number) => Math.round(n).toString();
 
@@ -56,6 +57,7 @@ export function StatusBar() {
           <PlayIcon className="size-4" /> Present
         </button>
       )}
+      <AgentStatus />
       <SaveIndicator />
     </div>
   );

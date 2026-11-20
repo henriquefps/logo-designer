@@ -17,10 +17,14 @@ import { useView } from '@/canvas/overlays/useView';
 import { bezierAt, flowCurve, flowSourceLabel } from '../flows';
 import { logicalScreen } from '../screens';
 import { canvasOrigin } from './arrowHead';
+import { usePresence } from '@/agent/agentStore';
+import { openAgentDialog } from '@/agent/commands';
+import { availability } from '@/agent/jobs';
+import { WhyDisabled } from '@/agent/ui/Unavailable';
 import { addFlowCommand, newScreenFromFlowCommand, removeFlowCommand, selectFlow, setFlowLabelCommand, sharedScope, useFlowStore } from '../flowCommands';
 
 /**
- * A flow dropped on empty canvas: New screen (there, named after the source or its part) or Generate with AI (later).
+ * A flow dropped on empty canvas: New screen (there, named after the source or its part) or Generate with AI (src/agent).
  * From inside a shared component's instance it also says where the link applies; dropped on a screen from there, it
  * only asks that ("This screen only" / "Every screen using Tab bar"). Escape closes it.
  */
@@ -35,6 +39,7 @@ export function FlowDropMenu() {
   const part = menu?.part !== undefined ? { part: menu.part } : {};
   const short = (t: string) => (t.length > 24 ? `${t.slice(0, 23)}…` : t);
   const target = menu?.to ? (logicalScreen(doc, menu.to)?.name ?? 'screen') : '';
+  const ai = availability(usePresence(), { wireframe: !!doc.wireframe });
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && setMenu(null)} modal={false}>
       <DropdownMenuTrigger asChild>
@@ -77,11 +82,19 @@ export function FlowDropMenu() {
               <PlusIcon />
               New screen{name ? ` “${short(name)}”` : ''}
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <SparkleIcon />
-              Generate with AI
-              <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">Coming later</span>
-            </DropdownMenuItem>
+            <WhyDisabled reason={ai.ok ? null : ai.reason} side="right" className="flex w-full">
+              <DropdownMenuItem
+                disabled={!ai.ok}
+                className="w-full"
+                onSelect={() => {
+                  if (menu) openAgentDialog({ kind: 'next-screen', menu, ...(shared ? { shared: scope === 'all' } : {}) });
+                  setMenu(null);
+                }}
+              >
+                <SparkleIcon />
+                Generate with AI…
+              </DropdownMenuItem>
+            </WhyDisabled>
             {shared && (
               <>
                 <DropdownMenuSeparator />
