@@ -2,6 +2,7 @@
 // visible steps and followed by a short pause, so a viewer can follow it. Targets are locators
 // (their centre, or a point inside them) or viewport points.
 import type { Locator, Page } from 'playwright';
+import type { DemoCard } from './overlay.ts';
 
 export interface Point {
   x: number;
@@ -66,7 +67,7 @@ export class Demo {
   /** Shown left of the caption instead of the step count when set (e.g. the chapter: "3 · Editar à mão"). */
   label: string | null = null;
 
-  /** Shows a caption (Portuguese, one short sentence) for the next step. */
+  /** Shows a caption (one short sentence) for the next step. */
   async caption(text: string): Promise<void> {
     if (this.fast) return;
     this.stepNo += 1;
@@ -75,25 +76,57 @@ export class Demo {
     await this.pause(800);
   }
 
-  /** Parts of the recording to play faster (ms since the page opened), with the factor: see `speedUp`. */
+  /**
+   * Parts of the recording to play faster (ms since the page opened), with the factor: see `speedUp`. A factor of
+   * `Infinity` cuts the part out (see `cut`).
+   */
   readonly speedSegments: { start: number; end: number; factor: number }[] = [];
 
   /**
-   * Plays a long wait (the agent working) `factor` times faster in the video, with a visible "⏩ acelerado ×N"
-   * badge during it, so it is shortened honestly rather than cut. Resolves with `wait`'s result.
+   * Plays a long wait (the agent working, a long series of edits) `factor` times faster in the video, with a visible
+   * "×N" badge (a fast-forward icon) during it, so it is shortened honestly rather than cut. Resolves with `wait`'s
+   * result.
    */
-  async speedUp<T>(factor: number, wait: () => Promise<T>): Promise<T> {
+  async speedUp<T>(factor: number, wait: () => Promise<T>, opts: { pace?: number } = {}): Promise<T> {
     if (this.fast) return wait();
-    await this.page.evaluate((l) => (window as unknown as { __demoSpeed(l: string): void }).__demoSpeed(l), `⏩ acelerado ×${factor}`);
+    // A brisker pace inside (quicker moves and pauses), for a long series of edits rather than a wait.
+    const pace = this.pace;
+    if (opts.pace) this.pace = pace * opts.pace;
+    await this.page.evaluate((l) => (window as unknown as { __demoSpeed(l: string): void }).__demoSpeed(l), `×${factor}`);
     await this.page.waitForTimeout(150);
     const start = Date.now() - this.openedAt;
     try {
       return await wait();
     } finally {
+      this.pace = pace;
       const end = Date.now() - this.openedAt;
       this.speedSegments.push({ start, end, factor });
       await this.page.evaluate(() => (window as unknown as { __demoSpeed(l: string): void }).__demoSpeed(''));
     }
+  }
+
+  /**
+   * Runs `work` at setup speed (no pauses, quick moves) and cuts it out of the video. Only for what the viewer must not
+   * see happen and cannot tell was cut: behind a full-screen card (`scene`), where the frame does not change.
+   */
+  async cut<T>(work: () => Promise<T>): Promise<T> {
+    if (this.fast) return work();
+    const start = Date.now() - this.openedAt;
+    this.fast = true;
+    try {
+      return await work();
+    } finally {
+      this.fast = false;
+      this.speedSegments.push({ start, end: Date.now() - this.openedAt, factor: Infinity });
+    }
+  }
+
+  /** Times (ms since the page opened) of the frames to keep as stills (`poster()`). */
+  readonly posters: number[] = [];
+
+  /** Marks the current frame as the video's poster (run.ts writes `<name>-poster.png`; the first mark wins). */
+  poster(): void {
+    if (!this.fast) this.posters.push(Date.now() - this.openedAt);
   }
 
   private termLines: string[] = [];
@@ -108,18 +141,43 @@ export class Demo {
   }
 
   /**
-   * A full-screen chapter card (number, title, one line or a list) held for `ms`, then faded out; the caption bar
+   * A full-screen chapter card (number, title, one line or a list) held for `ms`, then wiped out; the caption bar
    * then shows the chapter's number and title next to each caption. Times of every card are kept in `chapters`.
    */
   async chapter(num: number, title: string, line?: string, opts: { ms?: number; items?: string[]; label?: string } = {}): Promise<void> {
-    this.label = opts.label ?? `${num} · ${title}`;
-    if (this.fast) return;
-    this.chapters.push({ num, title, at: Date.now() - this.openedAt });
-    await this.page.evaluate((c) => (window as unknown as { __demoCard(c: unknown): void }).__demoCard(c), { num: num ? `Capítulo ${num}` : '', title, line, items: opts.items });
+    await this.scene({ eyebrow: num ? `Capítulo ${num}` : '', title, line, items: opts.items }, { ms: opts.ms, label: opts.label ?? `${num} · ${title}`, num });
+  }
+
+  /**
+   * A scene card in the hfps look (`DemoCard`: eyebrow, title, a line or a list; `variant` title / scene / end): the
+   * tinted background wipes in, holds `ms`, wipes out. `label` goes to the caption bar's eyebrow for the scene's
+   * captions. `behind` runs while the card covers the app, at setup speed, and is cut from the video (the hold stays
+   * `ms` however long it takes): the place to open another project or move the canvas between scenes. `keep` leaves
+   * the card up (an end card); `shown` when it is already up (`showCard`, e.g. a video that opens on its title card).
+   */
+  async scene(card: DemoCard, opts: { ms?: number; label?: string | null; num?: number; behind?: () => Promise<void>; keep?: boolean; shown?: boolean } = {}): Promise<void> {
+    if (opts.label !== undefined) this.label = opts.label;
+    if (this.fast) {
+      await opts.behind?.();
+      return;
+    }
+    this.chapters.push({ num: opts.num ?? 0, title: card.title, at: Date.now() - this.openedAt });
+    if (!opts.shown) {
+      await this.page.evaluate((c) => (window as unknown as { __demoCard(c: unknown): void }).__demoCard(c), card);
+      // The slide and the card's rise take ~0.55 s; only then is the app fully covered.
+      await this.page.waitForTimeout(600);
+    }
     await this.page.evaluate(() => (window as unknown as { __demoCaption(s: string, t: string): void }).__demoCaption('', ''));
-    await this.page.waitForTimeout((opts.ms ?? 2600) * this.pace);
+    if (opts.behind) await this.cut(opts.behind);
+    await this.page.waitForTimeout(Math.max(0, (opts.ms ?? 2600) * this.pace - 600));
+    if (opts.keep) return;
     await this.page.evaluate(() => (window as unknown as { __demoCard(c: unknown): void }).__demoCard(null));
-    await this.page.waitForTimeout(400);
+    await this.page.waitForTimeout(450);
+  }
+
+  /** Puts a scene card up at once, without its slide (in a setup: the video's first frame is then the card). */
+  async showCard(card: DemoCard): Promise<void> {
+    await this.page.evaluate((c) => (window as unknown as { __demoCard(c: unknown, instant?: boolean): void }).__demoCard(c, true), card);
   }
 
   /** The chapter cards shown so far (ms since the page opened), for the timestamps of a long video. */
@@ -209,7 +267,7 @@ export class Demo {
   async zoomAt(target: Target, factor: number, aim: Aim = {}): Promise<void> {
     await this.move(target, aim);
     await this.pause(200);
-    if (!this.fast) await this.page.evaluate(() => (window as unknown as { __demoKeys(l: string): void }).__demoKeys('Ctrl + roda do mouse'));
+    if (!this.fast) await this.page.evaluate(() => (window as unknown as { __demoKeys(l: string): void }).__demoKeys('Ctrl + wheel'));
     // The canvas zooms by exp(-deltaY × 0.01) per wheel event; one notch = 10 px (×1.105).
     const n = Math.max(1, Math.round(Math.abs(Math.log(factor)) / 0.1));
     await this.page.keyboard.down('Control');
@@ -237,12 +295,17 @@ export class Demo {
     await this.pause(400);
   }
 
-  /** Clicks a field, selects its content and types a new value (Enter commits). */
+  /**
+   * Clicks a field, selects its content and types a new value. Enter commits; in a multiline field (a textarea, where
+   * Enter adds a line) Ctrl/⌘ + Enter does.
+   */
   async fill(field: Target, text: string, opts: { enter?: boolean } = {}): Promise<void> {
     await this.click(field, {}, { pause: 250 });
     await this.page.keyboard.press('ControlOrMeta+A');
     await this.type(text);
-    if (opts.enter !== false) await this.key('Enter', { show: false });
+    if (opts.enter === false) return;
+    const multiline = await this.page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA');
+    await this.key(multiline ? 'ControlOrMeta+Enter' : 'Enter', { show: false });
   }
 
   /** Presses a key or shortcut; shows it in the corner badge so the viewer sees it. */

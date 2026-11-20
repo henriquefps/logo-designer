@@ -9,7 +9,7 @@ export interface EncodeOptions {
   fps: number;
 }
 
-/** A part of the input (seconds, same clock as `start`) played `factor` times faster. */
+/** A part of the input (seconds, same clock as `start`) played `factor` times faster; `Infinity` cuts it out. */
 export interface SpeedSegment {
   start: number;
   end: number;
@@ -18,7 +18,8 @@ export interface SpeedSegment {
 
 /**
  * The filter for a recording with sped-up parts: the kept span is cut into normal and fast pieces (trim, then
- * setpts divides the fast ones' time), joined again with concat. Times are relative to the cut `start`.
+ * setpts divides the fast ones' time), joined again with concat; cut parts are left out. Times are relative to the
+ * cut `start`.
  */
 export function speedFilter(segments: SpeedSegment[], start: number, fps: number): string {
   const parts: { from: number; to: number | null; factor: number }[] = [];
@@ -28,7 +29,7 @@ export function speedFilter(segments: SpeedSegment[], start: number, fps: number
     const to = s.end - start;
     if (to <= from) continue;
     if (from > t) parts.push({ from: t, to: from, factor: 1 });
-    parts.push({ from, to, factor: s.factor });
+    if (Number.isFinite(s.factor)) parts.push({ from, to, factor: s.factor });
     t = to;
   }
   parts.push({ from: t, to: null, factor: 1 });
@@ -57,4 +58,14 @@ export function encodeMp4({ input, output, start, fps, speed = [] }: EncodeOptio
 export function duration(file: string): number {
   const r = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
   return Number(r.stdout.trim());
+}
+
+/**
+ * Where a moment of the recording (seconds, the same clock as `start` and the segments) lands in the encoded video:
+ * the cut setup, the cut parts and the time saved by the sped-up parts before it taken out.
+ */
+export function videoTime(at: number, start: number, segments: SpeedSegment[]): number {
+  let t = at - start;
+  for (const s of segments) if (s.start < at) t -= (Math.min(s.end, at) - s.start) * (1 - 1 / s.factor);
+  return t;
 }
