@@ -10,7 +10,6 @@ import {
   libraryItem,
   newWireframe,
   openTab,
-  screenBlank,
   screenBox,
   screenNode,
   searchLibrary,
@@ -55,12 +54,10 @@ export default {
     await demo.click({ x: first.x + first.width + 40, y: first.y });
     await demo.key('ControlOrMeta+0', { show: 'Ctrl + 0 (ajustar à tela)' });
 
-    await demo.caption('Assets → My components: inserindo o Trip card duas vezes na nova tela');
+    await demo.caption('Assets → My components: um clique insere o Trip card; com ele selecionado, outro clique insere o próximo logo depois');
     await searchLibrary(demo, 'trip');
     await demo.click(libraryItem(page, 'Trip card'), { fy: 0.4 });
-    // With an instance selected, a click inserts nothing ("Could not insert the component here"):
-    // select the screen first (reported as a bug).
-    await demo.click(await screenBlank(page, 'Screen 2'));
+    // With the first instance still selected, the second goes right after it.
     await demo.click(libraryItem(page, 'Trip card'), { fy: 0.4 });
 
     await demo.caption('Duplo clique para entrar em uma cópia e selecionar o título');
