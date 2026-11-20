@@ -24,6 +24,7 @@ import { materializeDocument } from '@/wireframe/pipeline';
 import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 import { wfMain } from './wf';
+import { newSampleProject, sampleIds } from './samples';
 import { AgentSetupError, runAgent } from './agent';
 import { cliPath, cliSvg, SANDBOX_COMMANDS, SandboxError, sandboxRoot } from './sandbox';
 
@@ -53,6 +54,9 @@ Usage: designer <command> [options]
   new [-o file] [--preset P] [--name N] [--tile #hex] [--colour one|full] [--glyph #hex]
                                               empty project (P: ${ICON_PRESETS.join(' | ')} | ${WIREFRAME_PRESET} | WxH);
                                               --tile / --colour / --glyph are stored in an app icon project (see from-svg)
+  new --sample <id> [-o file] [--name N]      a copy of a sample project bundled with the app (id: ${sampleIds()}),
+                                              new id, named "<Sample> (sample)" unless --name; Help → Open sample
+                                              project… in the app
   screen <project> [--name N] [--platform phone|tablet|desktop] [-o file]
                                               wireframe projects: add a screen (default phone; right of everything).
                                               When a screen called N exists, adds its --platform variant instead (a copy
@@ -144,6 +148,7 @@ const COMMON: ParseArgsConfig['options'] = {
   output: { type: 'string', short: 'o' },
   name: { type: 'string' },
   preset: { type: 'string' },
+  sample: { type: 'string' },
   icon: { type: 'string' },
   glyph: { type: 'boolean' },
   size: { type: 'string' },
@@ -680,6 +685,19 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   try {
     switch (cmd) {
       case 'new': {
+        const sample = str(values, 'sample');
+        if (sample !== undefined) {
+          if (str(values, 'preset') || str(values, 'tile') || str(values, 'colour') || str(values, 'glyph-colour')) throw new UsageError('--sample is a whole project: no --preset / --tile / --colour / --glyph');
+          let made: Awaited<ReturnType<typeof newSampleProject>>;
+          try {
+            made = await newSampleProject(sample, str(values, 'name'));
+          } catch (e) {
+            throw new UsageError(e instanceof Error ? e.message : String(e));
+          }
+          for (const w of made.warnings) io.err(`warning: ${w}`);
+          await emit(serializeProject(made.doc), output, io, `sample project “${made.doc.name}”`);
+          return 0;
+        }
         if (str(values, 'preset') === WIREFRAME_PRESET) {
           if (str(values, 'tile') || str(values, 'colour') || str(values, 'glyph-colour')) throw new UsageError('--tile / --colour / --glyph are app icon settings');
           const doc = newWireframeProject(str(values, 'name') ?? (output ? nameFromPath(output) : 'Wireframe'));

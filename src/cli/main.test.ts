@@ -36,6 +36,25 @@ describe('designer CLI', () => {
     expect((await cli('new', '--bogus')).code).toBe(2);
   });
 
+  it('new --sample: a copy of a bundled sample (new id, "<name> (sample)" or --name)', async () => {
+    const r = await cli('new', '--sample', 'roam', '-o', 'roam.designer.json');
+    expect(r.code).toBe(0);
+    expect(r.err).toMatch(/Wrote sample project “Roam \(sample\)”/);
+    const doc = await json('roam.designer.json');
+    const bundled = JSON.parse(readFileSync(join(__dirname, '../../public/samples/roam.designer.json'), 'utf8'));
+    expect(doc.name).toBe('Roam (sample)');
+    expect(doc.id).not.toBe(bundled.id);
+    expect(doc.wireframe.screens).toEqual(bundled.wireframe.screens);
+    expect((await cli('validate', 'roam.designer.json')).code).toBe(0);
+    const named = JSON.parse((await cli('new', '--sample', 'roam', '--name', 'Trips app')).out);
+    expect(named.name).toBe('Trips app');
+    expect(named.id).not.toBe(doc.id);
+    const unknown = await cli('new', '--sample', 'nope');
+    expect(unknown.code).toBe(2);
+    expect(unknown.err).toMatch(/Unknown sample "nope" \(samples: roam\)/);
+    expect((await cli('new', '--sample', 'roam', '--preset', 'wireframe')).code).toBe(2);
+  });
+
   it('new: presets and sizes', async () => {
     const r = await cli('new', '--preset', 'app-icon', '-o', 'icon.designer.json');
     expect(r.code).toBe(0);

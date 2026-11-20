@@ -1,0 +1,1599 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Roam (sample)",
+  "components": [
+    {
+      "name": "Tab bar",
+      "id": "symmwp6z6sx8qqb77f2e",
+      "content": {
+        "vstack": [
+          {
+            "bottom-navigation": {
+              "labels": [
+                "Explore",
+                "Trips",
+                "Saved",
+                "Profile"
+              ],
+              "icon1": "lucide:Compass",
+              "icon2": "lucide:Plane",
+              "icon3": "lucide:Heart",
+              "icon4": "lucide:User"
+            },
+            "id": "nmwp6ymgx8gnl5cr9y"
+          }
+        ],
+        "position": "pinned-bottom"
+      }
+    }
+  ],
+  "screens": [
+    {
+      "name": "Explore",
+      "id": "smwp6xdf22u07sla",
+      "platform": "phone",
+      "frameId": "nmwp6xdf235emkgg",
+      "x": 0,
+      "y": 0,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Explore",
+            "leading": "none"
+          },
+          "id": "nmwp6xiz8qls0uou3"
+        },
+        {
+          "search-field": {
+            "placeholder": "Where to next?"
+          },
+          "id": "nmwp6xmwf1gglu1ysx"
+        },
+        {
+          "hstack": [
+            {
+              "chip": {
+                "label": "All",
+                "selected": true
+              },
+              "id": "nmwp6xr1h2i3kj7aqi"
+            },
+            {
+              "chip": {
+                "label": "Beaches"
+              },
+              "id": "nmwp6xuc037j7p92u9"
+            },
+            {
+              "chip": {
+                "label": "Cities"
+              },
+              "id": "nmwp6xx783wqti2x0m"
+            },
+            {
+              "chip": {
+                "label": "Mountains"
+              },
+              "id": "nmwp6y01z4m3l1i7ab"
+            }
+          ],
+          "id": "nmwp6xpym25qrpp2wd"
+        },
+        {
+          "section-header": {
+            "label": "Popular trips",
+            "action": "See all"
+          },
+          "id": "nmwp6y4i65bgymcvv7"
+        },
+        {
+          "vstack": [
+            {
+              "vstack": [
+                {
+                  "image": {},
+                  "id": "nmwp6yajb6p9djnlm4"
+                },
+                {
+                  "heading": {
+                    "text": "Lisbon, Portugal"
+                  },
+                  "id": "nmwp6ybnl70kkzgwgo"
+                },
+                {
+                  "text": {
+                    "text": "5 days from $640"
+                  },
+                  "id": "nmwp6yetx7pgt3jnua"
+                }
+              ],
+              "gap": 8,
+              "padding": 16,
+              "style": "outline",
+              "radius": "small",
+              "id": "nmwp6y9gf6dazds3zy"
+            }
+          ],
+          "repeat": 3,
+          "id": "nmwp6y8ck60wfdny21"
+        },
+        {
+          "use": "Tab bar",
+          "id": "nmwp6z3nx8qpxkdi0a",
+          "position": "pinned-bottom"
+        }
+      ]
+    },
+    {
+      "name": "Trips",
+      "id": "smwp6zbdo8rsbagzhv",
+      "platform": "phone",
+      "frameId": "nmwp6zbdo8rt3a1odz",
+      "x": 1404,
+      "y": 0,
+      "root": [
+        {
+          "use": "Tab bar",
+          "id": "nmwp6zdrr9gnpp2d68",
+          "position": "pinned-bottom"
+        },
+        {
+          "top-app-bar": {
+            "title": "My trips",
+            "leading": "none"
+          },
+          "id": "nmwp6zfgf9snvvppn1"
+        },
+        {
+          "empty-state": {
+            "title": "No trips yet",
+            "message": "Save a trip from Explore to start planning."
+          },
+          "id": "nmwp6zjc6aj4zwmxmo"
+        }
+      ]
+    },
+    {
+      "name": "Lisbon, Portugal",
+      "id": "smwp6zxo7al10996hq",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp6zxo7al2khco9h",
+      "x": 590,
+      "y": 0,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Lisbon, Portugal",
+            "actions": 2,
+            "action1": "lucide:Heart"
+          },
+          "id": "nmwp70g5h1g1w8mjsw"
+        },
+        {
+          "vstack": [
+            {
+              "image": {
+                "subject": "Lisbon skyline, trams and the Tagus river"
+              },
+              "id": "nmwp70g5h1g4tzn5ku"
+            },
+            {
+              "heading": {
+                "text": "Lisbon, Portugal",
+                "level": "title"
+              },
+              "id": "nmwp70g5h1g68t28un"
+            },
+            {
+              "text": {
+                "text": "5 days · Apr 12 – Apr 16 · 4.8 (312 reviews)",
+                "size": "small",
+                "tone": "muted"
+              },
+              "id": "nmwp70g5h1g84gcmex"
+            },
+            {
+              "paragraph": {},
+              "id": "nmwp70g5h1gauch6ny"
+            },
+            {
+              "hstack": [
+                {
+                  "chip": {
+                    "label": "Cities",
+                    "icon": "lucide:Building2"
+                  },
+                  "id": "nmwp70g5h1gdm5nvuc"
+                },
+                {
+                  "chip": {
+                    "label": "Food",
+                    "icon": "lucide:Utensils"
+                  },
+                  "id": "nmwp70g5h1gfu577fj"
+                },
+                {
+                  "chip": {
+                    "label": "Culture",
+                    "icon": "lucide:Landmark"
+                  },
+                  "id": "nmwp70g5h1ghjs0kcg"
+                }
+              ],
+              "id": "nmwp70g5h1gcl1znm3"
+            }
+          ],
+          "gap": 8,
+          "padding": 16,
+          "id": "nmwp70g5h1g383ewee"
+        },
+        {
+          "section-header": {
+            "label": "Map",
+            "action": "Open map"
+          },
+          "id": "nmwp70g5h1glt7knlb"
+        },
+        {
+          "vstack": [
+            {
+              "image": {
+                "subject": "Map of Lisbon with numbered pins for each day's stops",
+                "caption": "Alfama · Baixa · Belém · Sintra"
+              },
+              "id": "nmwp70g5h1go1qeezj"
+            }
+          ],
+          "padding": 16,
+          "id": "nmwp70g5h1gn3jbcsy"
+        },
+        {
+          "section-header": {
+            "label": "Itinerary",
+            "action": "5 days"
+          },
+          "id": "nmwp70g5h1grbypsiq"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Day 1 · Alfama & Castle",
+                "subtitle": "São Jorge Castle, Fado dinner",
+                "leading": "icon",
+                "leadingIcon": "lucide:CalendarDays",
+                "divider": true
+              },
+              "id": "nmwp70g5h1gunis6fk"
+            },
+            {
+              "list-row": {
+                "title": "Day 2 · Baixa & Chiado",
+                "subtitle": "Tram 28, Praça do Comércio",
+                "leading": "icon",
+                "leadingIcon": "lucide:CalendarDays",
+                "divider": true
+              },
+              "id": "nmwp70g5h1gwrzlg9t"
+            },
+            {
+              "list-row": {
+                "title": "Day 3 · Belém",
+                "subtitle": "Jerónimos Monastery, pastéis de nata",
+                "leading": "icon",
+                "leadingIcon": "lucide:CalendarDays",
+                "divider": true
+              },
+              "id": "nmwp70g5h1gyganutu"
+            },
+            {
+              "list-row": {
+                "title": "Day 4 · Sintra day trip",
+                "subtitle": "Pena Palace, Quinta da Regaleira",
+                "leading": "icon",
+                "leadingIcon": "lucide:CalendarDays",
+                "divider": true
+              },
+              "id": "nmwp70g5h1h0dbpzwd"
+            },
+            {
+              "list-row": {
+                "title": "Day 5 · LX Factory & departure",
+                "subtitle": "Brunch, airport transfer",
+                "leading": "icon",
+                "leadingIcon": "lucide:CalendarDays"
+              },
+              "id": "nmwp70g5h1h25oci2w"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp70g5h1gtvo2k20"
+        },
+        {
+          "hstack": [
+            {
+              "vstack": [
+                {
+                  "text": {
+                    "text": "From $640"
+                  },
+                  "id": "nmwp70g5h1h7o2u50e"
+                },
+                {
+                  "text": {
+                    "text": "per person · flights not included",
+                    "size": "caption",
+                    "tone": "muted"
+                  },
+                  "id": "nmwp70g5h1h9cgc07a"
+                }
+              ],
+              "gap": 2,
+              "id": "nmwp70g5h1h6v1b4ux"
+            },
+            {
+              "button": {
+                "label": "Book"
+              },
+              "id": "nmwp70g5h1hccb0wa0"
+            }
+          ],
+          "gap": 12,
+          "padding": 16,
+          "style": "outline-filled",
+          "id": "nmwp70g5h1h5kp0wwh",
+          "position": "pinned-bottom"
+        },
+        {
+          "use": "Tab bar",
+          "id": "nmwp70g5h1hf4i283b",
+          "position": "pinned-bottom"
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "id": "smwp6x6xx1w2a82n",
+      "status": "current",
+      "platform": "phone",
+      "frameId": "nmwp6x6xx3qlygvf",
+      "x": 0,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Settings",
+            "actions": 0
+          },
+          "id": "nmwp6x6xx4fr6q5q"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "Account"
+              },
+              "id": "nmwp6x6xx7tpdr68"
+            },
+            {
+              "list-row": {
+                "title": "Maya Chen",
+                "subtitle": "maya.chen@example.com",
+                "leading": "avatar"
+              },
+              "id": "nmwp6x6xx962289i"
+            },
+            {
+              "list-row": {
+                "title": "Edit profile"
+              },
+              "id": "nmwp6x6xxb10se2s"
+            },
+            {
+              "list-row": {
+                "title": "Change password"
+              },
+              "id": "nmwp6x6xydljir3g"
+            },
+            {
+              "list-row": {
+                "title": "Trip reminders",
+                "subtitle": "A day before every departure",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xyf6bib92"
+            },
+            {
+              "list-row": {
+                "title": "Currency",
+                "trailing": "value",
+                "value": "USD"
+              },
+              "id": "nmwp6x6xyhms0x46"
+            },
+            {
+              "list-row": {
+                "title": "Connected accounts",
+                "subtitle": "Google, Apple"
+              },
+              "id": "nmwp6x6xyjdt5qhv"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xx66vtpi2"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "General"
+              },
+              "id": "nmwp6x6xyns64ow3"
+            },
+            {
+              "list-row": {
+                "title": "Language",
+                "trailing": "value",
+                "value": "English"
+              },
+              "id": "nmwp6x6xyp7vynpt"
+            },
+            {
+              "list-row": {
+                "title": "Appearance",
+                "trailing": "value",
+                "value": "System"
+              },
+              "id": "nmwp6x6xyral2xt3"
+            },
+            {
+              "list-row": {
+                "title": "Download maps on Wi-Fi only",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xytq8zd7k"
+            },
+            {
+              "list-row": {
+                "title": "Two-step verification",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xyvdi8if5"
+            },
+            {
+              "list-row": {
+                "title": "Distance units",
+                "trailing": "value",
+                "value": "Kilometers"
+              },
+              "id": "nmwp6x6xyx11c1vu"
+            },
+            {
+              "list-row": {
+                "title": "Clear search history"
+              },
+              "id": "nmwp6x6xyzl4eovj"
+            },
+            {
+              "list-row": {
+                "title": "Rate Roam"
+              },
+              "id": "nmwp6x6xy11gc7thd"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xym7jv5m6"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "Notifications"
+              },
+              "id": "nmwp6x6xy15ol6yl4"
+            },
+            {
+              "list-row": {
+                "title": "Push notifications",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xy17s5wclc"
+            },
+            {
+              "list-row": {
+                "title": "Price drop alerts",
+                "subtitle": "When a saved trip gets cheaper",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xy19gmt1vz"
+            },
+            {
+              "list-row": {
+                "title": "Flight status updates",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xy1btiks3o"
+            },
+            {
+              "list-row": {
+                "title": "Email newsletter",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp6x6xy1d52v8xa"
+            },
+            {
+              "list-row": {
+                "title": "Quiet hours",
+                "trailing": "value",
+                "value": "10 PM to 7 AM"
+              },
+              "id": "nmwp6x6xy1ffs1qki"
+            },
+            {
+              "list-row": {
+                "title": "Offline maps",
+                "trailing": "value",
+                "value": "3 regions, 1.2 GB"
+              },
+              "id": "nmwp6x6xy1h5ej556"
+            },
+            {
+              "list-row": {
+                "title": "Data saver",
+                "subtitle": "Lower-quality photos on mobile data",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp6x6xy1juj0p34"
+            },
+            {
+              "list-row": {
+                "title": "Payment methods",
+                "subtitle": "Visa ending in 4242"
+              },
+              "id": "nmwp6x6xy1l5lk9k1"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xy14wzyfqa"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "Trips"
+              },
+              "id": "nmwp6x6xy1px08esj"
+            },
+            {
+              "list-row": {
+                "title": "Default trip privacy",
+                "trailing": "value",
+                "value": "Friends"
+              },
+              "id": "nmwp6x6xy1rk4iyot"
+            },
+            {
+              "list-row": {
+                "title": "Add bookings from email",
+                "subtitle": "Flights and hotels from your confirmations",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xy1tlco4u9"
+            },
+            {
+              "list-row": {
+                "title": "Calendar sync",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp6x6xy1vy8m14q"
+            },
+            {
+              "list-row": {
+                "title": "Travel documents",
+                "subtitle": "Passport, visas, insurance"
+              },
+              "id": "nmwp6x6xz1xajmxxb"
+            },
+            {
+              "list-row": {
+                "title": "Home airport",
+                "trailing": "value",
+                "value": "SFO"
+              },
+              "id": "nmwp6x6xz1zipnyt4"
+            },
+            {
+              "list-row": {
+                "title": "Location history",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xz21ymdv8j"
+            },
+            {
+              "list-row": {
+                "title": "Cache size",
+                "trailing": "value",
+                "value": "240 MB"
+              },
+              "id": "nmwp6x6xz23rbnihf"
+            },
+            {
+              "list-row": {
+                "title": "Clear cache"
+              },
+              "id": "nmwp6x6xz25p8rd7d"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xy1o5ha476"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "Privacy"
+              },
+              "id": "nmwp6x6xz29vc6xge"
+            },
+            {
+              "list-row": {
+                "title": "Profile visibility",
+                "trailing": "value",
+                "value": "Friends"
+              },
+              "id": "nmwp6x6xz2bcyeapc"
+            },
+            {
+              "list-row": {
+                "title": "Personalized recommendations",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xz2d50afvc"
+            },
+            {
+              "list-row": {
+                "title": "Ad tracking",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp6x6xz2flhzeti"
+            },
+            {
+              "list-row": {
+                "title": "Download my data"
+              },
+              "id": "nmwp6x6xz2hqgssd1"
+            },
+            {
+              "list-row": {
+                "title": "Blocked users"
+              },
+              "id": "nmwp6x6xz2jg3w89i"
+            },
+            {
+              "list-row": {
+                "title": "Billing history"
+              },
+              "id": "nmwp6x6xz2l65fptp"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xz28zwxowm"
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "More"
+              },
+              "id": "nmwp6x6xz2pwy1ioh"
+            },
+            {
+              "list-row": {
+                "title": "Saved travelers",
+                "subtitle": "2 people"
+              },
+              "id": "nmwp6x6xz2rcxydwo"
+            },
+            {
+              "list-row": {
+                "title": "Loyalty programs"
+              },
+              "id": "nmwp6x6xz2tdgxuom"
+            },
+            {
+              "list-row": {
+                "title": "Gift card balance",
+                "trailing": "value",
+                "value": "$25.00"
+              },
+              "id": "nmwp6x6xz2vd4cqbg"
+            },
+            {
+              "list-row": {
+                "title": "Accessibility"
+              },
+              "id": "nmwp6x6xz2xjm32zy"
+            },
+            {
+              "list-row": {
+                "title": "Text size",
+                "trailing": "value",
+                "value": "Default"
+              },
+              "id": "nmwp6x6xz2zepfsh1"
+            },
+            {
+              "list-row": {
+                "title": "Backup trips to cloud",
+                "trailing": "toggle"
+              },
+              "id": "nmwp6x6xz31lybqt7"
+            },
+            {
+              "list-row": {
+                "title": "Last backup",
+                "trailing": "value",
+                "value": "Today, 9:41 AM"
+              },
+              "id": "nmwp6x6xz33nov2g1"
+            },
+            {
+              "list-row": {
+                "title": "Help center"
+              },
+              "id": "nmwp6x6xz35h6qarh"
+            },
+            {
+              "list-row": {
+                "title": "Contact support"
+              },
+              "id": "nmwp6x6xz37w187c5"
+            },
+            {
+              "list-row": {
+                "title": "Terms of service"
+              },
+              "id": "nmwp6x6xz395ykc57"
+            },
+            {
+              "list-row": {
+                "title": "Privacy policy"
+              },
+              "id": "nmwp6x6xz3bmhykhe"
+            },
+            {
+              "list-row": {
+                "title": "Version",
+                "trailing": "value",
+                "value": "4.2.0"
+              },
+              "id": "nmwp6x6xz3d617ftf"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp6x6xz2o5yus4d"
+        },
+        {
+          "vstack": [
+            {
+              "button": {
+                "label": "Sign out",
+                "variant": "secondary"
+              },
+              "id": "nmwp6x6xz3hta26sf"
+            },
+            {
+              "button": {
+                "label": "Delete account",
+                "variant": "text"
+              },
+              "id": "nmwp6x6xz3jgjn5i8"
+            }
+          ],
+          "gap": 8,
+          "padding": 16,
+          "id": "nmwp6x6xz3g4rpg5i"
+        }
+      ]
+    },
+    {
+      "name": "Settings (new)",
+      "id": "smwp720d63pi8ucvss",
+      "status": "changed",
+      "platform": "phone",
+      "frameId": "nmwp720d63pk08mi6a",
+      "x": 590,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Settings",
+            "actions": 0
+          },
+          "id": "nmwp720d63plbf6h2t"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Account",
+                "subtitle": "Profile, password, sign-in",
+                "leading": "icon",
+                "leadingIcon": "lucide:User"
+              },
+              "id": "nmwp720d63pojlchi8"
+            },
+            {
+              "list-row": {
+                "title": "Notifications",
+                "subtitle": "Alerts, reminders, quiet hours",
+                "leading": "icon",
+                "leadingIcon": "lucide:Bell"
+              },
+              "id": "nmwp720d63pqlijebk"
+            },
+            {
+              "list-row": {
+                "title": "Trip settings",
+                "subtitle": "Bookings, documents, travelers",
+                "leading": "icon",
+                "leadingIcon": "lucide:Plane"
+              },
+              "id": "nmwp720d63psdth97b"
+            },
+            {
+              "list-row": {
+                "title": "Payments",
+                "subtitle": "Cards, billing, rewards",
+                "leading": "icon",
+                "leadingIcon": "lucide:CreditCard"
+              },
+              "id": "nmwp720d63pua7usi0"
+            },
+            {
+              "list-row": {
+                "title": "Privacy",
+                "subtitle": "Visibility, tracking, your data",
+                "leading": "icon",
+                "leadingIcon": "lucide:Shield"
+              },
+              "id": "nmwp720d63pw8tqnro"
+            },
+            {
+              "list-row": {
+                "title": "Data & storage",
+                "subtitle": "Offline maps, cache, backup",
+                "leading": "icon",
+                "leadingIcon": "lucide:Database"
+              },
+              "id": "nmwp720d63pyb75hjr"
+            },
+            {
+              "list-row": {
+                "title": "General",
+                "subtitle": "Language, appearance, units",
+                "leading": "icon",
+                "leadingIcon": "lucide:Settings"
+              },
+              "id": "nmwp720d63q0w0re1k"
+            },
+            {
+              "list-row": {
+                "title": "Help & about",
+                "subtitle": "Support, legal, version",
+                "leading": "icon",
+                "leadingIcon": "lucide:CircleHelp"
+              },
+              "id": "nmwp720d63q2jb9o1i"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d63pnjdshox"
+        },
+        {
+          "vstack": [
+            {
+              "button": {
+                "label": "Sign out",
+                "variant": "secondary"
+              },
+              "id": "nmwp720d63q6k50i5p"
+            }
+          ],
+          "gap": 8,
+          "padding": 16,
+          "id": "nmwp720d63q5dt4bz4"
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "id": "smwp720d73q9gljyw0",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73qbtgio2c",
+      "x": 1180,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Account",
+            "actions": 0
+          },
+          "id": "nmwp720d73qcj64rgb"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Maya Chen",
+                "subtitle": "maya.chen@example.com",
+                "leading": "avatar"
+              },
+              "id": "nmwp720d73qfslmau5"
+            },
+            {
+              "list-row": {
+                "title": "Edit profile"
+              },
+              "id": "nmwp720d73qhudf9qr"
+            },
+            {
+              "list-row": {
+                "title": "Change password"
+              },
+              "id": "nmwp720d73qjd01l7f"
+            },
+            {
+              "list-row": {
+                "title": "Two-step verification",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73qlwiallj"
+            },
+            {
+              "list-row": {
+                "title": "Connected accounts",
+                "subtitle": "Google, Apple"
+              },
+              "id": "nmwp720d73qnk11pc9"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73qer162u7"
+        },
+        {
+          "vstack": [
+            {
+              "button": {
+                "label": "Delete account",
+                "variant": "text"
+              },
+              "id": "nmwp720d73qri7gf24"
+            }
+          ],
+          "gap": 8,
+          "padding": 16,
+          "id": "nmwp720d73qqt1bfv9"
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "id": "smwp720d73qug0vu02",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73qw243mx0",
+      "x": 1770,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Notifications",
+            "actions": 0
+          },
+          "id": "nmwp720d73qxhscmd2"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Push notifications",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73r0sddf1m"
+            },
+            {
+              "list-row": {
+                "title": "Trip reminders",
+                "subtitle": "A day before every departure",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73r2ng3x5q"
+            },
+            {
+              "list-row": {
+                "title": "Price drop alerts",
+                "subtitle": "When a saved trip gets cheaper",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73r44pbeuu"
+            },
+            {
+              "list-row": {
+                "title": "Flight status updates",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73r6xsskpk"
+            },
+            {
+              "list-row": {
+                "title": "Email newsletter",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp720d73r8ntr6zh"
+            },
+            {
+              "list-row": {
+                "title": "Quiet hours",
+                "trailing": "value",
+                "value": "10 PM to 7 AM"
+              },
+              "id": "nmwp720d73ra758y85"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73qzrp5fyb"
+        }
+      ]
+    },
+    {
+      "name": "Trip settings",
+      "id": "smwp720d73rdzqigjo",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73rffb1ix5",
+      "x": 2360,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Trip settings",
+            "actions": 0
+          },
+          "id": "nmwp720d73rgquukg7"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Default trip privacy",
+                "trailing": "value",
+                "value": "Friends"
+              },
+              "id": "nmwp720d73rj2cqp8l"
+            },
+            {
+              "list-row": {
+                "title": "Home airport",
+                "trailing": "value",
+                "value": "SFO"
+              },
+              "id": "nmwp720d73rl13jyzf"
+            },
+            {
+              "list-row": {
+                "title": "Add bookings from email",
+                "subtitle": "Flights and hotels from your confirmations",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73rne07noi"
+            },
+            {
+              "list-row": {
+                "title": "Calendar sync",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp720d73rpdbdqrf"
+            },
+            {
+              "list-row": {
+                "title": "Travel documents",
+                "subtitle": "Passport, visas, insurance"
+              },
+              "id": "nmwp720d73rr6tmyd6"
+            },
+            {
+              "list-row": {
+                "title": "Saved travelers",
+                "subtitle": "2 people"
+              },
+              "id": "nmwp720d73rtsubeui"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73riy228q5"
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "id": "smwp720d73rwo25sji",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73ry9imtqy",
+      "x": 2950,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Payments",
+            "actions": 0
+          },
+          "id": "nmwp720d73rz4ftnvc"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Payment methods",
+                "subtitle": "Visa ending in 4242"
+              },
+              "id": "nmwp720d73s2g0ti58"
+            },
+            {
+              "list-row": {
+                "title": "Billing history"
+              },
+              "id": "nmwp720d73s4982qhw"
+            },
+            {
+              "list-row": {
+                "title": "Gift card balance",
+                "trailing": "value",
+                "value": "$25.00"
+              },
+              "id": "nmwp720d73s6ge7rle"
+            },
+            {
+              "list-row": {
+                "title": "Loyalty programs"
+              },
+              "id": "nmwp720d73s8qwf4u1"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73s1fiz73v"
+        }
+      ]
+    },
+    {
+      "name": "Privacy",
+      "id": "smwp720d73sbjemmvj",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73sd2gj3ik",
+      "x": 3540,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Privacy",
+            "actions": 0
+          },
+          "id": "nmwp720d73seqasqt1"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Profile visibility",
+                "trailing": "value",
+                "value": "Friends"
+              },
+              "id": "nmwp720d73shp7w7c1"
+            },
+            {
+              "list-row": {
+                "title": "Location history",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73sj0zzlpr"
+            },
+            {
+              "list-row": {
+                "title": "Personalized recommendations",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73slaqt1br"
+            },
+            {
+              "list-row": {
+                "title": "Ad tracking",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp720d73snglyvgf"
+            },
+            {
+              "list-row": {
+                "title": "Blocked users"
+              },
+              "id": "nmwp720d73sp21f6cp"
+            },
+            {
+              "list-row": {
+                "title": "Download my data"
+              },
+              "id": "nmwp720d73sr9in9lc"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73sgn9g8qo"
+        }
+      ]
+    },
+    {
+      "name": "Data & storage",
+      "id": "smwp720d73suo83y8y",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73swnvbqik",
+      "x": 4130,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Data & storage",
+            "actions": 0
+          },
+          "id": "nmwp720d73sxlju4v3"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Offline maps",
+                "trailing": "value",
+                "value": "3 regions, 1.2 GB"
+              },
+              "id": "nmwp720d73t0yd1t1w"
+            },
+            {
+              "list-row": {
+                "title": "Download maps on Wi-Fi only",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73t232tm7g"
+            },
+            {
+              "list-row": {
+                "title": "Data saver",
+                "subtitle": "Lower-quality photos on mobile data",
+                "trailing": "toggle",
+                "checked": false
+              },
+              "id": "nmwp720d73t4ugz3i0"
+            },
+            {
+              "list-row": {
+                "title": "Backup trips to cloud",
+                "trailing": "toggle"
+              },
+              "id": "nmwp720d73t69nj7cg"
+            },
+            {
+              "list-row": {
+                "title": "Last backup",
+                "trailing": "value",
+                "value": "Today, 9:41 AM"
+              },
+              "id": "nmwp720d73t88zn9mn"
+            },
+            {
+              "list-row": {
+                "title": "Cache size",
+                "trailing": "value",
+                "value": "240 MB"
+              },
+              "id": "nmwp720d73ta5b396g"
+            },
+            {
+              "list-row": {
+                "title": "Clear cache"
+              },
+              "id": "nmwp720d73tc3nce2o"
+            },
+            {
+              "list-row": {
+                "title": "Clear search history"
+              },
+              "id": "nmwp720d73teb98y6x"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73szjo2yh3"
+        }
+      ]
+    },
+    {
+      "name": "General",
+      "id": "smwp720d73thv38zkf",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73tj73om2i",
+      "x": 4720,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "General",
+            "actions": 0
+          },
+          "id": "nmwp720d73tkl9gb9q"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Language",
+                "trailing": "value",
+                "value": "English"
+              },
+              "id": "nmwp720d73tnnuyo02"
+            },
+            {
+              "list-row": {
+                "title": "Appearance",
+                "trailing": "value",
+                "value": "System"
+              },
+              "id": "nmwp720d73tpd1993y"
+            },
+            {
+              "list-row": {
+                "title": "Text size",
+                "trailing": "value",
+                "value": "Default"
+              },
+              "id": "nmwp720d73trp7jp4l"
+            },
+            {
+              "list-row": {
+                "title": "Accessibility"
+              },
+              "id": "nmwp720d73ttwlba0x"
+            },
+            {
+              "list-row": {
+                "title": "Currency",
+                "trailing": "value",
+                "value": "USD"
+              },
+              "id": "nmwp720d73tvpu7b81"
+            },
+            {
+              "list-row": {
+                "title": "Distance units",
+                "trailing": "value",
+                "value": "Kilometers"
+              },
+              "id": "nmwp720d73txjvl34a"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73tmz4ezmr"
+        }
+      ]
+    },
+    {
+      "name": "Help & about",
+      "id": "smwp720d73u0i8wsfg",
+      "status": "new",
+      "platform": "phone",
+      "frameId": "nmwp720d73u2ntdtr7",
+      "x": 5310,
+      "y": 1746,
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Help & about",
+            "actions": 0
+          },
+          "id": "nmwp720d73u3vsooqm"
+        },
+        {
+          "vstack": [
+            {
+              "list-row": {
+                "title": "Help center"
+              },
+              "id": "nmwp720d73u63ctdkg"
+            },
+            {
+              "list-row": {
+                "title": "Contact support"
+              },
+              "id": "nmwp720d73u82a83wo"
+            },
+            {
+              "list-row": {
+                "title": "Rate Roam"
+              },
+              "id": "nmwp720d73uagtlgqq"
+            },
+            {
+              "list-row": {
+                "title": "Terms of service"
+              },
+              "id": "nmwp720d73uckgkynj"
+            },
+            {
+              "list-row": {
+                "title": "Privacy policy"
+              },
+              "id": "nmwp720d73uewdl6ea"
+            },
+            {
+              "list-row": {
+                "title": "Version",
+                "trailing": "value",
+                "value": "4.2.0"
+              },
+              "id": "nmwp720d73ugfg98z2"
+            }
+          ],
+          "gap": 0,
+          "id": "nmwp720d73u5a5lx8c"
+        }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "fmwp6zbdo8rui1jiho",
+      "from": "Tab bar/nmwp6ymgx8gnl5cr9y#Trips",
+      "to": "Trips"
+    },
+    {
+      "id": "fmwp6zxo8al3vxu207",
+      "from": "nmwp6y9gf6dazds3zy",
+      "to": "Lisbon, Portugal"
+    },
+    {
+      "id": "fmwp70g6e21dni7sdx",
+      "from": "nmwp70g5h1g1w8mjsw#Back",
+      "to": "Explore"
+    },
+    {
+      "id": "fsampleroamprofile",
+      "from": "Tab bar/nmwp6ymgx8gnl5cr9y#Profile",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f25grhj7d79",
+      "from": "nmwp720d63pojlchi8",
+      "to": "Account"
+    },
+    {
+      "id": "fmwp720f25gspkkups",
+      "from": "nmwp720d63pqlijebk",
+      "to": "Notifications"
+    },
+    {
+      "id": "fmwp720f25gtypkr39",
+      "from": "nmwp720d63psdth97b",
+      "to": "Trip settings"
+    },
+    {
+      "id": "fmwp720f25gusvq33e",
+      "from": "nmwp720d63pua7usi0",
+      "to": "Payments"
+    },
+    {
+      "id": "fmwp720f25gvl9ifj0",
+      "from": "nmwp720d63pw8tqnro",
+      "to": "Privacy"
+    },
+    {
+      "id": "fmwp720f25gwak4osr",
+      "from": "nmwp720d63pyb75hjr",
+      "to": "Data & storage"
+    },
+    {
+      "id": "fmwp720f25gxx2a90n",
+      "from": "nmwp720d63q0w0re1k",
+      "to": "General"
+    },
+    {
+      "id": "fmwp720f25gyfdb3ci",
+      "from": "nmwp720d63q2jb9o1i",
+      "to": "Help & about"
+    },
+    {
+      "id": "fmwp720f25gz90puxa",
+      "from": "nmwp720d73qcj64rgb#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h00llypv",
+      "from": "nmwp720d73qxhscmd2#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h1e1yt16",
+      "from": "nmwp720d73rgquukg7#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h218aacm",
+      "from": "nmwp720d73rz4ftnvc#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h3cak0wq",
+      "from": "nmwp720d73seqasqt1#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h4hievnx",
+      "from": "nmwp720d73sxlju4v3#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h52wkib8",
+      "from": "nmwp720d73tkl9gb9q#Back",
+      "to": "Settings (new)"
+    },
+    {
+      "id": "fmwp720f35h6ovp1qf",
+      "from": "nmwp720d73u3vsooqm#Back",
+      "to": "Settings (new)"
+    }
+  ],
+  "notes": [
+    {
+      "id": "nmwp70g6e21ertiu4r",
+      "text": "Heart saves the trip to Saved; Share opens the system share sheet.",
+      "on": "nmwp70g5h1g1w8mjsw",
+      "x": 1004,
+      "y": 16
+    },
+    {
+      "id": "nmwp70g6f21imtller",
+      "text": "Map pins match the itinerary days; tapping a pin scrolls to that day. \"Open map\" shows it full screen.",
+      "on": "nmwp70g5h1gn3jbcsy",
+      "x": 1004,
+      "y": 567
+    },
+    {
+      "id": "nmwp70g6f21msz6dj9",
+      "text": "Tapping a day expands it in place to show its stops, times and transport.",
+      "on": "nmwp70g5h1gtvo2k20",
+      "x": 1004,
+      "y": 870
+    },
+    {
+      "id": "nmwp70g6f21qi1b6c9",
+      "text": "Book bar stays above the tab bar while scrolling. Book starts checkout (dates, travellers, payment); the booked trip then appears in Trips.",
+      "on": "nmwp70g5h1h5kp0wwh",
+      "x": 1004,
+      "y": 1246
+    },
+    {
+      "id": "nmwp720f35h7x0kwk9",
+      "text": "Replaces the current Settings screen: the long mixed list is split into 8 entries, each opening its own screen. Every setting moved as it is.",
+      "on": "nmwp720d63plbf6h2t",
+      "x": 590,
+      "y": 2614
+    }
+  ]
+}

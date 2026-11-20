@@ -20,6 +20,8 @@ import { createDocument } from './create';
 import { ModeIllustration } from './illustrations';
 import { FreePanel, IconPanel, WireframePanel } from './ModeOptions';
 import { RecentProjects } from './RecentProjects';
+import { openSampleWithToast } from '@/samples/ui';
+import type { SampleDef } from '@/samples/registry';
 
 /** Step 1: the three design modes as equal cards (one row on desktop, stacked on a phone). */
 function ModeCards({ initial, onPick }: { initial: DesignMode | null; onPick: (m: DesignMode) => void }) {
@@ -113,6 +115,16 @@ export function NewDocumentDialog({ open, onOpenChange }: { open: boolean; onOpe
     }
   };
 
+  const openSample = async (sample: SampleDef) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (await openSampleWithToast(sample)) close(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openRecent = async (p: ProjectMeta) => {
     await useProjectsStore.getState().open(p.id);
     close(false);
@@ -188,7 +200,7 @@ export function NewDocumentDialog({ open, onOpenChange }: { open: boolean; onOpe
             <ResponsiveDialogBody>
               {options.mode === 'free' && <FreePanel options={options} onChange={setOptions} onCreate={() => void create(options)} disabled={busy} />}
               {options.mode === 'icon' && <IconPanel options={options} onChange={setOptions} onCreate={() => void create(options)} disabled={busy} />}
-              {options.mode === 'wireframe' && <WireframePanel options={options} onChange={setOptions} onCreate={() => void create(options)} disabled={busy} />}
+              {options.mode === 'wireframe' && <WireframePanel options={options} onChange={setOptions} onCreate={() => void create(options)} onOpenSample={(s) => void openSample(s)} disabled={busy} />}
             </ResponsiveDialogBody>
             <ResponsiveDialogFooter>
               <Button type="button" variant="outline" onClick={back} disabled={busy} className="max-md:order-last sm:mr-auto">
