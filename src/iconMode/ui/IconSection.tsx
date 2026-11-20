@@ -4,16 +4,17 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { BRAND, contrastWarnings, fit, GLYPH_DEFAULT, iconPresetDef, isFaviconPreset, normalizeTile, strokeWarning, type IconShapeArg } from '@/icon';
-import type { IconColourMode, IconShapeSetting } from '@/model';
+import { BRAND, contrastWarnings, fit, GLYPH_DEFAULT, iconPresetDef, isFaviconPreset, strokeWarning, type IconShapeArg } from '@/icon';
+import type { IconColourMode } from '@/model';
 import { FieldRow, Section } from '@/panels/shared/Section';
 import type { SelectionContext } from '@/panels/properties/types';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
 import { fitToKeyline } from '../commands';
+import { HexColorField } from './HexColorField';
+import { COLOUR_MODES, SHAPES } from './options';
 import { leaveIconMode, setIconInfo } from '../document';
 import { isOnKeyline, keylineFill } from '../fit';
 import { useIconStore } from '../store';
@@ -21,54 +22,7 @@ import { IconPreview } from './IconPreview';
 import { ThemedPreview } from './ThemedPreview';
 import { useIconSources } from '../hooks';
 
-const SHAPES: { id: IconShapeSetting; label: string }[] = [
-  { id: 'auto', label: 'Auto' },
-  { id: 'circle', label: 'Circle (0.64 T)' },
-  { id: 'square', label: 'Square (0.60 T)' },
-  { id: 'wide', label: 'Wide (0.68 T)' },
-  { id: 'tall', label: 'Tall (0.68 T)' },
-];
 
-/** A hex colour field: colour well + hex input (validated) + reset. Stores "no value" for the default. */
-function HexColorField({ value, def, label, onChange }: { value: string | undefined; def: string; label: string; onChange: (v: string | undefined) => void }) {
-  const cur = value ?? def;
-  const [text, setText] = useState(cur);
-  const [prev, setPrev] = useState(cur);
-  if (prev !== cur) {
-    setPrev(cur);
-    setText(cur);
-  }
-  const commit = (v: string) => {
-    const n = normalizeTile(v);
-    if (!n) return setText(cur);
-    setText(n);
-    if (n !== cur) onChange(n === def ? undefined : n);
-  };
-  const invalid = !normalizeTile(text);
-  return (
-    <div className="flex items-center gap-2">
-      <input type="color" aria-label={`${label} picker`} value={cur} onChange={(e) => commit(e.target.value)} className="size-7 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5" />
-      <Input
-        aria-label={label}
-        aria-invalid={invalid}
-        value={text}
-        spellCheck={false}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => commit(text)}
-        onKeyDown={(e) => e.key === 'Enter' && commit(text)}
-        className="h-7 font-mono text-xs"
-      />
-      <Button size="sm" variant="ghost" disabled={cur === def} onClick={() => commit(def)}>
-        Reset
-      </Button>
-    </div>
-  );
-}
-
-const COLOUR_MODES: { id: IconColourMode; label: string }[] = [
-  { id: 'one-colour', label: 'One colour' },
-  { id: 'full-colour', label: 'Full colour' },
-];
 
 const pct = (v: number, d = 0) => `${(v * 100).toFixed(d)}%`;
 

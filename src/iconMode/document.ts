@@ -15,18 +15,26 @@ export function presetForArtboard(width: number, height: number): IconPreset {
   return 'app-icon';
 }
 
-/** New icon document (or the still-empty first document, reused). */
-export async function createIconDocument(preset: IconPreset) {
+/** Creation options of an icon document beyond its preset (New document → App icon). */
+export type IconDocumentOptions = Partial<Pick<IconDocInfo, 'shape' | 'tile' | 'colour' | 'glyph'>> & { name?: string };
+
+/** New icon document (or the still-empty first document, reused). Defaults: shape auto, hfps blue tile, white glyph. */
+export async function createIconDocument(preset: IconPreset, options: IconDocumentOptions = {}) {
   const def = iconPresetDef(preset);
-  const icon: IconDocInfo = { preset, shape: 'auto' };
-  const name = preset === 'app-icon' ? 'App icon' : def.label;
+  const { name: wanted, shape = 'auto', ...look } = options;
+  const icon: IconDocInfo = { preset, shape };
+  // Only non-default values are stored (as Properties → App icon does).
+  if (look.tile) icon.tile = look.tile;
+  if (look.colour === 'full-colour') icon.colour = 'full-colour';
+  else if (look.glyph) icon.glyph = look.glyph;
+  const name = wanted?.trim() || (preset === 'app-icon' ? 'App icon' : def.label);
   const ds = useDocStore.getState();
   const pristine = ds.doc.children.length === 0 && ds.past.length === 0 && ds.future.length === 0;
   if (!pristine) await useProjectsStore.getState().create(name, { width: def.size, height: def.size });
   const doc = useDocStore.getState().doc;
   const next: DesignDocument = {
     ...doc,
-    name: pristine && doc.name !== 'Untitled' ? doc.name : name,
+    name: !wanted?.trim() && pristine && doc.name !== 'Untitled' ? doc.name : name,
     artboard: { ...doc.artboard, width: def.size, height: def.size, background: { kind: 'none' } },
     icon,
     updatedAt: Date.now(),
