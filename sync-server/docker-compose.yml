@@ -8,7 +8,7 @@ services:
       # BIND_IP limits the port to one interface (e.g. the Tailscale address).
       - "${BIND_IP:-0.0.0.0}:3051:3051"
     volumes:
-      # projects/ and fonts/ live here. The container runs as uid 65532: for a
+      # projects/, fonts/ and jobs/ live here. The container runs as uid 65532: for a
       # bind-mounted ./data on Linux run once
       #   sudo chown -R 65532:65532 ./data
       - ./data:/app/data

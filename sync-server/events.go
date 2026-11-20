@@ -9,8 +9,8 @@ import (
 )
 
 // Live updates: GET /api/events is a Server-Sent Events stream that tells
-// connected clients, as it happens, that a project or font changed. It
-// carries only {kind, id, updatedAt}: a client that cares fetches the item
+// connected clients, as it happens, that a project, font, job or agent
+// changed. It carries only {kind, id, updatedAt} (plus status for jobs and agents): a client that cares fetches the item
 // with the usual GET (and its usual auth). The stream is a hint, never the
 // source of truth: a client that misses events (offline, reconnecting, too
 // slow) catches up with its normal list-and-compare sync.
@@ -33,9 +33,12 @@ const writeGrace = 30 * time.Second
 
 // Event is one change notification.
 type Event struct {
-	Kind      string  `json:"kind"`
-	ID        string  `json:"id"`
+	Kind      string  `json:"kind"` // projects, fonts, jobs or agents
+	ID        string  `json:"id"`   // an agentId for agents
 	UpdatedAt float64 `json:"updatedAt"`
+	// Status is set for jobs (queued, running, done, failed, cancelled) and
+	// agents (online, busy, offline).
+	Status string `json:"status,omitempty"`
 }
 
 // Broker fans events out to the open streams.

@@ -62,9 +62,20 @@ An agent working on a project file can run **`designer live <project.designer.js
 - `designer sync push|pull|list` move one project at a time without the live mark. The CLI reads the server from `--server` or `DESIGNER_SYNC_URL` and the key from `DESIGNER_SYNC_KEY` or `SYNC_API_KEY`, e.g. `skv run designer-sync -- designer live …`.
 - A `?open-project=<id>` link (printed by the CLI) opens that project once this device has it, waiting up to two minutes for the sync to bring it.
 
+### Jobs (agent requests)
+
+Phase 4 of the wireframe mode ([wireframe-mode.md](wireframe-mode.md#phase-4-ai-through-your-own-agent-detailed)): the app asks *your own* agent to do something with a project (turn a screenshot into a wireframe, fill the next screen of a flow, adapt a screen to another platform, a free request) and follows it. The server only keeps a small queue; the work is done by `designer agent` on a machine of yours with your Claude Code login. No AI key is ever in the app or the server.
+
+- **Queue.** `POST /api/jobs` stores `data/jobs/<id>.json` (screenshots in `data/jobs/<id>/`, mode 0600) with status `queued`. The agent `claim`s one (atomic: two agents never run the same job), reports `progress` lines, and `finish`es it as `done`, `failed` or `cancelled`. The app's `cancel` turns a queued job into `cancelled` at once; for a running job it sets `cancelRequested`, which the agent sees in the answer to its next `progress` call and obeys.
+- **Presence.** An agent posts a heartbeat every 15 s; `GET /api/agents` lists the ones seen in the last 45 s, which is how the app knows to enable its AI entry points ("Agent online on cachyos-fps").
+- **Events.** The existing stream carries `{kind: "jobs", id, status, updatedAt}` on every job change and `{kind: "agents", id, status: "online" | "busy" | "offline", updatedAt}` when presence changes (not on every heartbeat). The app and the agent fetch details with the usual `GET`. Older clients ignore kinds they do not know.
+- **Time rules.** A running job whose agent sent nothing for 2 minutes becomes `failed` ("agent went away"); the server sweeps every 15 s and on every request. Only the newest 200 jobs are kept; attachments go 24 h after a job finishes.
+- **Private.** Same rules as fonts: the key (or the local network when there is none) on every route, files 0600, never in `/api/health` (which only says `jobs: true`).
+- **Client.** `src/sync/jobs.ts` is the typed client used by the app and by `designer agent` (browser and Bun): one function per route (`createJob`, `listJobs`, `claimJob`, `reportProgress`, `finishJob`, `cancelJob`, `sendHeartbeat`, `listAgents`, `getAttachment`…) and `onJob` / `onAgents` callbacks on `subscribeEvents`. Route and field details: [sync-server/README.md](../sync-server/README.md#jobs-agent-requests).
+
 ### Security
 
-Same model as `markdown-preview-sync`. Without an API key the server answers only direct requests from loopback, private, link-local and `100.64.0.0/10` (Tailscale) addresses and refuses anything carrying proxy headers (`Cf-Connecting-IP`, `X-Forwarded-For`…), so forgetting the key behind a tunnel exposes nothing. With a key, `Authorization: Bearer <key>` (compared in constant time) is required on `/api/projects`, `/api/fonts` and `/api/events`; `/api/health` only returns counts. The event stream follows the same rules (key, LAN-only without one, CORS) and carries only ids and timestamps, never names or content. `ALLOWED_ORIGINS` restricts CORS. No end-to-end encryption: the server owner (you) can read the files, as with the Markdown Previewer's.
+Same model as `markdown-preview-sync`. Without an API key the server answers only direct requests from loopback, private, link-local and `100.64.0.0/10` (Tailscale) addresses and refuses anything carrying proxy headers (`Cf-Connecting-IP`, `X-Forwarded-For`…), so forgetting the key behind a tunnel exposes nothing. With a key, `Authorization: Bearer <key>` (compared in constant time) is required on `/api/projects`, `/api/fonts`, `/api/jobs`, `/api/agents` and `/api/events`; `/api/health` only returns counts. The event stream follows the same rules (key, LAN-only without one, CORS) and carries only ids and timestamps, never names or content. `ALLOWED_ORIGINS` restricts CORS. No end-to-end encryption: the server owner (you) can read the files, as with the Markdown Previewer's.
 
 The API key lives in the browser's localStorage on each device, like the Markdown Previewer's.
 
@@ -148,8 +159,8 @@ On a tailnet nothing is exposed. From an app opened over plain HTTP use `http://
 ## Developing and testing
 
 ```sh
-cd sync-server && go test -race ./...        # server: LWW, tombstones, auth, LAN-only, CORS, limits, archive, event stream
-bun run test                                  # includes src/sync/*.test.ts (merge plan, event client, engine) and src/cli/sync.test.ts (designer live)
+cd sync-server && go test -race ./...        # server: LWW, tombstones, auth, LAN-only, CORS, limits, archive, event stream, jobs (claim race, retention, dead agents)
+bun run test                                  # includes src/sync/*.test.ts (merge plan, event client, engine, jobs client; `jobs.server.test.ts` runs it against the real Go server when Go is installed) and src/cli/sync.test.ts (designer live)
 bun run e2e:live                              # the real thing: designer-sync (Go) + the app in Chromium + designer live
 ```
 

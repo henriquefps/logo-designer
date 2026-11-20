@@ -34,15 +34,19 @@ export interface Connection {
 
 export class SyncError extends Error {
   readonly kind: 'offline' | 'auth' | 'server' | 'rejected';
-  constructor(message: string, kind: 'offline' | 'auth' | 'server' | 'rejected') {
+  /** The HTTP status when the server answered (jobs tell a lost claim, 409, from other refusals). */
+  readonly status?: number;
+  constructor(message: string, kind: 'offline' | 'auth' | 'server' | 'rejected', status?: number) {
     super(message);
     this.kind = kind;
+    this.status = status;
   }
 }
 
 export const normalizeServerUrl = (url: string): string => url.trim().replace(/\/+$/, '');
 
-async function request<T>(conn: Connection, method: string, path: string, body?: unknown): Promise<T> {
+/** The fetch and its error mapping, shared with the jobs client (src/sync/jobs.ts); returns an ok response. */
+export async function rawRequest(conn: Connection, method: string, path: string, body?: unknown): Promise<Response> {
   const base = normalizeServerUrl(conn.url);
   if (!base) throw new SyncError('No sync server address configured.', 'rejected');
   const headers: Record<string, string> = {};
@@ -63,16 +67,21 @@ async function request<T>(conn: Connection, method: string, path: string, body?:
     }
     throw new SyncError('Could not reach the sync server. Is it running, and is this device online?', 'offline');
   }
-  if (res.status === 401) throw new SyncError('The sync server rejected the request: missing or wrong API key.', 'auth');
+  if (res.status === 401) throw new SyncError('The sync server rejected the request: missing or wrong API key.', 'auth', 401);
   if (res.status === 413) {
     const msg = await res.json().then((j: { error?: string }) => j.error).catch(() => undefined);
-    throw new SyncError(msg ?? 'This item is larger than the sync server accepts.', 'rejected');
+    throw new SyncError(msg ?? 'This item is larger than the sync server accepts.', 'rejected', 413);
   }
-  if (res.status === 404 && method === 'GET') throw new SyncError('Not found on the server.', 'server');
+  if (res.status === 404 && method === 'GET') throw new SyncError('Not found on the server.', 'server', 404);
   if (!res.ok) {
     const msg = await res.json().then((j: { error?: string }) => j.error).catch(() => undefined);
-    throw new SyncError(msg ?? `The sync server answered HTTP ${res.status}.`, res.status >= 500 ? 'server' : 'rejected');
+    throw new SyncError(msg ?? `The sync server answered HTTP ${res.status}.`, res.status >= 500 ? 'server' : 'rejected', res.status);
   }
+  return res;
+}
+
+async function request<T>(conn: Connection, method: string, path: string, body?: unknown): Promise<T> {
+  const res = await rawRequest(conn, method, path, body);
   try {
     return (await res.json()) as T;
   } catch {
@@ -93,4 +102,4 @@ export const putItem = (conn: Connection, kind: Kind, id: string, body: PutBody)
   request<{ applied: boolean; item: ServerMeta }>(conn, 'PUT', `/api/${kind}/${encodeURIComponent(id)}`, body);
 
 export const health = (conn: Connection) =>
-  request<{ ok: boolean; projectCount: number; fontCount: number }>(conn, 'GET', '/api/health');
+  request<{ ok: boolean; projectCount: number; fontCount: number; events?: boolean; jobs?: boolean }>(conn, 'GET', '/api/health');

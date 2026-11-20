@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -38,6 +39,9 @@ type Server struct {
 	now       func() time.Time
 	events    *Broker
 	heartbeat time.Duration
+	jobs      *Jobs
+	done      chan struct{}
+	closeOnce sync.Once
 }
 
 // NewServer builds the HTTP server state.
@@ -46,7 +50,8 @@ func NewServer(cfg Config, store *Store, logger *slog.Logger) *Server {
 	if mb <= 0 {
 		mb = defaultMaxBodyMB
 	}
-	s := &Server{store: store, maxBody: int64(mb) << 20, apiKey: cfg.APIKey, log: logger, now: time.Now, events: NewBroker(), heartbeat: heartbeatEvery}
+	s := &Server{store: store, maxBody: int64(mb) << 20, apiKey: cfg.APIKey, log: logger, now: time.Now, events: NewBroker(), heartbeat: heartbeatEvery, done: make(chan struct{})}
+	s.jobs = NewJobs(store.Dir(), logger, func() time.Time { return s.now() }, s.maxBody, func(ev Event) { s.events.Publish(ev) })
 	if len(cfg.AllowedOrigins) > 0 {
 		s.origins = map[string]bool{}
 		for _, o := range cfg.AllowedOrigins {
@@ -58,7 +63,33 @@ func NewServer(cfg Config, store *Store, logger *slog.Logger) *Server {
 
 // Close ends the open event streams (call it when the HTTP server shuts down,
 // which otherwise waits for them).
-func (s *Server) Close() { s.events.Close() }
+func (s *Server) Close() {
+	s.events.Close()
+	s.closeOnce.Do(func() { close(s.done) })
+}
+
+// StartJobs loads the stored jobs and starts the periodic sweep of the time
+// rules (dead agents, attachment and job retention, offline agents). It stops
+// when the server is closed.
+func (s *Server) StartJobs() error {
+	if err := s.jobs.Load(); err != nil {
+		return err
+	}
+	s.jobs.Sweep()
+	go func() {
+		tick := time.NewTicker(sweepEvery)
+		defer tick.Stop()
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-tick.C:
+				s.jobs.Sweep()
+			}
+		}
+	}()
+	return nil
+}
 
 // Handler returns the full HTTP handler: CORS first (so even error responses
 // are readable by the browser), then access control, then the routes.
@@ -66,6 +97,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/events", s.requireAPIKey(s.handleEvents))
+	s.jobRoutes(mux)
 	mux.HandleFunc("GET /api/{kind}", s.requireAPIKey(s.handleList))
 	mux.HandleFunc("GET /api/{kind}/{id}", s.requireAPIKey(s.handleGet))
 	mux.HandleFunc("PUT /api/{kind}/{id}", s.requireAPIKey(s.handlePut))
@@ -206,6 +238,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"projectCount": s.store.Count(KindProjects),
 		"fontCount":    s.store.Count(KindFonts),
 		"events":       true, // this server has GET /api/events (live updates)
+		"jobs":         true, // this server has the agent job queue (/api/jobs, /api/agents)
 		"serverTime":   s.now().UnixMilli(),
 	})
 }

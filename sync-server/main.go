@@ -25,7 +25,7 @@ import (
 
 // Set at build time with -ldflags "-X main.version=... -X main.commit=... -X main.date=...".
 var (
-	version = "dev"
+	version = "0.3.0"
 	commit  = "none"
 	date    = "unknown"
 )
@@ -39,7 +39,7 @@ Usage:
 
 Flags (each falls back to the environment variable in brackets):
   --port string              port to listen on [PORT] (default 3051)
-  --data-dir string          directory holding projects/ and fonts/ [DATA_DIR] (default ./data)
+  --data-dir string          directory holding projects/, fonts/ and jobs/ [DATA_DIR] (default ./data)
   --api-key string           require "Authorization: Bearer <key>" on /api/projects and /api/fonts [SYNC_API_KEY]
   --allowed-origins string   comma-separated CORS origins, empty = any [ALLOWED_ORIGINS]
   --max-body-mb int          largest project or font accepted, in MB [MAX_BODY_MB] (default 64)
@@ -162,6 +162,10 @@ func serve(args []string, stderr io.Writer) int {
 	}
 
 	api := NewServer(cfg, store, logger)
+	if err := api.StartJobs(); err != nil {
+		logger.Error("cannot load jobs", "err", err)
+		return 1
+	}
 	srv := &http.Server{
 		Addr:              net.JoinHostPort("", cfg.Port),
 		Handler:           api.Handler(),
