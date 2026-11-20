@@ -227,6 +227,33 @@ Single-key tool shortcuts belong to tools, not actions. Keys reach the active to
 `useEditorStore.getState().openDialog('<id>')`. Use `ResponsiveDialog*` for form dialogs and
 `AlertDialog` for confirmations.
 
+## New document (`src/dialogs/newDocument/`)
+
+The welcome dialog (first visit, `welcome.ts`) and File → New (Ctrl/Cmd+Alt+N, `file.new`) are one
+dialog in two steps:
+
+1. **Pick a design mode**: three equal cards in this order: App icon, Wireframe, Free project (one row
+   on desktop, stacked on a phone; illustrations in `illustrations.tsx`). None is preselected: the
+   dialog opens with focus on the card group; arrows (and Home/End) move between the cards, Enter or a
+   click opens the mode, Esc closes. Recent projects (not on the first visit), Open SVG… and All
+   projects stay on this step.
+2. **The mode's options** (`ModeOptions.tsx`), all with defaults so Create is one click after the mode:
+   - App icon: name, format (`ICON_PRESETS`, default App icon 128), shape, tile colour, one/full colour
+     and glyph colour (the same choices as Properties → App icon, `iconMode/ui/options.ts`);
+   - Wireframe: name and the first screen's platform (default phone);
+   - Free project: name and the artboard (`ARTBOARD_PRESETS`, default Logo 1024 × 1024, or a custom
+     size up to 16384 a side).
+
+   Back returns to step 1 with the mode's card focused. Double-clicking a choice creates right away;
+   Enter in the name field creates.
+
+The step logic and defaults are plain functions in `modes.ts`; `create.ts` turns a choice into a
+document (`createIconDocument`, `createWireframeDocument`, `createFreeDocument`). Every mode reuses the
+still-empty, untouched document instead of leaving an empty project behind; a reused document drops
+the other mode's marker (`icon` / `wireframe`) and keeps its name only if it was a plain document.
+Tests: `newDocument.test.ts` (Vitest) and `bun run e2e:new-document` (Playwright, each mode end to end;
+`SHOTS=<dir>` also saves light/dark screenshots at 390/1024/1440).
+
 ## View preferences
 
 Rulers, grid, snap to grid and grid size live in `useEditorStore` (`setViewPrefs`, saved in

@@ -8,7 +8,7 @@ import { addScreen, duplicateScreenAs, freePlatforms } from './screens';
 import { fitTarget } from './view';
 
 /** The empty wireframe document: no artboard in use, one phone screen. */
-export function newWireframeDocument(base: DesignDocument, name = 'Wireframe'): DesignDocument {
+export function newWireframeDocument(base: DesignDocument, name = 'Wireframe', platform: ScreenPlatform = 'phone'): DesignDocument {
   const doc: DesignDocument = {
     ...base,
     name,
@@ -18,17 +18,19 @@ export function newWireframeDocument(base: DesignDocument, name = 'Wireframe'): 
     updatedAt: Date.now(),
   };
   delete doc.icon;
-  addScreen(doc, { platform: 'phone', x: 0, y: 0 });
+  addScreen(doc, { platform, x: 0, y: 0 });
   return doc;
 }
 
-/** New document → Wireframe (or the still-empty first document, reused). */
-export async function createWireframeDocument() {
+/** New document → Wireframe (or the still-empty first document, reused): one screen of `platform` (phone by default). */
+export async function createWireframeDocument(options: { name?: string; platform?: ScreenPlatform } = {}) {
+  const wanted = options.name?.trim();
   const ds = useDocStore.getState();
   const pristine = ds.doc.children.length === 0 && ds.past.length === 0 && ds.future.length === 0;
-  if (!pristine) await useProjectsStore.getState().create('Wireframe');
+  if (!pristine) await useProjectsStore.getState().create(wanted || 'Wireframe');
   const doc = useDocStore.getState().doc;
-  const next = newWireframeDocument(doc, pristine && doc.name !== 'Untitled' ? doc.name : 'Wireframe');
+  const name = wanted || (pristine && !doc.icon && !doc.wireframe && doc.name !== 'Untitled' ? doc.name : 'Wireframe');
+  const next = newWireframeDocument(doc, name, options.platform ?? 'phone');
   // A fresh document: replace it without an undo step (load runs the pipeline), then save it.
   useDocStore.getState().load(next);
   useEditorStore.getState().setSelection([]);

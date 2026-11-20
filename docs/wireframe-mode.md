@@ -48,7 +48,8 @@ below already reserves what they need.
 
 - A wireframe document is a `DesignDocument` with `wireframe: WireframeDocInfo` (like `icon` marks
   app icon documents). It is created from **New document → Wireframe** (and `designer new --preset
-  wireframe`). A logo document cannot be turned into a wireframe and back; they are different tools.
+  wireframe`). The dialog asks for a name and the first screen's platform (phone by default), so
+  creating is one click after picking the mode. A logo document cannot be turned into a wireframe and back; they are different tools.
 - In a wireframe document the **artboard is not drawn and not used**: the canvas is infinite. Keep
   the `artboard` field (schema compatibility) with any value; nothing in wireframe mode reads it.
   Fit to view (Cmd+0) fits the content. Grid, rulers, snapping and zoom work as today, against the
