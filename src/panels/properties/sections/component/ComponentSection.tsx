@@ -11,7 +11,7 @@ import { ResponsiveDialog, ResponsiveDialogBody, ResponsiveDialogContent, Respon
 import { IconsPanel } from '@/assets-icons/IconsPanel';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
 import { getComponent } from '@/wireframe/library/registry';
-import { isPropVisible, resolveProps, type PropSpec } from '@/wireframe/library/types';
+import { AUTO, checkProp, isPropVisible, resolveProps, type PropSpec } from '@/wireframe/library/types';
 import { detachSelected, setComponentProp } from '@/wireframe/componentCommands';
 import { ensureIcons } from '@/wireframe/iconLoader';
 import { iconDisplayName, iconGlyph, normalizeIconName, recolor } from '@/wireframe/icons';
@@ -34,8 +34,10 @@ export function ComponentSection({ ctx }: { ctx: SelectionContext }) {
 function InstanceFields({ node }: { node: ComponentNode }) {
   const def = getComponent(node.component.kind);
   if (!def) return null;
-  const props = resolveProps(def, node.component.props);
+  const props = resolveProps(def, node.component.props, node.component.resolved);
   const set = (key: string, value: unknown) => void setComponentProp(node.id, key, value);
+  // Props that can follow the screen show their stored value ('auto') and what it resolves to now.
+  const value = (key: string, spec: PropSpec) => (spec.type === 'number' && spec.auto ? checkProp(spec, node.component.props[key]).value : props[key]);
   return (
     <Section
       title={def.label}
@@ -49,7 +51,7 @@ function InstanceFields({ node }: { node: ComponentNode }) {
       {Object.entries(def.props as Record<string, PropSpec>)
         .filter(([, spec]) => isPropVisible(spec, props))
         .map(([key, spec]) => (
-        <PropField key={key} id={`${node.id}-${key}`} spec={spec} value={props[key]} onChange={(v) => set(key, v)} />
+        <PropField key={key} id={`${node.id}-${key}`} spec={spec} value={value(key, spec)} resolved={props[key]} onChange={(v) => set(key, v)} />
       ))}
       <p className="text-xs text-muted-foreground" title="How the AI export describes this component">
         {def.describe(props)}
@@ -58,8 +60,30 @@ function InstanceFields({ node }: { node: ComponentNode }) {
   );
 }
 
-function PropField({ id, spec, value, onChange }: { id: string; spec: PropSpec; value: unknown; onChange: (v: unknown) => void }) {
+function PropField({ id, spec, value, resolved, onChange }: { id: string; spec: PropSpec; value: unknown; resolved?: unknown; onChange: (v: unknown) => void }) {
   const field = (() => {
+    if (spec.type === 'number' && spec.auto) {
+      // "Follows the screen" (the item whose part opens the screen on show) or a fixed number.
+      const auto = value === AUTO;
+      return (
+        <>
+          <Select value={auto ? AUTO : 'fixed'} onValueChange={(v) => onChange(v === AUTO ? AUTO : Number(resolved) || spec.default)}>
+            <SelectTrigger id={id} size="sm" className="min-w-0 flex-1" aria-label={`${spec.label}: follows the screen or fixed`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AUTO}>{spec.auto.label}</SelectItem>
+              <SelectItem value="fixed">Fixed</SelectItem>
+            </SelectContent>
+          </Select>
+          {!auto && (
+            <div className="w-20 shrink-0">
+              <NumberField ariaLabel={spec.label} value={Number(value)} min={spec.min} max={spec.max} step={spec.step} precision={0} undoLabel={`Change ${spec.label.toLowerCase()}`} onCommit={onChange} />
+            </div>
+          )}
+        </>
+      );
+    }
     switch (spec.type) {
       case 'text':
         return <TextInput id={id} label={spec.label} value={String(value)} placeholder={spec.placeholder} onCommit={onChange} />;

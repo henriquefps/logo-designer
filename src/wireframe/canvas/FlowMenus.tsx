@@ -1,6 +1,15 @@
-import { useEffect } from 'react';
-import { ArrowRightIcon, PlusIcon, SparkleIcon, TrashIcon } from '@phosphor-icons/react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useEffect, useState } from 'react';
+import { ArrowRightIcon, PlusIcon, SparkleIcon, SquareIcon, StackIcon, TrashIcon } from '@phosphor-icons/react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDocStore } from '@/store/useDocStore';
@@ -8,36 +17,87 @@ import { useView } from '@/canvas/overlays/useView';
 import { bezierAt, flowCurve, flowSourceLabel } from '../flows';
 import { logicalScreen } from '../screens';
 import { canvasOrigin } from './arrowHead';
-import { newScreenFromFlowCommand, removeFlowCommand, selectFlow, setFlowLabelCommand, useFlowStore } from '../flowCommands';
+import { addFlowCommand, newScreenFromFlowCommand, removeFlowCommand, selectFlow, setFlowLabelCommand, sharedScope, useFlowStore } from '../flowCommands';
 
-/** A flow dropped on empty canvas: New screen (there, named after the source) or Generate with AI (later). Escape closes it. */
+/**
+ * A flow dropped on empty canvas: New screen (there, named after the source or its part) or Generate with AI (later).
+ * From inside a shared component's instance it also says where the link applies; dropped on a screen from there, it
+ * only asks that ("This screen only" / "Every screen using Tab bar"). Escape closes it.
+ */
 export function FlowDropMenu() {
   const menu = useFlowStore((s) => s.menu);
   const setMenu = useFlowStore((s) => s.setMenu);
   const doc = useDocStore((s) => s.doc);
+  const [scope, setScope] = useState<'one' | 'all'>('all');
   const origin = menu ? canvasOrigin() : { x: 0, y: 0 };
-  const name = menu ? flowSourceLabel(doc, menu.fromId) : '';
+  const name = menu ? flowSourceLabel(doc, menu.fromId, menu.part) : '';
+  const shared = menu ? sharedScope(menu.fromId) : null;
+  const part = menu?.part !== undefined ? { part: menu.part } : {};
+  const short = (t: string) => (t.length > 24 ? `${t.slice(0, 23)}…` : t);
+  const target = menu?.to ? (logicalScreen(doc, menu.to)?.name ?? 'screen') : '';
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && setMenu(null)} modal={false}>
       <DropdownMenuTrigger asChild>
         <span aria-hidden="true" className="pointer-events-none fixed size-0" style={{ left: origin.x + (menu?.screen.x ?? 0), top: origin.y + (menu?.screen.y ?? 0) }} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-72" onCloseAutoFocus={(e) => e.preventDefault()}>
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Flow from “{name || 'element'}”</DropdownMenuLabel>
-        <DropdownMenuItem
-          onSelect={() => {
-            if (menu) newScreenFromFlowCommand(menu.fromId, menu.point);
-            setMenu(null);
-          }}
-        >
-          <PlusIcon />
-          New screen{name ? ` “${name.length > 24 ? `${name.slice(0, 23)}…` : name}”` : ''}
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <SparkleIcon />
-          Generate with AI
-          <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">Coming later</span>
-        </DropdownMenuItem>
+      <DropdownMenuContent align="start" side="bottom" sideOffset={4} className="min-w-72" onCloseAutoFocus={(e) => e.preventDefault()} data-slot="flow-drop-menu">
+        {menu?.to && shared ? (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              “{short(name || 'element')}” → {short(target)}: link it on…
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onSelect={() => {
+                addFlowCommand(menu.fromId, menu.to!, { ...part, shared: false });
+                setMenu(null);
+              }}
+            >
+              <SquareIcon />
+              This screen only
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                addFlowCommand(menu.fromId, menu.to!, { ...part, shared: true });
+                setMenu(null);
+              }}
+            >
+              <StackIcon />
+              Every screen using “{short(shared.name)}”
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Flow from “{name || 'element'}”</DropdownMenuLabel>
+            <DropdownMenuItem
+              onSelect={() => {
+                if (menu) newScreenFromFlowCommand(menu.fromId, menu.point, { ...part, ...(shared ? { shared: scope === 'all' } : {}) });
+                setMenu(null);
+              }}
+            >
+              <PlusIcon />
+              New screen{name ? ` “${short(name)}”` : ''}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <SparkleIcon />
+              Generate with AI
+              <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">Coming later</span>
+            </DropdownMenuItem>
+            {shared && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Link it on</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={scope} onValueChange={(v) => setScope(v as 'one' | 'all')}>
+                  <DropdownMenuRadioItem value="all" onSelect={(e) => e.preventDefault()}>
+                    Every screen using “{short(shared.name)}”
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="one" onSelect={(e) => e.preventDefault()}>
+                    This screen only
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </>
+            )}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -81,6 +141,11 @@ export function FlowEditor() {
           }
         }}
       />
+      {flow.symbol && (
+        <span className="shrink-0 text-xs text-muted-foreground" title={`Defined in “${doc.wireframe?.symbols?.find((x) => x.id === flow.symbol)?.name ?? 'the shared component'}”: every screen using it`}>
+          <StackIcon className="inline size-3.5" /> All
+        </span>
+      )}
       <Button size="icon-sm" variant="ghost" className="size-7" aria-label="Delete flow" title="Delete flow (Delete)" onClick={() => removeFlowCommand(flow.id)}>
         <TrashIcon />
       </Button>

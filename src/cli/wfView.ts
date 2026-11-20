@@ -6,7 +6,7 @@
 // one SVG (frames as embedded PNGs, overlay shapes as markup, text outlined by the fonts module).
 import { createDocument, createText, findNode, solid, worldBounds, type DesignDocument, type Rect, type ScreenNode, type ScreenPlatform, type Vec } from '@/model';
 import { exportSvg } from '@/io/svgExport';
-import { bezierAt, flowCurve, flowsOf, flowTarget, screenStatus, STATUS_LABELS } from '@/wireframe/flows';
+import { bezierAt, flowCurves, flowsOf, flowTarget, screenStatus, STATUS_LABELS } from '@/wireframe/flows';
 import { arrowHead } from '@/wireframe/canvas/arrowHead';
 import { labelLayout, labelWidth } from '@/wireframe/canvas/labels';
 import { frameOf, frameRect, screenSlug } from '@/wireframe/screens';
@@ -177,13 +177,14 @@ export function sheetLayout(doc: DesignDocument, args: Pick<SheetArgs, 'platform
   const shownIds = new Set(shown.map((f) => f.id));
   const arrows: SheetArrow[] = [];
   for (const flow of flowsOf(doc)) {
-    const origin = frameOf(doc, flow.from);
-    const target = flowTarget(doc, flow, origin);
-    if (!origin || !target || !shownIds.has(origin.id) || !shownIds.has(target.id)) continue;
-    const c = flowCurve(doc, flow);
-    if (!c) continue;
-    const [a, b, cc, d] = c.points.map(pt) as SheetArrow['points'];
-    arrows.push({ flowId: flow.id, points: [a, b, cc, d], dir: c.dir, ...(flow.label ? { label: flow.label } : {}) });
+    // One arrow per source (a flow defined in a shared component's master starts on every instance), from its part.
+    for (const { source, curve: c } of flowCurves(doc, flow)) {
+      const origin = frameOf(doc, source);
+      const target = flowTarget(doc, flow, origin);
+      if (!origin || !target || !shownIds.has(origin.id) || !shownIds.has(target.id)) continue;
+      const [a, b, cc, d] = c.points.map(pt) as SheetArrow['points'];
+      arrows.push({ flowId: flow.id, points: [a, b, cc, d], dir: c.dir, ...(flow.label ? { label: flow.label } : {}) });
+    }
   }
 
   const notes: SheetNote[] = noteList.map((note) => {
