@@ -41,9 +41,12 @@ export interface Target {
 export function clickTarget(doc: DesignDocument): Target {
   const sel = useEditorStore.getState().selection;
   if (sel.length === 1) {
-    const loc = locate(doc, sel[0]);
+    let loc = locate(doc, sel[0]);
+    // A shared instance (or anything inside one) is a unit: insert next to the instance, never inside it.
+    const outer = loc && [...loc.ancestors, loc.node].find((a) => a.type === 'group' && !!a.symbol);
+    if (outer) loc = locate(doc, outer.id);
     const n = loc?.node;
-    if (n && n.type === 'group' && (isScreenNode(n) || (n.layout && !n.component))) return { parentId: n.id, container: n };
+    if (n && n.type === 'group' && !n.symbol && (isScreenNode(n) || (n.layout && !n.component))) return { parentId: n.id, container: n };
     const parent = loc && loc.parent !== doc ? (loc.parent as GroupNode) : null;
     if (parent?.layout) return { parentId: parent.id, index: loc!.index + 1, container: parent };
   }

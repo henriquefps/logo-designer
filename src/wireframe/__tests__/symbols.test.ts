@@ -9,7 +9,9 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { aiMarkdown } from '../aiExport';
 import { addFlow, flowsOf } from '../flows';
 import { defaultScreenLayout } from '../layout';
-import { insertIntoLayout } from '../layoutEdit';
+import { insertComponent } from '../componentCommands';
+import { insertIntoLayout, layoutDropTarget } from '../layoutEdit';
+import { insertSymbol } from '../symbolCommands';
 import { materializeDocument, runWireframePipeline } from '../pipeline';
 import { copyPrefix } from '../repeat';
 import { addScreen } from '../screens';
@@ -256,6 +258,47 @@ describe('nesting', () => {
     const content = symbolsOf(s().doc)[0].content;
     const walk = (n: SceneNode): boolean => n.type === 'group' && (n.symbol?.id === sym || n.children.some(walk));
     expect(content.children.some(walk)).toBe(false);
+  });
+});
+
+describe('inserting next to an instance', () => {
+  const idsB = () => (node(s().doc, 'B') as unknown as ScreenNode).children.map((c) => c.id);
+
+  it('a shared component inserted while one of its instances is selected goes after it', () => {
+    const sym = setup();
+    ed().setSelection(['i2']);
+    const id = insertSymbol(sym);
+    expect(id).not.toBeNull();
+    expect(idsB()).toEqual(['i2', id]);
+    expect(node(s().doc, id!).symbol).toEqual({ id: sym });
+    expect(ed().selection).toEqual([id]);
+  });
+
+  it('also when something inside the instance is selected', () => {
+    const sym = setup();
+    ed().setSelection([title('i2')]);
+    const id = insertSymbol(sym);
+    expect(idsB()).toEqual(['i2', id]);
+  });
+
+  it('a library component goes after the selected instance, not inside it', async () => {
+    setup();
+    ed().setSelection(['i2']);
+    const id = await insertComponent('heading');
+    expect(idsB()).toEqual(['i2', id]);
+    expect(node(s().doc, 'i2').children.map((c) => c.id)).toEqual([title('i2', 'c-img'), title('i2')]);
+  });
+
+  it('a drop on an instance targets the stack around it, not the instance', () => {
+    const sym = setup();
+    const b = node(s().doc, 'B');
+    const i2 = node(s().doc, 'i2');
+    const point = { x: b.transform.x + i2.transform.x + 20, y: b.transform.y + i2.transform.y + 20 };
+    expect(layoutDropTarget(s().doc, point)?.containerId).toBe('B');
+    const id = insertSymbol(sym, point);
+    expect(id).not.toBeNull();
+    expect(idsB()).toContain(id);
+    expect(node(s().doc, 'i2').children).toHaveLength(2);
   });
 });
 
