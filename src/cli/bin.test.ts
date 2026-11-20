@@ -23,5 +23,8 @@ describe('bin/designer.ts', () => {
       execFileSync('sh', ['-c', `bun "${bin}" to-svg big.svg | (sleep 0.5; cat) > piped.svg`], { cwd: dir, stdio: 'ignore' });
       expect((await readFile(join(dir, 'piped.svg'), 'utf8')).trimEnd()).toBe(expected);
     }
+    // A reader that stops early (`| head`) ends the output quietly: no EPIPE error, exit 0.
+    const r = execFileSync('bash', ['-c', `set -o pipefail; bun "${bin}" to-svg big.svg 2>err.txt | head -c 10; echo " exit=$?"; cat err.txt`], { cwd: dir, encoding: 'utf8' });
+    expect(r).toBe('<svg xmlns exit=0\n');
   }, 60_000);
 });
