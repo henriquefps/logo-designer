@@ -24,6 +24,7 @@ import { materializeDocument } from '@/wireframe/pipeline';
 import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 import { wfMain } from './wf';
+import { AgentSetupError, runAgent } from './agent';
 
 export interface CliIO {
   out: (s: string) => void;
@@ -127,6 +128,13 @@ Usage: designer <command> [options]
                                               download a project: into its file (by the file's id) or, for an id,
                                               into -o / <name>.designer.json
   sync list [--json] [--server URL]           projects on the server (id, last change, size, name)
+  agent [--server URL] [--name N] [--workdir DIR] [--max-minutes 15] [--claude PATH]
+                                              AI agent bridge: takes the jobs the app sends to the sync server
+                                              ("Generate with AI", "Turn into a wireframe with AI", …) and runs
+                                              your own Claude Code on them, one at a time, with its tools limited
+                                              to the designer CLI in a job folder; the project is mirrored live.
+                                              Needs Claude Code installed and logged in. Same server and key as
+                                              live (skv run designer-sync -- designer agent). docs/agents.md
 
 Without -o, project/SVG output goes to stdout. Docs: docs/agents.md, docs/project-format.md.
 `;
@@ -162,6 +170,9 @@ const COMMON: ParseArgsConfig['options'] = {
   dir: { type: 'string' },
   platform: { type: 'string' },
   server: { type: 'string' },
+  workdir: { type: 'string' },
+  'max-minutes': { type: 'string' },
+  claude: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -944,6 +955,30 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         }
         return await runLive(path, conn, origin, io, signal);
       }
+      case 'agent': {
+        const env = io.env ?? process.env;
+        const conn = connectionFrom(str(values, 'server'), env);
+        let signal = io.signal;
+        if (!signal) {
+          const ctrl = new AbortController();
+          process.once('SIGINT', () => ctrl.abort());
+          process.once('SIGTERM', () => ctrl.abort());
+          signal = ctrl.signal;
+        }
+        return await runAgent({
+          conn,
+          name: str(values, 'name'),
+          workdir: str(values, 'workdir'),
+          maxMinutes: str(values, 'max-minutes'),
+          claude: str(values, 'claude'),
+          origin,
+          cwd: io.cwd ?? process.cwd(),
+          env,
+          out: io.out,
+          err: io.err,
+          signal,
+        });
+      }
       case 'sync': {
         const [sub, target] = pos;
         const conn = connectionFrom(str(values, 'server'), io.env ?? process.env);
@@ -962,6 +997,10 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
         throw new UsageError(`Unknown command “${cmd}”`);
     }
   } catch (e) {
+    if (e instanceof AgentSetupError) {
+      io.err(e.message);
+      return 1;
+    }
     if (e instanceof UsageError || e instanceof SyncUsage) {
       io.err(`${e.message}\n\nRun \`designer help\` for usage.`);
       return 2;
