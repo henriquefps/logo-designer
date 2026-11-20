@@ -63,6 +63,8 @@ try {
   // The agent's project: a wireframe with a Settings screen, made with the CLI.
   designer(root, ['new', '--preset', 'wireframe', '--name', 'Hoard', '-o', file], work);
   designer(root, ['screen', file, '--name', 'Settings'], work);
+  // A top app bar: its icons are placeholders in a CLI file, which the app fills in on open.
+  editProject(file, (d) => addComponent(d, 'Settings', 'top-app-bar', { title: 'Settings' }, 'Top app bar'));
   live = await startLive(root, file, server.url, app.url, work);
   ok(`designer live started: ${live.lines[0]}`);
 
@@ -75,7 +77,9 @@ try {
   ok(`?open-project opened the synced project in ${Date.now() - t0} ms`);
   const indicator = page.locator('[data-live-by]');
   await indicator.waitFor({ timeout: 10_000 });
-  ok(`Live indicator shown, last change by: ${await indicator.getAttribute('data-live-by')}`);
+  await page.waitForTimeout(1500); // opening (and filling in icons) is not an edit: nothing is pushed back
+  if ((await indicator.getAttribute('data-live-by')) !== 'cli' || live.count(/↓ pulled/) !== 0) throw new Error('opening the project in the app must not count as an edit');
+  ok('Live indicator shown, last change by the CLI; opening it did not push anything back');
   await waitUntil('the event stream', async () => (await page.evaluate(() => (window as unknown as { __designer: { sync: { useSyncStore: { getState(): { stream: string } } } } }).__designer.sync.useSyncStore.getState().stream)) === 'open');
 
   // 1. The agent edits the file.

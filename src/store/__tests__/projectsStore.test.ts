@@ -102,3 +102,18 @@ describe('live editing (sync)', () => {
     expect(p().projects.find((m) => m.id === id)!.live).toBeUndefined();
   });
 });
+
+describe('opening a live project', () => {
+  it('does not autosave it (opening is not an edit)', async () => {
+    await p().init();
+    const id = await p().create('Was live');
+    const doc = useDocStore.getState().doc;
+    await p().applyRemote({ ...doc, live: { editedBy: 'cli' }, updatedAt: 2_000_000 });
+    await p().create('Other');
+    await p().open(id);
+    expect(p().saveState).not.toBe('pending');
+    await wait(AUTOSAVE_DELAY + 100);
+    expect((await loadDocument(id))!.updatedAt).toBe(2_000_000);
+    expect((await loadDocument(id))!.live).toEqual({ editedBy: 'cli' });
+  });
+});

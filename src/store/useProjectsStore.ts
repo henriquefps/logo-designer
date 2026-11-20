@@ -51,7 +51,7 @@ interface ProjectsState {
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let unsubscribe: (() => void) | null = null;
-/** True while a pulled version is loaded into the editor: that is not an edit, so it must not autosave (and push back). */
+/** True while a pulled (or live) version is loaded into the editor: that is not an edit, so it must not autosave (and push back). */
 let loadingRemote = false;
 
 function upsert(list: ProjectMeta[], meta: ProjectMeta) {
@@ -95,6 +95,9 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     unsubscribe?.();
     unsubscribe = useDocStore.subscribe((s, prev) => {
       if (s.version === prev.version || s.txn || loadingRemote) return;
+      // A live project re-loaded without history (opened, icons filled in after opening) has not been edited:
+      // saving it would push it back as "changed by this device".
+      if (s.doc.live && !s.past.length && !s.future.length) return;
       if (s.doc.id !== get().activeId) return;
       if (timer) clearTimeout(timer);
       set({ saveState: 'pending' });

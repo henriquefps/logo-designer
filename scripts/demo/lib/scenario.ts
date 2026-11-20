@@ -8,4 +8,6 @@ export interface Scenario {
   /** Optional preparation through the UI, run fast and cut from the video. */
   setup?(demo: Demo): Promise<void>;
   run(demo: Demo): Promise<void>;
+  /** Optional cleanup after the recording (processes the scenario started, e.g. a sync server). */
+  teardown?(): Promise<void>;
 }
