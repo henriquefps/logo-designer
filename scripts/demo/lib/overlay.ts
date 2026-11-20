@@ -35,6 +35,12 @@ export function installOverlay(opts: OverlayOptions): void {
       padding: 6px 12px; border-radius: 8px; background: rgba(17,17,17,.88); color: #fff;
       font: 600 15px/1.2 Inter, system-ui, sans-serif; opacity: 0; transition: opacity .2s; }
     #demo-keys.on { opacity: 1; }
+    #demo-paste { position: fixed; z-index: 2147483640; display: flex; flex-direction: column;
+      background: #fff; border: 1px solid #d4d4d4; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.25); overflow: hidden; }
+    #demo-paste header { padding: 10px 14px; background: #f4f4f5; border-bottom: 1px solid #e4e4e7;
+      font: 600 14px/1.3 Inter, system-ui, sans-serif; color: #18181b; }
+    #demo-paste textarea { flex: 1; border: 0; outline: 0; resize: none; padding: 12px 14px;
+      font: 13px/1.5 ui-monospace, 'DejaVu Sans Mono', monospace; color: #18181b; background: #fff; }
   `;
 
   const caption = document.createElement('div');
@@ -95,6 +101,20 @@ export function installOverlay(opts: OverlayOptions): void {
     },
     __demoCursor(cx: number, cy: number) {
       place(cx, cy);
+    },
+    /** A paste target outside the app (an empty textarea in a floating panel), to show clipboard contents. */
+    __demoPasteBox(title: string, rect: { x: number; y: number; width: number; height: number }) {
+      document.getElementById('demo-paste')?.remove();
+      const box = document.createElement('div');
+      box.id = 'demo-paste';
+      Object.assign(box.style, { left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+      const head = document.createElement('header');
+      head.textContent = title;
+      const area = document.createElement('textarea');
+      area.placeholder = 'Ctrl + V';
+      area.spellcheck = false;
+      box.append(head, area);
+      document.body.appendChild(box);
     },
     __demoKeys(label: string) {
       keys.textContent = label;
