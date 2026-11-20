@@ -829,8 +829,9 @@ order. Per job:
 4. Turn the stream into short progress messages ("Reading the screenshot", "Round 2: fixing the
    list", "Checking with wf compare") → `progress`.
 5. Cancel (event or `cancelRequested` seen on poll) or `--max-minutes` → kill the process tree,
-   finish `cancelled`/`failed`; the project keeps whatever was already built (one undo in the app
-   reverts the job's changes as a whole? see App).
+   finish `cancelled`/`failed`; the project keeps whatever was already built (in the app the job's
+   changes are one undo step on top of your own edits, which stay undoable: [sync.md → In-place update
+   and undo](sync.md#in-place-update-and-undo)).
 6. Finish with a one-paragraph summary from the agent's last message; stop the mirror; keep the job
    folder for a day (debugging), then delete.
 7. Heartbeat every 15 s, including `busy`/`jobId`.
@@ -910,6 +911,9 @@ Found and fixed (each with a regression test or e2e check):
 - `wf build` placed a new screen on top of the notes beside the last one: notes now count as taken space.
 - The job panel showed the agent's multi-paragraph summary in full, over the canvas: clamped to 4 lines with
   More / Less; the prompt asks for at most 3 plain sentences.
+- The undo history was gone right after a job (seen recording the overview): every pull of the open project went
+  through `useDocStore.load`. Now `applyRemote` keeps it: the job's changes are one undo step on top of your own
+  edits ([sync.md → In-place update and undo](sync.md#in-place-update-and-undo)).
 - Undo on an older job wiped the later jobs' screens: offered for the newest job only. Dismissed rows came back
   after a reload: kept per device.
 - The paste dialog's preview revoked a blob URL still loading (a console error on every paste in development).
