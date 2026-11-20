@@ -35,15 +35,18 @@ export interface SyncServer {
   stop(): void;
 }
 
-/** Builds sync-server/ into `dir` and runs it on a free port with its data in `dir/data` (no API key: loopback only). */
-export async function startSyncServer(root: string, dir: string): Promise<SyncServer> {
+/**
+ * Builds sync-server/ into `dir` and runs it on a free port with its data in `dir/data`. Without `apiKey` it takes
+ * loopback requests only (no key); with one, every request needs it (as on a real install).
+ */
+export async function startSyncServer(root: string, dir: string, opts: { apiKey?: string } = {}): Promise<SyncServer> {
   mkdirSync(dir, { recursive: true });
   const bin = join(dir, 'designer-sync');
   const built = spawnSync('go', ['build', '-o', bin, '.'], { cwd: join(root, 'sync-server'), encoding: 'utf8' });
   if (built.status !== 0) throw new Error(`go build failed:\n${built.stderr}`);
   const port = await freePort();
   const dataDir = join(dir, 'data');
-  const child = spawn(bin, ['--port', String(port), '--data-dir', dataDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(bin, ['--port', String(port), '--data-dir', dataDir, ...(opts.apiKey ? ['--api-key', opts.apiKey] : [])], { stdio: ['ignore', 'pipe', 'pipe'] });
   let log = '';
   child.stdout?.on('data', (d) => (log += d));
   child.stderr?.on('data', (d) => (log += d));
@@ -129,13 +132,65 @@ export function addComponent(doc: Json, screen: string, kind: string, props: Jso
 }
 
 /** Turns Sync on in the app (the same settings File → Sync… stores), before the app loads. */
-export async function enableSyncBeforeLoad(page: Page, url: string): Promise<void> {
-  await page.addInitScript((u) => {
-    if (!localStorage.getItem('designer.sync')) {
-      localStorage.setItem('designer.sync', JSON.stringify({ enabled: true, url: u, apiKey: '', syncFonts: false }));
-      localStorage.setItem('designer.welcomed', '1');
+export async function enableSyncBeforeLoad(page: Page, url: string, apiKey = ''): Promise<void> {
+  await page.addInitScript(
+    ([u, k]) => {
+      if (!localStorage.getItem('designer.sync')) {
+        localStorage.setItem('designer.sync', JSON.stringify({ enabled: true, url: u, apiKey: k, syncFonts: false }));
+        localStorage.setItem('designer.welcomed', '1');
+      }
+    },
+    [url, apiKey],
+  );
+}
+
+export interface AgentProcess {
+  /** Everything it printed so far, one entry per line. */
+  lines: string[];
+  waitForLine(re: RegExp, ms?: number): Promise<string>;
+  /** Ctrl+C, then waits for it to exit. */
+  stop(): Promise<void>;
+  exited(): boolean;
+}
+
+/**
+ * Starts `designer agent` (the AI bridge, real Claude Code) against a sync server and waits until it is online.
+ * `onLine` sees every line it prints (a log file, the terminal strip of a video).
+ */
+export async function startAgent(
+  root: string,
+  o: { server: string; apiKey?: string; name?: string; workdir: string; cwd: string; maxMinutes?: number; onLine?: (l: string) => void },
+): Promise<AgentProcess> {
+  const args = [join(root, 'bin/designer.ts'), 'agent', '--server', o.server, '--name', o.name ?? 'cachyos-fps', '--workdir', o.workdir, ...(o.maxMinutes ? ['--max-minutes', String(o.maxMinutes)] : [])];
+  const env = { ...process.env, ...(o.apiKey ? { DESIGNER_SYNC_KEY: o.apiKey } : {}) };
+  const child: ChildProcess = spawn('bun', args, { cwd: o.cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const lines: string[] = [];
+  let exited = false;
+  const exit = new Promise<void>((r) => child.once('exit', () => ((exited = true), r())));
+  const take = (d: Buffer) => {
+    for (const l of String(d).split('\n').filter(Boolean)) {
+      lines.push(l);
+      o.onLine?.(l);
     }
-  }, url);
+  };
+  child.stdout?.on('data', take);
+  child.stderr?.on('data', take);
+  const waitForLine = async (re: RegExp, ms = 10_000) => {
+    await waitUntil(`designer agent to print ${re}`, () => exited || lines.some((l) => re.test(l)), ms);
+    const hit = lines.find((l) => re.test(l));
+    if (!hit) throw new Error(`designer agent exited:\n${lines.join('\n')}`);
+    return hit;
+  };
+  await waitForLine(/^Agent .* online on /, 60_000);
+  return {
+    lines,
+    waitForLine,
+    exited: () => exited,
+    stop: async () => {
+      if (!exited) child.kill('SIGINT');
+      await exit;
+    },
+  };
 }
 
 export const ensureDir = (dir: string) => (existsSync(dir) ? dir : (mkdirSync(dir, { recursive: true }), dir));
