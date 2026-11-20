@@ -11,7 +11,7 @@ import { fakeSyncServer } from '@/sync/__tests__/fakeServer';
 import { createWireframeDocument } from '@/wireframe/commands';
 import { addScreen, frames } from '@/wireframe/screens';
 import { currentPresence, refreshAgents, startAgent, undoAgentChanges, requestCancel, useAgentStore } from './agentStore';
-import { sendAdapt, sendNextScreen, sendRequest, sendScreenshot } from './commands';
+import { guessPlatform, sendAdapt, sendNextScreen, sendRequest, sendScreenshot } from './commands';
 import { jobRows } from './jobs';
 import { canSendNow } from './send';
 
@@ -181,5 +181,15 @@ describe('an older sync server', () => {
     expect(currentPresence().kind).toBe('unsupported');
     expect(canSendNow()).toMatchObject({ ok: false, reason: expect.stringMatching(/update designer-sync/) });
     vi.stubGlobal('fetch', server.fetch);
+  });
+});
+
+describe('the platform guessed from a screenshot', () => {
+  it('real sizes: phones (also a cropped one), portrait and landscape tablets, desktops', () => {
+    // The Hoard screenshots of the phase 4 end-to-end run (Galaxy S24 Ultra), an iPhone, a crop of the top of a phone.
+    expect([guessPlatform(1080, 2243), guessPlatform(1179, 2556), guessPlatform(1080, 1900)]).toEqual(['phone', 'phone', 'phone']);
+    // Android tablet 10:16 portrait, iPad portrait, iPad landscape.
+    expect([guessPlatform(1600, 2560), guessPlatform(1640, 2360), guessPlatform(2360, 1640)]).toEqual(['tablet', 'tablet', 'tablet']);
+    expect([guessPlatform(1440, 900), guessPlatform(1920, 1080), guessPlatform(2560, 1600)]).toEqual(['desktop', 'desktop', 'desktop']);
   });
 });

@@ -30,11 +30,14 @@ const clean = (s: string | undefined) => {
   return t ? { hint: t } : {};
 };
 
-/** A guess for a screenshot's platform: wide images are desktop, squarish ones tablet. */
+/**
+ * A guess for a screenshot's platform from its shape: phones are tall (9:16 and narrower, ≤ 0.6), portrait tablets
+ * 10:16 to 3:4, landscape tablets up to about 3:2 (iPad), wider images (16:10, 16:9) desktop. Before the image is read the dialog shows phone.
+ */
 export function guessPlatform(width: number, height: number): ScreenPlatform {
   const r = width / Math.max(1, height);
-  if (r >= 1.25) return 'desktop';
-  if (r >= 0.68) return 'tablet';
+  if (r > 1.5) return 'desktop';
+  if (r >= 0.6) return 'tablet';
   return 'phone';
 }
 

@@ -218,10 +218,18 @@ try {
   writeAgentScreen(cur.data, 'Empty state');
   await putProject(doc.id, { ...cur.data, live: { editedBy: 'cli' } }, cur.updatedAt);
   await waitUntil('the agent’s screen in the app', async () => (await screens(page)).includes('Empty state'), 10_000);
-  await bridge.finish(ask.id, 'done', 'Added an “Empty state” screen and linked it from Home.');
+  // A long summary (as the real agent wrote them in the phase 4 end-to-end run) stays a few lines, the rest behind More.
+  const long = `Added an “Empty state” screen and linked it from Home. ${'It shows the message, an illustration and a button to add a trip. '.repeat(8)}`;
+  await bridge.finish(ask.id, 'done', long);
   await bridge.heartbeat(false);
-  await row(page, ask.id).getByTestId('agent-job-summary').waitFor();
-  ok('finish → Done with the summary and “Undo the agent’s changes”');
+  const summary = row(page, ask.id).getByTestId('agent-job-summary');
+  await summary.waitFor();
+  const clamped = (await summary.boundingBox())!.height;
+  if (clamped > 70) throw new Error(`a long summary should be clamped to 4 lines, it is ${clamped} px high`);
+  await row(page, ask.id).getByRole('button', { name: 'More' }).click();
+  if ((await summary.boundingBox())!.height <= clamped) throw new Error('More should show the whole summary');
+  await row(page, ask.id).getByRole('button', { name: 'Less' }).click();
+  ok('finish → Done with the summary (long ones clamped, More / Less) and “Undo the agent’s changes”');
   await shot(page, 'job-panel-done');
   await row(page, ask.id).getByRole('button', { name: /Undo the agent/ }).click();
   await waitUntil('the snapshot restored', async () => !(await screens(page)).includes('Empty state'), 5_000);
@@ -269,7 +277,25 @@ try {
   ok('Cancel on a queued job → Cancelled at once');
   await row(page, adapt.id).getByRole('button', { name: 'Dismiss' }).click();
 
-  // 5. A pasted screenshot.
+  // 5. A pasted screenshot. First a phone-shaped one (the Hoard screenshots are 1080 × 2243): the dialog says Phone.
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 1080;
+    c.height = 2243;
+    c.getContext('2d')!.fillRect(0, 0, 10, 10);
+    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), 'image/png'));
+    const dt = new DataTransfer();
+    dt.items.add(new File([blob], 'image.png', { type: 'image/png' }));
+    document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await dlg.getByRole('button', { name: 'Place as reference image' }).waitFor();
+  await dlg.getByRole('img', { name: 'The pasted screenshot' }).waitFor();
+  await waitUntil('the platform guessed as phone', async () => /^Phone/.test((await dlg.getByLabel('Platform').textContent()) ?? ''), 3_000);
+  ok('a pasted phone screenshot (1080 × 2243) → Platform: Phone');
+  await dlg.getByRole('button', { name: 'Close' }).click();
+  await dlg.waitFor({ state: 'hidden' });
+
   const png = readFileSync(join(root, 'docs/screenshots/wireframe-canvas.png')).toString('base64');
   await page.keyboard.press('Escape');
   await page.evaluate((b64) => {
