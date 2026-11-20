@@ -102,8 +102,8 @@ export function layoutDropTarget(doc: DocLike, point: Vec, opts: { exclude?: rea
   const search = (nodes: readonly SceneNode[], parentM: Matrix): LayoutDropTarget | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      // Repeat copies are read-only: never a target (the template is).
-      if (n.type !== 'group' || n.component || n.repeatCopy || !n.visible || n.locked || exclude.has(n.id)) continue;
+      // Repeat copies are read-only: never a target (the template is). Shared instances are units, not containers.
+      if (n.type !== 'group' || n.component || n.symbol || n.repeatCopy || !n.visible || n.locked || exclude.has(n.id)) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       const local = apply(invert(m), point);
       if (n.screen) {

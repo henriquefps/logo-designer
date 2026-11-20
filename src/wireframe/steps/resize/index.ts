@@ -34,7 +34,9 @@ function resizedToFixed(nodes: readonly SceneNode[], ctx: PipelineContext, path:
         const prev = ctx.previous(c.id);
         if (!prev || prev === c || c.repeatCopy || itemSizing(c).position === 'free') return;
         const now = boxOf(c);
-        const was = boxOf(prev);
+        // Against the gesture's start, not the last frame: every frame re-applies the snapshot's layoutItem,
+        // so a frame that doesn't change the size must still keep what the gesture's total change fixed.
+        const was = boxOf(ctx.atGestureStart(c.id) ?? prev);
         if (!now || !was) return;
         const item: LayoutItemInfo = { ...c.layoutItem };
         let changed = false;

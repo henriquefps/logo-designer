@@ -175,7 +175,7 @@ export const useDocStore = create<DocState>()((set, get) => {
     if (txn) {
       let next = produce(doc, recipe);
       if (next === doc) return;
-      next = runWireframePipeline(next, doc, 'change', { patches: false })?.doc ?? next;
+      next = runWireframePipeline(next, doc, 'change', { patches: false, gestureStart: txn.base })?.doc ?? next;
       set((s) => ({ doc: next, version: s.version + 1 }));
       return;
     }

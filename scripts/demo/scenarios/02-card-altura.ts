@@ -20,7 +20,9 @@ export default {
     await demo.caption('Arrastando a alça de baixo: o card fica mais alto e a borda acompanha');
     const card = await nodeWithText(page, 'Card title');
     const b = (await card.boundingBox())!;
-    await demo.drag({ x: b.x + b.width / 2, y: b.y + b.height }, { x: b.x + b.width / 2, y: b.y + b.height + 190 }, { hold: 900, duration: 1600 });
+    const x = b.x + b.width / 2;
+    // Ends with a sideways move (the height stays): the card keeps its new height.
+    await demo.drag({ x, y: b.y + b.height }, { x: x + 40, y: b.y + b.height + 190 }, { via: [{ x, y: b.y + b.height + 190 }], hold: 900, duration: 1600 });
 
     await demo.caption('Properties: a altura agora é fixa (Height = número)');
     await openTab(demo, 'Properties');
