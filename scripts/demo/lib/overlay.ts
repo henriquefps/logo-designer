@@ -41,6 +41,9 @@ export function installOverlay(opts: OverlayOptions): void {
       box-shadow: 0 8px 30px rgba(0,0,0,.3); }
     #demo-term .cmd { color: #86efac; }
     #demo-term .dim { color: #a1a1aa; }
+    #demo-speed { position: fixed; top: ${H + 12}px; left: 50%; transform: translateX(-50%); z-index: 2147483646;
+      pointer-events: none; padding: 6px 14px; border-radius: 999px; background: #ff5c00; color: #fff; display: none;
+      font: 700 15px/1.2 Inter, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
     #demo-paste { position: fixed; z-index: 2147483640; display: flex; flex-direction: column;
       background: #fff; border: 1px solid #d4d4d4; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.25); overflow: hidden; }
     #demo-paste header { padding: 10px 14px; background: #f4f4f5; border-bottom: 1px solid #e4e4e7;
@@ -61,11 +64,13 @@ export function installOverlay(opts: OverlayOptions): void {
   keys.id = 'demo-keys';
   const term = document.createElement('div');
   term.id = 'demo-term';
+  const speed = document.createElement('div');
+  speed.id = 'demo-speed';
 
   const mount = () => {
     if (!document.body) return void requestAnimationFrame(mount);
     document.head.appendChild(style);
-    document.body.append(caption, cursor, keys, term);
+    document.body.append(caption, cursor, keys, term, speed);
   };
   mount();
 
@@ -107,6 +112,11 @@ export function installOverlay(opts: OverlayOptions): void {
       (caption.querySelector('.text') as HTMLElement).textContent = text;
       caption.style.display = text ? 'flex' : 'none';
     },
+    /** The fast-forward badge under the caption ("⏩ acelerado ×8"); '' hides it. */
+    __demoSpeed(label: string) {
+      speed.textContent = label;
+      speed.style.display = label ? 'block' : 'none';
+    },
     __demoCursor(cx: number, cy: number) {
       place(cx, cy);
     },
@@ -125,7 +135,8 @@ export function installOverlay(opts: OverlayOptions): void {
       document.body.appendChild(box);
     },
     /** A terminal strip (bottom left, over the canvas): the agent's commands and their output. [] hides it. */
-    __demoTerminal(lines: string[]) {
+    __demoTerminal(lines: string[], width?: number) {
+      term.style.width = width ? `${width}px` : '';
       term.replaceChildren(
         ...lines.map((l) => {
           const row = document.createElement('div');

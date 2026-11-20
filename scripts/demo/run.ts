@@ -74,7 +74,8 @@ try {
       const webm = join(outDir, `${scenario.name}.webm`);
       renameSync(raw, webm);
       const mp4 = join(outDir, `${scenario.name}.mp4`);
-      encodeMp4({ input: webm, output: mp4, start: startSec, fps: FPS });
+      const speed = demo.speedSegments.map((x) => ({ start: x.start / 1000, end: x.end / 1000, factor: x.factor }));
+      encodeMp4({ input: webm, output: mp4, start: startSec, fps: FPS, speed });
       const kb = Math.round(statSync(mp4).size / 1024);
       console.log(`${scenario.name}.mp4  ${duration(mp4).toFixed(1)} s  ${kb} KB  (recorded in ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
     }
