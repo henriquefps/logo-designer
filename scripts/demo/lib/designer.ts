@@ -84,7 +84,12 @@ export async function searchLibrary(demo: Demo, query: string): Promise<void> {
   await demo.type(query, { delay: 55 });
 }
 
-export const libraryItem = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true }).filter({ visible: true }).first();
+/** A library item in the Assets panel: its accessible name is the preview's text followed by the label. */
+export const libraryItem = (page: Page, label: string) =>
+  panel(page)
+    .getByRole('button', { name: new RegExp(`${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) })
+    .filter({ visible: true })
+    .first();
 
 /** Search the library and click the item (inserts into the selected screen / stack). */
 export async function insertFromLibrary(demo: Demo, label: string, query = label): Promise<void> {
@@ -125,4 +130,42 @@ export async function focusScreen(demo: Demo, name: string, zoom = 1, top = 36):
   await demo.move({ x: c.x + c.width / 2, y: c.y + c.height / 2 });
   await demo.scroll(b.x + b.width / 2 - anchor.x, b.y - anchor.y);
   if (zoom !== 1) await demo.zoomAt(anchor, zoom);
+}
+
+/** Ids of the nearest rendered nodes inside a node (its children on the canvas, in drawing order). */
+export async function childNodes(page: Page, parent: Locator): Promise<Locator[]> {
+  const ids = await parent.evaluate((el) => {
+    const out: string[] = [];
+    const walk = (e: Element) => {
+      for (const c of Array.from(e.children)) {
+        const id = c.getAttribute('data-node-id');
+        if (id) out.push(id);
+        else walk(c);
+      }
+    };
+    walk(el);
+    return out;
+  });
+  return ids.map((id) => node(page, id));
+}
+
+/** The frame node of a screen (the top-level node right under its name label). */
+export async function screenNode(page: Page, name: string): Promise<Locator> {
+  const b = await screenBox(page, name);
+  const id = await canvas(page).locator('[data-node-id]').evaluateAll((els, b) => {
+    const hit = els.find((e) => {
+      const r = e.getBoundingClientRect();
+      return Math.abs(r.left - b.x) < 1 && Math.abs(r.top - b.y) < 1 && e.parentElement?.closest('[data-node-id]') == null;
+    });
+    return hit?.getAttribute('data-node-id') ?? null;
+  }, b);
+  if (!id) throw new Error(`No frame for "${name}"`);
+  return node(page, id);
+}
+
+/** A point near the bottom of a screen's visible part (empty space in a short screen): a click there selects the screen. */
+export async function screenBlank(page: Page, name: string): Promise<Point> {
+  const b = await screenBox(page, name);
+  const c = (await canvas(page).boundingBox())!;
+  return { x: b.x + b.width / 2, y: Math.min(b.y + b.height, c.y + c.height) - 40 };
 }

@@ -66,10 +66,10 @@ export class Demo {
     this.stepNo += 1;
     const step = this.stepCount ? `${this.stepNo}/${this.stepCount}` : '';
     await this.page.evaluate(([s, t]) => (window as unknown as { __demoCaption(s: string, t: string): void }).__demoCaption(s, t), [step, text]);
-    await this.pause(900);
+    await this.pause(800);
   }
 
-  async pause(ms = 600): Promise<void> {
+  async pause(ms = 550): Promise<void> {
     if (this.fast) ms = Math.min(ms, 120);
     await this.page.waitForTimeout(ms);
   }
@@ -94,7 +94,7 @@ export class Demo {
     const to = await this.point(target, aim);
     const from = this.pos;
     const dist = Math.hypot(to.x - from.x, to.y - from.y);
-    const duration = this.fast ? 60 : (opts.duration ?? Math.min(900, 250 + dist * 0.9));
+    const duration = this.fast ? 60 : (opts.duration ?? Math.min(750, 220 + dist * 0.7));
     const n = Math.max(2, Math.round(duration / 16));
     for (let i = 1; i <= n; i++) {
       const t = opts.linear ? i / n : ease(i / n);

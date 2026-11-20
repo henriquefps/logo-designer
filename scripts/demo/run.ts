@@ -60,7 +60,7 @@ try {
       if (scenario.setup) await scenario.setup(demo);
       await demo.begin(scenario.steps);
       await scenario.run(demo);
-      await demo.pause(1500);
+      await demo.pause(1200);
     } catch (e) {
       error = e;
       await page.screenshot({ path: join(outDir, `${scenario.name}.error.png`) }).catch(() => {});

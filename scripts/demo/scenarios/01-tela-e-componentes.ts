@@ -1,7 +1,7 @@
 // Video 1: a new wireframe, a phone screen (F + click), top app bar, heading and list rows from
 // Assets → Components, a list row's props in Properties, and a reorder by dragging.
 import type { Scenario } from '../lib/scenario.ts';
-import { canvasText, choose, focusScreen, insertFromLibrary, newWireframe, nodeWithText, openTab, screenBox, setField } from '../lib/designer.ts';
+import { canvasText, choose, focusScreen, insertFromLibrary, libraryItem, newWireframe, nodeWithText, openTab, screenBox, setField } from '../lib/designer.ts';
 
 export default {
   name: '01-tela-e-componentes',
@@ -27,7 +27,7 @@ export default {
 
     await demo.caption('Inserindo três linhas de lista (List row)');
     await insertFromLibrary(demo, 'List row');
-    const item = page.getByRole('button', { name: 'List row', exact: true }).filter({ visible: true }).first();
+    const item = libraryItem(page, 'List row');
     await demo.click(item, { fy: 0.4 });
     await demo.click(item, { fy: 0.4 });
 
