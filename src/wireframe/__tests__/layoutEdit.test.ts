@@ -174,6 +174,24 @@ describe('wrap and unwrap', () => {
     expect(order(s().doc)).toEqual(['a', 'b', 'c']);
   });
 
+  it('a pinned bottom bar wrapped in a stack stays pinned: the stack takes its place (regression, demo 10)', () => {
+    const nav: ComponentNode = { ...createGroup({ name: 'nav' }), id: 'nav', component: { kind: 'bottom-navigation', props: {} }, layoutItem: { position: 'pinned-bottom' } };
+    s().load(wireframe([], [box('a', 100), nav]));
+    let id: string | null = null;
+    s().apply((d) => void (id = wrapInLayout(d, ['nav'], 'vstack')));
+    const g = findNode(s().doc, id!) as GroupNode;
+    expect(g.layoutItem).toEqual({ position: 'pinned-bottom' });
+    expect(findNode(s().doc, 'nav')!.layoutItem).toBeUndefined();
+    const frame = findNode(s().doc, 'F') as ScreenNode;
+    // At the bottom of the screen, full width.
+    expect(g.transform.y + g.layout!.size!.height).toBeCloseTo(frame.screen.height);
+    expect(g.layout!.size!.width).toBe(frame.screen.width);
+    // Mixed positions: the stack goes in the flow as before.
+    s().load(wireframe([], [box('a', 100), nav]));
+    s().apply((d) => void (id = wrapInLayout(d, ['a', 'nav'], 'vstack')));
+    expect((findNode(s().doc, id!) as GroupNode).layoutItem).toBeUndefined();
+  });
+
   it('a horizontal stack of the same rows puts them side by side', () => {
     s().load(wireframe());
     s().apply((d) => void wrapInLayout(d, ['a', 'b'], 'hstack'));

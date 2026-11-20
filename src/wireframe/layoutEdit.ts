@@ -296,11 +296,26 @@ export function wrapInLayout(doc: DocLike, ids: readonly Id[], kind: LayoutKind)
   });
   const all = unionRects(picked.map((n) => boxes.get(n.id)!)) ?? { x: 0, y: 0, width: 0, height: 0 };
   const layout = defaultLayout(kind);
+  // Pieces that are all pinned to the bottom (a bottom navigation) or all free keep that place: the new stack takes
+  // their position and they sit in its flow. Otherwise the stack would drop into the screen's flow.
+  const positions = new Set(picked.map((n) => n.layoutItem?.position ?? 'flow'));
+  const position = positions.size === 1 && first.ancestors.length > 0 && isScreenNode(first.ancestors[first.ancestors.length - 1]) ? [...positions][0] : 'flow';
+  const keep = position === 'pinned-bottom' || position === 'free';
+  const inFlow = (n: SceneNode): SceneNode => {
+    if (!keep || !n.layoutItem) return n;
+    const item = { ...n.layoutItem };
+    delete item.position;
+    const out = { ...n } as SceneNode;
+    if (Object.keys(item).length) out.layoutItem = item;
+    else delete out.layoutItem;
+    return out;
+  };
   const container: GroupNode = {
     ...createGroup({ name: kind === 'hstack' ? 'Horizontal stack' : kind === 'grid' ? 'Grid' : 'Vertical stack', transform: { x: all.x, y: all.y } }),
     id: newId(),
     layout: { ...layout, size: { width: all.width, height: all.height } },
-    children: visual.map((n) => ({ ...n, transform: { ...n.transform, x: n.transform.x - all.x, y: n.transform.y - all.y } })),
+    ...(keep ? { layoutItem: { position } } : {}),
+    children: visual.map((n) => inFlow({ ...n, transform: { ...n.transform, x: n.transform.x - all.x, y: n.transform.y - all.y } })),
   };
   for (const n of picked) siblings.splice(siblings.indexOf(n), 1);
   siblings.splice(index, 0, container);
