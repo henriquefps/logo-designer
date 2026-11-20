@@ -13,6 +13,7 @@
 //                   when dragged out
 //  100  components  rebuilds component instances whose `component` (kind, props, size) changed
 //  400  resize      a flow child the user resized gets that dimension fixed (`layoutItem`)
+//  420  symbols     shared components: an edit inside an instance becomes the master, every other instance follows (../symbols.ts)
 //  450  repeat      copies of a repeating container's first child (../repeat.ts)
 //  500  layout      stacks / grids (../layout.ts): child transforms, container sizes, frame heights
 //  900  screens     logical screens ↔ frames, one frame per platform, frame height = max(min, content)

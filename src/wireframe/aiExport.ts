@@ -30,10 +30,11 @@ import { getComponent } from './library/registry';
 import { resolveProps } from './library/types';
 import { notesFor, type NoteForExport } from './notes';
 import { logicalScreen, screenSlug } from './screens';
-import { flowOpensLine, flowReadmeSection, flowScreenSection, STATUS_TEXT } from './flowExport';
+import { flowOpensLine, flowReadmeSection, flowScreenSection, flowSourceText, STATUS_TEXT } from './flowExport';
 import { flowsOf } from './flows';
 import { styleWords } from './containers';
 import { repeatCount, repeatTemplate } from './repeat';
+import { instancesOf, newSymbolInstance, symbolsOf } from './symbols';
 
 const PLATFORM_ORDER: ScreenPlatform[] = ['phone', 'tablet', 'desktop'];
 const platformLabel = (p: ScreenPlatform) => p[0].toUpperCase() + p.slice(1);
@@ -155,9 +156,40 @@ class TreeWriter {
   /** Outgoing flows by source node, written under it ("→ opens Language"). */
   private readonly flows = new Map<Id, string[]>();
 
-  constructor(frame: ScreenNode, notes: NoteForExport[], flows: { flow: WireframeFlow; target: string }[] = []) {
+  /** Shared component names by master id ("Shared: Trip card"). */
+  private readonly shared: ReadonlyMap<Id, string>;
+
+  constructor(
+    frame: ScreenNode,
+    notes: NoteForExport[],
+    flows: { flow: WireframeFlow; target: string }[] = [],
+    opts: { shared?: ReadonlyMap<Id, string>; sourceText?: (id: Id) => string } = {},
+  ) {
     this.frame = frame;
-    for (const { flow, target } of flows) this.flows.set(flow.from, [...(this.flows.get(flow.from) ?? []), flowOpensLine(flow, target)]);
+    this.shared = opts.shared ?? new Map();
+    // Shared instances are one line ("Shared: Trip card"): flows from inside one are written under it, with their source.
+    const insideShared = new Map<Id, Id>();
+    const scanShared = (n: GroupNode) => {
+      for (const c of n.children) {
+        if (c.type !== 'group' || c.component || c.repeatCopy) continue;
+        if (c.symbol && this.shared.has(c.symbol.id)) {
+          const mark = (g: GroupNode) => {
+            for (const x of g.children) {
+              insideShared.set(x.id, c.id);
+              if (x.type === 'group') mark(x);
+            }
+          };
+          mark(c);
+        } else scanShared(c);
+      }
+    };
+    scanShared(frame);
+    for (const { flow, target } of flows) {
+      const owner = insideShared.get(flow.from);
+      const line = flowOpensLine(flow, target) + (owner && opts.sourceText ? ` (from ${opts.sourceText(flow.from)})` : '');
+      const key = owner ?? flow.from;
+      this.flows.set(key, [...(this.flows.get(key) ?? []), line]);
+    }
     for (const n of notes) {
       if (n.targetId === undefined) continue;
       this.byTarget.set(n.targetId, [...(this.byTarget.get(n.targetId) ?? []), n]);
@@ -171,7 +203,7 @@ class TreeWriter {
     const scan = (n: GroupNode) => {
       for (const c of n.children) {
         if (c.type !== 'group') continue;
-        if (isComponentNode(c)) aliasDescendants(c, c.id);
+        if (isComponentNode(c) || (c.symbol && this.shared.has(c.symbol.id))) aliasDescendants(c, c.id);
         else scan(c);
       }
     };
@@ -237,6 +269,8 @@ class TreeWriter {
       } else text = `Component "${n.component.kind}" (unknown kind)`;
       return this.line(depth, withPos(text), [n.id, ...carried]);
     }
+    const shared = n.symbol && this.shared.get(n.symbol.id);
+    if (shared) return this.line(depth, withPos(`Shared: ${shared}`), [n.id, ...carried]);
     const kids = n.children.filter((c) => c.visible && !c.reference && !c.repeatCopy);
     if (!kids.length) return;
     if (n.layout) {
@@ -258,7 +292,9 @@ class TreeWriter {
     if (!own) this.line(depth, withPos(containerName(n.layout)), [n.id, ...carried]);
     let item: string;
     let inner: GroupNode | null = null;
-    if (template.type !== 'group') item = shapeLine(template);
+    const shared = template.type === 'group' && template.symbol ? this.shared.get(template.symbol.id) : undefined;
+    if (shared) item = `Shared: ${shared}`;
+    else if (template.type !== 'group') item = shapeLine(template);
     else if (isComponentNode(template)) {
       const def = getComponent(template.component.kind);
       try {
@@ -307,7 +343,7 @@ function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport
   const f = v.frame;
   const out = [`## ${platformLabel(v.platform)} (${size(f.screen.width, f.screen.height)})`, '', `Image: \`${v.image}\``, ''];
   const flows = flowsOf(doc).map((flow) => ({ flow, target: logicalScreen(doc, flow.to)?.name ?? 'a missing screen' }));
-  const w = new TreeWriter(f, notes, flows);
+  const w = new TreeWriter(f, notes, flows, { shared: sharedNames(doc), sourceText: (id) => flowSourceText(doc, id) });
   const l = f.layout;
   if (!l) out.push('Elements are placed freely (no stack); listed top to bottom.', '');
   else if (l.kind !== 'vstack') out.push(`Layout: ${stackName(l)}.`, '');
@@ -322,6 +358,45 @@ function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport
   if (rest.length) out.push('', 'Other notes on this variant:', ...rest.map((n) => `- ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`));
   out.push('');
   return out;
+}
+
+// ---------- shared components ----------
+
+const sharedNames = (doc: DesignDocument): ReadonlyMap<Id, string> => new Map(symbolsOf(doc).map((s) => [s.id, s.name]));
+
+/**
+ * README "Shared components": each master described once (its content tree, nested shared components by
+ * name) and where it is used. Screens refer to them as "Shared: <name>".
+ */
+function sharedReadmeSection(ctx: AiContext): string[] {
+  const symbols = symbolsOf(ctx.doc);
+  if (!symbols.length) return [];
+  const names = sharedNames(ctx.doc);
+  const byFrame = new Map(ctx.screens.flatMap((s) => s.variants.map((v) => [v.frame.id, s.name] as const)));
+  const out = ['## Shared components', '', 'Pieces used on several screens. Build each once as a reusable component; screen files refer to them as "Shared: <name>".', ''];
+  for (const s of symbols) {
+    out.push(`### ${s.name}`, '');
+    const used = new Set<string>();
+    for (const inst of instancesOf(ctx.doc, s.id)) {
+      const top = ctx.doc.children.find((f) => f.type === 'group' && (f === inst || containsNode(f, inst.id)));
+      const name = top && byFrame.get(top.id);
+      if (name) used.add(name);
+    }
+    out.push(used.size ? `Used on: ${[...used].join(', ')}.` : 'Not used on a screen yet.', '');
+    // The master as an instance shows it (nested instances expanded), written like a screen's tree.
+    const root: GroupNode = { ...newSymbolInstance(s, symbols, { x: 0, y: 0 }), symbol: undefined };
+    const size = root.layout?.size ?? { width: 0, height: 0 };
+    const holder = { ...root, id: `${s.id}~holder`, children: [root], screen: { screenId: '', platform: 'phone', ...size } } as ScreenNode;
+    const w = new TreeWriter(holder, [], [], { shared: names });
+    w.write(holder, 0, false);
+    const tree = w.text();
+    out.push(...(tree.length ? tree : ['(empty)']), '');
+  }
+  return out;
+}
+
+function containsNode(n: GroupNode, id: Id): boolean {
+  return n.children.some((c) => c.id === id || (c.type === 'group' && containsNode(c, id)));
 }
 
 // ---------- markdown ----------
@@ -361,12 +436,14 @@ export function aiMarkdown(doc: DesignDocument): AiMarkdown {
     '- "Vertical stack", "Horizontal stack" and "Grid" mark groups that belong together. "pinned to bottom" stays at the bottom edge of the screen; "floating" sits on top of the content.',
     '- "Card container (outlined)" (or filled) is a group drawn as a card around its children.',
     '- "List of 6 × (…)" is a repeated item: build it once and repeat it (a list, a horizontal list or a grid); the content under it is one item.',
+    ...(symbolsOf(doc).length ? ['- "Shared: Trip card" is a shared component: the same piece on several screens, described once in the Shared components section below. Build it once and reuse it.'] : []),
     '- "Note:" lines are the designer\'s remarks about the element above them.',
     '- `screens/<name>.<platform>.png` is an image of each variant; `project.designer.json` is the editable project.',
     ...(screens.some((s) => s.status) ? ['- Status: "current" = the screen as the app has it today; "changed" = a proposed change to a screen the app already has; "new" = a screen to add. A screen without a status does not say.'] : []),
     ...(flowsOf(doc).length ? ['- "→ opens X" under an element: tapping (or clicking) it opens the screen X. The Flow section below has the whole map.'] : []),
     '',
     ...(free.length ? ['## Notes', '', ...free.map((n) => `- ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`), ''] : []),
+    ...sharedReadmeSection(ctx),
     ...README_SECTIONS.flatMap((s) => s(ctx)),
   ];
 

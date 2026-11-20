@@ -27,6 +27,8 @@ const OBJECT_MENU: Entry[] = [
   'object.group',
   'object.ungroup',
   'wireframe.addNote',
+  'wireframe.makeComponent',
+  'wireframe.detach',
   { label: 'Arrange', items: ['object.arrange.front', 'object.arrange.forward', 'object.arrange.backward', 'object.arrange.back'] },
   { label: 'Transform', items: ['object.flipH', 'object.flipV'] },
   { label: 'Path', items: ['path.editPoints', 'path.convert', 'path.outlineStroke', 'path.join', 'path.reverse', 'path.simplify'] },
@@ -50,7 +52,8 @@ const isEnabled = (id: string) => {
 
 function Item({ id }: { id: string }) {
   const a = getAction(id);
-  if (!a) return null;
+  // Commands of another document kind (wireframe-only ones in a logo) are left out.
+  if (!a || a.hidden) return null;
   const sc = firstShortcut(a);
   const Icon = a.icon;
   return (

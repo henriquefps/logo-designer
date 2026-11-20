@@ -2,9 +2,9 @@
 // selected screen's platform first, a search box. Click inserts into the selected screen/stack; drag
 // drops at a point on the canvas (into the stack under it, at that point, with the insertion line).
 import { useEffect, useMemo, useState } from 'react';
-import { CaretDownIcon, CaretRightIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
-import { platformDef, type ScreenPlatform, type SceneNode } from '@/model';
+import { localBounds, platformDef, type ScreenPlatform, type SceneNode, type WireframeSymbol } from '@/model';
 import { Input } from '@/components/ui/input';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
 import { Section } from '@/panels/shared/Section';
@@ -20,11 +20,15 @@ import { defaultProps, type AnyComponentDef, type PropSpec } from '@/wireframe/l
 import { libraryFor, type LibraryGroup } from '@/wireframe/libraryIndex';
 import { frameOf, frames } from '@/wireframe/screens';
 import { WF } from '@/wireframe/style';
+import { insertSymbol, startDeleteSymbol, startRenameSymbol } from '@/wireframe/symbolCommands';
+import { newSymbolInstance, symbolsOf } from '@/wireframe/symbols';
 import { cn } from '@/lib/utils';
 
 export const COMPONENT_DRAG_MIME = 'application/x-designer-component';
 /** A Layout preset (empty stack / grid / card container) being dragged from the library. */
 export const CONTAINER_DRAG_MIME = 'application/x-designer-container';
+/** A shared component (My components) being dragged from the library: its master id. */
+export const SYMBOL_DRAG_MIME = 'application/x-designer-symbol';
 
 const PREVIEW_WIDTH = 390;
 
@@ -85,7 +89,7 @@ function insert(kind: string, at?: { x: number; y: number }) {
 function useCanvasDrop() {
   useEffect(() => {
     const canvasOf = (e: DragEvent) => ((e.target as Element | null)?.closest?.('[data-slot="canvas"]') as HTMLElement | null) ?? null;
-    const isComponent = (e: DragEvent) => !!e.dataTransfer?.types.includes(COMPONENT_DRAG_MIME) || !!e.dataTransfer?.types.includes(CONTAINER_DRAG_MIME);
+    const isComponent = (e: DragEvent) => [COMPONENT_DRAG_MIME, CONTAINER_DRAG_MIME, SYMBOL_DRAG_MIME].some((m) => !!e.dataTransfer?.types.includes(m));
     const onOver = (e: DragEvent) => {
       const canvas = canvasOf(e);
       if (!isComponent(e) || !canvas) return void showDropLine(null);
@@ -105,6 +109,11 @@ function useCanvasDrop() {
       const preset = e.dataTransfer?.getData(CONTAINER_DRAG_MIME);
       if (preset) {
         if (!insertContainer(preset, at)) toast.error('Could not insert the container');
+        return;
+      }
+      const symbol = e.dataTransfer?.getData(SYMBOL_DRAG_MIME);
+      if (symbol) {
+        if (!insertSymbol(symbol, at)) toast.error('Could not insert the component here');
         return;
       }
       const kind = e.dataTransfer?.getData(COMPONENT_DRAG_MIME);
@@ -225,6 +234,78 @@ function Groups({ groups, iconsReady, containers = [] }: { groups: LibraryGroup[
 
 const LAYOUT = 'Layout';
 
+/** A shared component drawn small, as an instance shows it. */
+function SymbolPreview({ symbol, symbols }: { symbol: WireframeSymbol; symbols: readonly WireframeSymbol[] }) {
+  const node = useMemo(() => newSymbolInstance(symbol, symbols, { x: 0, y: 0 }), [symbol, symbols]);
+  const size = node.layout?.size;
+  const b = size ? { x: 0, y: 0, ...size } : localBounds(node);
+  if (!b || !b.width || !b.height) return <div className="h-12" />;
+  const pad = 8;
+  return (
+    <svg
+      aria-hidden
+      viewBox={`${b.x - pad} ${b.y - pad} ${b.width + pad * 2} ${b.height + pad * 2}`}
+      className="mx-auto block h-auto max-h-24 w-full"
+      preserveAspectRatio="xMidYMid meet"
+      style={{ background: WF.paper }}
+    >
+      <NodeRenderer node={node} />
+    </svg>
+  );
+}
+
+function SymbolItem({ symbol, symbols }: { symbol: WireframeSymbol; symbols: readonly WireframeSymbol[] }) {
+  return (
+    <div className="group/item relative flex flex-col gap-1.5 rounded-md border bg-card p-1.5 hover:border-ring">
+      <button
+        type="button"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData(SYMBOL_DRAG_MIME, symbol.id);
+        }}
+        onClick={() => insertSymbol(symbol.id) || toast.error('Could not insert the component here')}
+        title={`Insert “${symbol.name}” (or drag it onto a screen). Every copy stays in sync.`}
+        className="flex flex-col gap-1.5 rounded-sm text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <div className="overflow-hidden rounded-sm border">
+          <SymbolPreview symbol={symbol} symbols={symbols} />
+        </div>
+        <span className="truncate px-0.5 pr-14 text-sm">{symbol.name}</span>
+      </button>
+      <div className="absolute right-1.5 bottom-1 flex">
+        <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={`Rename ${symbol.name}`} title="Rename" onClick={() => startRenameSymbol(symbol.id)}>
+          <PencilSimpleIcon className="size-3.5" />
+        </button>
+        <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={`Delete ${symbol.name}`} title="Delete (copies become plain content)" onClick={() => startDeleteSymbol(symbol.id)}>
+          <TrashIcon className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** My components: this document's shared components, first in the library. */
+function MyComponents({ query }: { query: string }) {
+  const symbols = useDocStore((s) => symbolsOf(s.doc));
+  const q = query.trim().toLowerCase();
+  const shown = q ? symbols.filter((x) => x.name.toLowerCase().includes(q)) : symbols;
+  if (q && !shown.length) return null;
+  return (
+    <Section title="My components" actions={<span className="text-xs text-muted-foreground">{shown.length}</span>}>
+      {shown.length ? (
+        <div className="grid grid-cols-1 gap-2 min-[340px]:grid-cols-2">
+          {shown.map((x) => (
+            <SymbolItem key={x.id} symbol={x} symbols={symbols} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Build a piece once (a card, a top bar), select it and choose Object → Make component (⌥⇧K) to reuse it on every screen.</p>
+      )}
+    </Section>
+  );
+}
+
 export function LibraryPanel() {
   useCanvasDrop();
   const [query, setQuery] = useState('');
@@ -247,6 +328,7 @@ export function LibraryPanel() {
 
   return (
     <div className="flex flex-col">
+      <MyComponents query={query} />
       <Section title={platform ? `Components · ${platformDef(platform).label}` : 'Components'} actions={<span className="text-xs text-muted-foreground">{count}</span>}>
         <div className="relative">
           <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

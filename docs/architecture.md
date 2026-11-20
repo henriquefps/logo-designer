@@ -368,7 +368,7 @@ child, a child dragged off goes back to the canvas or onto the frame it was drop
 only for objects whose transform changed or that are new at the top level, never when the change itself
 reparented them), **`components`** (100: rebuilds instances whose `component` changed, or all on load; children
 get stable ids `<instance id>~<index>`; instances placed by a stack are left to the layout step), **`resize`** (400: a flow child the user resized gets that dimension fixed in
-`layoutItem`), **`repeat`** (450: repeat copies, see "Containers, style, repeat" below), **`layout`** (500:
+`layoutItem`), **`symbols`** (420: shared components, see "Shared components" below), **`repeat`** (450: repeat copies, see "Containers, style, repeat" below), **`layout`** (500:
 stacks and grids, below), **`screens`** (900: logical screens ↔ frames: unknown ids get a logical
 screen, a second frame of the same platform becomes its own logical screen "<name> copy", renaming a frame
 renames its logical screen, empty logical screens are removed; frame normalisation and height), **`flows`** (950,
@@ -512,6 +512,54 @@ arrow picking; Escape cancels through the tool's `onCancel`), `canvas/FlowArrows
 label editor; Delete / Backspace delete it), Properties `sections/flows` (outgoing flows, remove, "Link to screen…") and
 the Screen section's Status; the badge is drawn by `ScreenLabels`. Export: `flowExport.ts` (README "Flow" list + Mermaid,
 "→ opens X" under the source, "Opened from" per screen; status in the README list and each screen file).
+
+### Shared components (`src/wireframe/symbols.ts`, `symbolCommands.ts`)
+
+User components (phase 2): a group or container the user built (a "Trip card" container of image + heading + text +
+button) made reusable. Model: masters in `wireframe.symbols: { id, name, content }[]` (not on the canvas; `content` is a
+group in the master's own id space), instances are groups with `symbol: { id }` whose children are **real nodes**
+materialized from the master (like component children and repeat copies), with ids `<instance id>~s~<master id>`
+(`instancePrefix`). What instances share: the root's `layout` minus `size`, and the content. Per instance: the root's id,
+name, transform, `layoutItem`, `layout.size`, visibility, lock, opacity (position and size; the size reaches the content
+through the container's layout, R1). Unlike library instances, the content is editable: `hitTest` treats an instance as
+a group (double-click enters it), so every editing tool works inside it.
+
+- **Comparing** (`sharedShape(root, prefix)`, memoized by node identity; `inSync(inst, master)`): the content in the
+  master's id space without what the layout computes per instance (x/y of flow children of a stack, `layout.size` of a
+  stack in a flow, `component.size` and built children of a laid-out component), repeat copies, and nested instances'
+  children. Two instances of different widths with the same content compare equal.
+- **The `symbols` step** (420, every phase, `syncSymbols`): (1) an instance that existed before the change, changed, and
+  no longer matches its master is the edit: `contentOf(inst)` becomes the master's `content` (first per master in
+  document order); (2) every other instance whose master changed, or that the change touched (new, pasted, duplicated),
+  and that does not match gets its children rewritten (`syncedInstance`): `materializeChildren` + `reconcileList`, which
+  matches nodes by master id and keeps the instance's own ids, transforms and built components where the content is
+  unchanged (unchanged instances keep their identity; untouched subtrees are skipped). A fresh copy with random ids
+  (⌘D, paste) is mapped onto the master by position first, and its flows and notes follow (`remapRefs`); (3) an
+  instance whose master is missing becomes a plain group. Before `repeat` (450), so a template that is an instance is
+  current before it is copied; repeat copies are never synced themselves (they are clones of their template). New nodes
+  written into the draft are `structuredClone`d (they share frozen parts with the master; later steps write into them).
+  Cost: ~0.7 ms per drag frame and ~50 ms for an edit reaching 100 instances (test in `__tests__/symbols.test.ts`).
+- **Nesting**: a master may contain instances of other masters, stored without children and expanded on
+  materialization (`reaches` guards cycles: a master never contains itself; `insertSymbol` refuses a drop into an
+  instance of itself, and `contentOf` turns such a reference into a plain group).
+- **Flows** from an element inside an instance stay on that instance's node (`from` = its prefixed id): other instances
+  do not get the flow; the element keeps its id when the master changes; deleting the element in any instance deletes
+  it everywhere, so the flow goes (`flows` step). Flows from the instance itself work like any element's.
+- **Pure API**: `makeSymbol(draft, nodeId, name)` (the node becomes the first instance; descendants get instance ids,
+  flows and notes follow), `newSymbolInstance(master, symbols, at, width?)`, `detachSymbolInstance(node)`,
+  `renameSymbol`, `deleteSymbol` (instances become plain content, nested references in other masters are filled in),
+  `instancesOf`, `makeSymbolProblem` (what can be one: a group / container, not a screen, note, library component,
+  instance or copy), `defaultSymbolName` (the container's own name, else the first label inside).
+- **App**: Object → **Make component…** (⌥⇧K, also in the context menu and the "Shared component" Properties section of
+  a group / container) opens the name prompt (`dialogs/sharedComponent`, `useSymbolDialog`); Detach component (⌥⌘B)
+  also detaches shared instances. Library → **My components** (first section of Assets → Components): previews of
+  `newSymbolInstance`, click / drag inserts (`insertSymbol`, drag MIME `application/x-designer-symbol`, same targets as
+  containers), rename, delete (confirm when instances exist). Properties `sections/symbol`: name, instance count, Rename,
+  Detach; inside an instance: "Part of …" and Select the component. Layers: a diamond icon, content listed.
+- **Export for AI**: a screen writes an instance as one line, `Shared: Trip card` (flows from inside it are written under
+  it with their source, notes attached inside it too; a repeat template that is one gives `List of 3 × (Shared: Trip
+  card)`); the README's **Shared components** section describes each master once (its tree, nested ones by name) with
+  the screens it is used on.
 
 ### Components (`src/wireframe/library/`)
 
