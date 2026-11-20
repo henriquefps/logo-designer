@@ -32,10 +32,11 @@ Each phase is useful on its own and ships as one or more PRs.
 3. **Agents** (detailed below, with live editing): wireframe commands in the `designer` CLI and the `designer` skill, so a Claude Code
    session can create screens, read the flow and turn a screenshot into a wireframe (the manual
    experiment of 2026-11-19 automated).
-4. **AI in the app**: bring-your-own-key (Anthropic, Gemini, and one OpenAI-compatible adapter that
-   also covers Cloudflare AI Gateway, OpenRouter and local models). Calls run **in the browser**;
-   keys stay in IndexedDB and can optionally sync through the sync server. Features: screenshot →
-   wireframe, "Generate with AI" when dropping a flow arrow, "Adapt this screen to tablet/desktop".
+4. **AI in the app, through your own agent** (decided 2026-11-20, detailed below): the app asks
+   Henrique's Claude Code (his subscription, on a machine of his) through the sync server; no API
+   keys in the browser. Features: screenshot → wireframe, "Generate with AI" when dropping a flow
+   arrow, "Adapt this screen to tablet/desktop", and a free request box. (Browser bring-your-own-key
+   for other users is deferred.)
 5. **Later**: AI suggestions (shared components, automatic current-vs-proposed diff).
 
 Phases 2–5 get their own detailed sections when they start. Phase 1 must not block them: the model
@@ -706,6 +707,114 @@ project through the CLI only, live, recorded as the round's demo video.
 3. **A5** (now, in parallel; Opus): live editing — server, app, CLI.
 4. **A3** (after A4; Sonnet): sheet and compare.
 5. **A6 + A7** (last; Opus): handover check, skill, end-to-end run and demo video.
+
+## Phase 4: AI through your own agent (detailed)
+
+Decided with Henrique on 2026-11-20: **Claude Code only** (his subscription, headless `claude -p`),
+**through the sync server**, the agent running on a machine of his (cachyos-fps by default). No API
+keys anywhere in the app. The agent works exactly like the phase 3 end-to-end run (wf dump → look →
+wf build --into → wf compare → fix), on a live project, so the screens appear in the app while it
+works.
+
+### The pieces
+
+1. **Jobs on the sync server** (`designer-sync` v0.3.0): a small, authenticated job queue next to
+   projects and fonts, announced on the existing event stream.
+2. **The bridge** `designer agent` (CLI): runs on Henrique's machine, listens for jobs, claims one,
+   runs Claude Code on it in an isolated folder with the project mirrored live, reports progress,
+   finishes.
+3. **The app**: four entry points, a job panel (progress, cancel, result), and agent presence
+   ("Agent online on cachyos-fps").
+
+### Protocol (decided; server, bridge and app are built against it in parallel)
+
+All under the sync server's usual auth (API key / LAN rules), JSON, ids are client-generated.
+
+- `POST /api/jobs` — create: `{ id, type, projectId, screenId?, frameId?, input, attachments? }`.
+  `type`: `screenshot` (input `{ platform, name?, hint? }`, one image attachment), `next-screen`
+  (input `{ fromScreenId, fromNodeId, fromPart?, label, platform, hint?, at: {x,y} }`), `adapt`
+  (input `{ screenId, fromPlatform, toPlatform, hint? }`), `request` (input `{ text }`, free request
+  about the project). `attachments`: `[{ name, mime, dataBase64 }]`, total ≤ `MAX_BODY_MB`.
+  The server stores `data/jobs/<id>.json` (attachments in `data/jobs/<id>/`), status `queued`.
+- `GET /api/jobs?active=1|projectId=…` (metadata, newest first) and `GET /api/jobs/<id>` (full, incl.
+  progress; attachments via `GET /api/jobs/<id>/attachments/<name>`).
+- `POST /api/jobs/<id>/claim` `{ agentId }` → 200 and status `running` if it was `queued`, else
+  409 (atomic: two bridges never run one job).
+- `POST /api/jobs/<id>/progress` `{ agentId, message, stage? }` → appended to `progress[]`
+  (`{ at, message, stage }`), at most 200 entries.
+- `POST /api/jobs/<id>/finish` `{ agentId, status: 'done'|'failed'|'cancelled', summary?, error? }`.
+- `POST /api/jobs/<id>/cancel` (app) → `cancelRequested: true` (status unchanged until the bridge
+  finishes it as `cancelled`; a `queued` job becomes `cancelled` at once).
+- Presence: `POST /api/agents/heartbeat` `{ agentId, name, host, version, busy, jobId? }` every 15 s;
+  `GET /api/agents` lists agents seen in the last 45 s.
+- Events on `GET /api/events`: `{ kind: 'jobs', id, status, updatedAt }` on every job change and
+  `{ kind: 'agents', … }` when presence changes.
+- Retention: the newest 200 jobs; attachments deleted 24 h after a job finishes. A `running` job
+  whose agent stopped heartbeating for 2 min becomes `failed` ("agent went away").
+- Jobs are private (like fonts): never readable without auth, files 0600.
+
+### The bridge (`designer agent`)
+
+`designer agent [--server URL] [--name N] [--workdir DIR] [--max-minutes 15]` (key and server like
+`designer live`: `DESIGNER_SYNC_KEY` / `SYNC_API_KEY`, `DESIGNER_SYNC_URL`; on cachy:
+`~/.local/bin/skv run designer-sync -- designer agent`). One job at a time, queued jobs taken in
+order. Per job:
+
+1. Claim; make `<workdir>/<jobId>/`; pull the project; mark it live and start the live mirror on it;
+   save attachments there.
+2. Build the prompt **from a template per job type** (in the repo, reviewed like code): the task,
+   the relevant context (the source screen as a `wf dump` excerpt, the element/part label, the
+   platform, Henrique's hint **as quoted data**), the rules (library components only, keep what
+   exists, `wf dump` before every `wf build --into`, `wf compare` loop for screenshots, stop after
+   at most N rounds), and the Wireframes section of the `designer` skill appended as system prompt.
+3. Run `claude -p` with `--output-format stream-json`, cwd = the job folder, **tools restricted**:
+   only the `designer` CLI (`Bash(designer …)` patterns for wf/to-png/validate), `Read` (to look
+   at images and files in the job folder) and `Write`/`Edit` inside the job folder; nothing else
+   (no network tools, no other shell commands), no extra dirs. Model: the CLI default.
+4. Turn the stream into short progress messages ("Reading the screenshot", "Round 2: fixing the
+   list", "Checking with wf compare") → `progress`.
+5. Cancel (event or `cancelRequested` seen on poll) or `--max-minutes` → kill the process tree,
+   finish `cancelled`/`failed`; the project keeps whatever was already built (one undo in the app
+   reverts the job's changes as a whole? see App).
+6. Finish with a one-paragraph summary from the agent's last message; stop the mirror; keep the job
+   folder for a day (debugging), then delete.
+7. Heartbeat every 15 s, including `busy`/`jobId`.
+
+It refuses to start if `claude` is not found or not logged in, with a clear message. Uses the
+user's own Claude Code login: one person's subscription, for that person's own projects.
+
+### The app
+
+- **Agent presence**: a small "AI agent" status in the status bar / menu (online on <name>,
+  busy, offline, or "no sync server" with a link to the sync setup). Entry points are disabled with
+  a tooltip when no agent is online.
+- **Entry points**:
+  1. Paste or drop a screenshot onto the canvas of a wireframe document → a choice: "Place as
+     reference image" (today) or **"Turn into a wireframe with AI"** (platform + optional hint).
+  2. The flow drop menu's **"Generate with AI"** (enabled now): creates the target logical screen
+     and frame at once (empty, named after the label), links the flow, and sends a `next-screen` job
+     that fills it.
+  3. Screen section → **"Adapt to tablet / desktop with AI"** (next to "Duplicate as …").
+  4. **"Ask the agent…"** (Edit menu + a shortcut): a free request about the whole project.
+- **Before sending**: the project is flushed to the sync server (it must exist there) and marked
+  live.
+- **Job panel** (a small floating panel, one row per running/recent job of this project): type,
+  status, latest progress line, elapsed time, Cancel; on finish, the summary and "Undo the agent's
+  changes" (restores the project as it was when the job started, from a snapshot taken at send).
+- Henrique can keep editing while the agent works (live editing rules apply); the panel warns that
+  edits on the same screen may be overwritten.
+
+### Phase 4 workstreams
+
+1. **Server jobs** (designer-sync, Go + a shared TS client in `src/sync/jobs.ts` used by app and CLI):
+   the protocol above, tests (-race), docs/sync.md + README. No release (the coordinator releases
+   v0.3.0).
+2. **Bridge** (`designer agent`): against the protocol (use a fake server in tests until 1 lands),
+   prompt templates, tool restrictions, progress mapping, cancel/timeout, presence, docs/agents.md.
+3. **App**: presence, the four entry points, job panel, snapshot + undo, against the protocol (fake
+   server in tests).
+4. **End to end + demo videos** (after 1–3): local server + bridge running real Claude Code + app in
+   Playwright; each feature once; videos; bugs fixed.
 
 ## Quality bar
 
