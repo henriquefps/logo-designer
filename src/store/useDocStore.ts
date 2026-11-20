@@ -39,7 +39,19 @@ export interface HistoryEntry {
   selection?: Id[];
   /** Selection when the entry was undone (restored by redo). */
   redoSelection?: Id[];
+  /** A change that came from elsewhere (another device, an agent job, the live mirror): see `applyRemote`. */
+  remote?: true;
 }
+
+/**
+ * Keys a change from elsewhere sets without recording them in an undo step: they say where the version came from,
+ * not what it contains (undoing the agent's rectangles must not bring an old live mark or date back).
+ */
+const REMOTE_META_KEYS: ReadonlySet<string> = new Set(['id', 'createdAt', 'updatedAt', 'live']);
+
+/** Label of the undo step for a change from elsewhere. */
+export const remoteChangeLabel = (doc: Pick<DesignDocument, 'live'>, previous: Pick<DesignDocument, 'live'>): string =>
+  (doc.live?.editedBy ?? previous.live?.editedBy) === 'cli' ? 'Changes from the agent' : 'Changes from another device';
 
 interface Transaction {
   label: string;
@@ -77,6 +89,20 @@ export interface DocState {
   canRedo: () => boolean;
   /** Replaces the document and clears history (open project). */
   load: (doc: DesignDocument) => void;
+  /**
+   * Replaces the open document with a version that came from elsewhere (sync, an agent job, the live mirror)
+   * without losing the undo history (docs/sync.md → In-place update and undo): the change becomes one undo step
+   * ("Changes from the agent"), merged with the step before it when that one was a change from elsewhere too, and
+   * redo is cleared. `live`, `updatedAt`, `id` and `createdAt` are set but are not part of the step. False while a
+   * gesture is in progress (try again later); nothing is recorded when only those keys changed.
+   */
+  applyRemote: (doc: DesignDocument) => boolean;
+  /**
+   * Re-materializes the document as on load (icons that arrived after opening) without an edit of its own: with no
+   * history, none is added; right after a change from elsewhere, it joins that step. False otherwise (make it an
+   * edit).
+   */
+  rematerialize: () => boolean;
 
   /** `flows`: copied flows (new ids) to add with the nodes; those whose target screen does not exist are dropped. */
   addNodes: (nodes: SceneNode[], opts?: { parentId?: Id | null; index?: number; label?: string; flows?: WireframeFlow[] }) => Id[];
@@ -168,6 +194,31 @@ export const useDocStore = create<DocState>()((set, get) => {
     }));
   };
 
+  /**
+   * `doc` → `next` as a step from elsewhere: the content keys that differ become one undo step, joined to `into`
+   * (the remote step on top of the history) when given. Redo is cleared: its steps were recorded against the
+   * document before this version.
+   */
+  const foldRemote = (doc: DesignDocument, next: DesignDocument, label: string, into: HistoryEntry | null) => {
+    const [, patches, inverse] = produceWithPatches(doc, (d) => {
+      const draft = d as Record<string, unknown>;
+      const after = next as unknown as Record<string, unknown>;
+      for (const key of new Set([...Object.keys(doc), ...Object.keys(next)])) {
+        if (REMOTE_META_KEYS.has(key) || (doc as unknown as Record<string, unknown>)[key] === after[key]) continue;
+        if (key in after) draft[key] = after[key];
+        else delete draft[key];
+      }
+    });
+    set((s) => {
+      if (!patches.length) return { doc: next, version: s.version + 1 };
+      const entry: HistoryEntry = into
+        ? { ...into, patches: [...into.patches, ...patches], inverse: [...inverse, ...into.inverse] }
+        : { label, patches, inverse, selection: currentSelection(), remote: true };
+      const past = into ? [...s.past.slice(0, -1), entry] : trim([...s.past, entry]);
+      return { doc: next, past, future: [], version: s.version + 1 };
+    });
+  };
+
   // Wireframe documents: after every change the materialization pipeline (src/wireframe/pipeline.ts)
   // updates generated content inside the same undo step. Other documents return null right away.
   const apply: DocState['apply'] = (recipe, opts) => {
@@ -257,6 +308,25 @@ export const useDocStore = create<DocState>()((set, get) => {
     load: (doc) => {
       const ready = runWireframePipeline(doc, null, 'load', { patches: false })?.doc ?? doc;
       set((s) => ({ doc: ready, past: [], future: [], txn: null, version: s.version + 1 }));
+    },
+
+    applyRemote: (incoming) => {
+      const { doc, txn, past } = get();
+      if (txn) return false;
+      const ready = runWireframePipeline(incoming, null, 'load', { patches: false })?.doc ?? incoming;
+      foldRemote(doc, ready, remoteChangeLabel(ready, doc), past.at(-1)?.remote ? past.at(-1)! : null);
+      return true;
+    },
+
+    rematerialize: () => {
+      const { doc, txn, past } = get();
+      const top = past.at(-1);
+      if (txn || (past.length && !top?.remote)) return false;
+      const ready = runWireframePipeline(doc, null, 'load', { patches: false })?.doc ?? doc;
+      if (ready === doc) return true;
+      if (!past.length) set((s) => ({ doc: ready, version: s.version + 1 }));
+      else foldRemote(doc, ready, top!.label, top!);
+      return true;
     },
 
     addNodes: (nodes, opts = {}) => {

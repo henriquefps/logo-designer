@@ -102,8 +102,10 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     unsubscribe = useDocStore.subscribe((s, prev) => {
       if (s.version === prev.version || s.txn || loadingRemote) return;
       // A live project re-loaded without history (opened, icons filled in after opening) has not been edited:
-      // saving it would push it back as "changed by this device".
+      // saving it would push it back as "changed by this device". Same for icons filled in after a change from
+      // elsewhere (`rematerialize` joins them to that step: the top entry changes, the history does not grow).
       if (s.doc.live && !s.past.length && !s.future.length) return;
+      if (s.doc.live && s.past.length === prev.past.length && s.past.at(-1)?.remote && s.past.at(-1) !== prev.past.at(-1)) return;
       if (s.doc.id !== get().activeId) return;
       if (timer) clearTimeout(timer);
       set({ saveState: 'pending' });
@@ -225,15 +227,16 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
 
     applyRemote: async (incoming) => {
       const active = incoming.id === get().activeId;
-      if (active && (get().saveState === 'pending' || get().saveState === 'saving')) return false;
+      if (active && (get().saveState === 'pending' || get().saveState === 'saving' || useDocStore.getState().txn)) return false;
       await saveDocument(incoming);
       const projects = upsert(get().projects, metaOf(incoming));
       await saveProjectList(projects);
       set({ projects });
       if (active) {
+        // In place, keeping the undo history (docs/sync.md → In-place update and undo): the change is one undo step.
         loadingRemote = true;
         try {
-          useDocStore.getState().load(incoming);
+          if (!useDocStore.getState().applyRemote(incoming)) return false; // a gesture is in progress: next cycle
         } finally {
           loadingRemote = false;
         }
