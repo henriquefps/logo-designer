@@ -497,6 +497,18 @@ Lists every library component with its kind, label, platforms, category, props (
 options, visibleWhen, help), sizing/resizable/placement defaults and one example, as Markdown (for
 reading) or `--json`. Generated from the registry at run time, so it never goes stale.
 
+#### As built (A1 + A2)
+
+- Reference: [`wireframe-spec.md`](wireframe-spec.md); code `src/wireframe/spec/` (`parse.ts` → `build.ts` / `dump.ts`,
+  `catalog.ts`, `schema.ts`), CLI `src/cli/wf.ts`. The schema is written by `bun run schema` with the project schema.
+- Node forms: `{ "<kind>": props | "text" | [list] }`, `{ "kind", "props" }`, `vstack` / `hstack` / `grid`, `use`,
+  `group`, and `{ "node": … }` for any other object (so a dump never loses anything). Sugar on any node: `opens`
+  (flows) and `note`. Screen children with a default placement (bottom navigation, FAB…) get it, like a library insert.
+- `build --into`: by id (id-less nodes: same parent, same index, same kind). Geometry the spec leaves out is kept;
+  everything stated wins; top-level `components` / `notes` / `flows` / `canvas` left out entirely are kept.
+  `dump --no-geometry` is the agent's side of that. Flows from removed nodes go, notes on them detach (warnings).
+- The CLI loads Lucide glyphs for the build (no placeholders in `to-png`); Iconify icons still wait for the app.
+
 ### A3. Looking at the result (`designer wf sheet`, `wf compare`)
 
 - `designer wf sheet <project> [-o sheet.png] [--platform P]`: one image of every frame laid out as

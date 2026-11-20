@@ -44,6 +44,9 @@ bunx --bun "$DESIGNER" present concept-a.designer.json concept-b.designer.json
 | `designer fit <project> [-o file]` | **scale and centre the glyph of an app icon project onto its keyline**: the same transform as the app's *Fit to keyline* (shared code, strokes scale with the glyph), measured like `icons`. In place unless `-o`. Prints before/after (long side as a fraction of T, on keyline yes/no). Error if the project is not an app icon. Run it after manual edits or `knockout`; exports fit automatically, so this only keeps the canvas in line with them. Idempotent |
 | `designer to-png <project> --size N [-o file]` | PNG N px wide (resvg). Default output `<project>-N.png` |
 | `designer to-png <wireframe> [--screen N] [--platform P] [--size N] [-o dir\|file.png]` | wireframe projects: **one PNG per screen frame**, `<screen>.<platform>.png` (e.g. `settings.phone.png`) in `-o dir` (default `<project>-screens/`); `--screen` (name or slug) and `--platform` pick frames; `--size` = PNG width (default the frame width, 1×; the height follows the frame). One matching frame and `-o x.png` writes that file |
+| `designer wf build <spec.json\|-> [-o project.designer.json] [--into existing.designer.json]` | wireframes from a **spec** ([`wireframe-spec.md`](wireframe-spec.md)): screens as a tree of library components, stacks, shared components, flows and notes, built through the app's pipeline. Errors name the spec path (`screens[1].root[3].list-row.trailing: "arrow" is not one of …`), all at once. `--into` updates that project by id (in place unless `-o`): what the spec states wins, the geometry it leaves out is kept, only what it no longer lists is removed. Without `-o` / `--into`: stdout |
+| `designer wf dump <project> [-o spec.json] [--no-geometry]` | wireframe project → spec, every node with its id, defaults left out (to read what was edited by hand). `--no-geometry` leaves out positions and sizes, so a later `build --into` keeps the project's |
+| `designer wf components [kind…] [--json]` | the component catalog, generated from the library: kind, label, platforms, category, props (type, default, options, visibleWhen, help), sizing / resizable / placement, short form and an example per component; Markdown or `--json` |
 | `designer export-ai <wireframe> [-o out.zip \| --dir folder]` | wireframe projects: the **Export for AI** package, same as File → Export for AI… in the app: `README.md` (screens and platforms, free notes), `screens/<slug>.md` (every variant's component tree from the components' descriptions, with the notes next to their elements), `screens/<slug>.<platform>.png` (resvg, notes excluded) and `project.designer.json`, in a `<project>/` folder inside the zip. Default output `<project>-for-ai.zip`; `--dir` writes the files into a folder instead. Give the zip (or the `.md` files) to an agent that builds the app |
 | `designer to-svg <wireframe> [--screen N] [--platform P] [-o file]` | one screen frame (white, content clipped; `--platform` when the screen has several) or, without `--screen`, every screen on one canvas |
 | `designer validate <project…>` | `ok`/`FAIL` per file; errors name the JSON path (`children[2].fill.stops[0].color: …`). Exit 1 on failure. For icon projects, a `note:` (not an error) when the glyph is off its keyline |
@@ -122,7 +125,38 @@ instances (`component: { kind, props }`) are generated on open; write their prop
 `validate`, `info` and the renders materialize the file first (screen heights, component children), exactly
 like the app does on open, and print a `warning:` for what was ignored (an unknown component kind loads as a
 plain group). `export-ai` turns the project into the package an AI agent reads to build the app (`bun run designer export-ai notes.designer.json`).
-More wireframe commands (components, flows) come in phase 3.
+To build screens, write a spec instead of node trees: next section.
+
+## Wireframes from the CLI
+
+Write screens as a **spec** ([`wireframe-spec.md`](wireframe-spec.md), schema
+`https://designer.hfps.dev/schema/wireframe-spec.schema.json`) and let `designer wf build` make the project: library
+components (`{ "list-row": { "title": "Language", "trailing": "value", "value": "English" } }`, or short forms like
+`{ "heading": "Settings" }`), stacks (`{ "vstack": [ … ], "gap": 8 }`), shared components (`{ "use": "Tab bar" }`),
+flows (`"opens": "Language"` on a node, or `flows: [{ "from": "Settings/Language", "to": "Language" }]`) and notes. The
+pipeline is the app's, so stacks, sizes, repeat copies, shared instances and screen heights come out exactly as the
+app makes them; nothing to position by hand.
+
+```sh
+bun run designer wf components                              # the pieces: props, defaults, options, examples (--json)
+bun run designer wf components list-row                     # one of them
+bun run designer wf build hoard.spec.json -o hoard.designer.json
+#   Built: 2 screens (2 frames), 17 nodes
+bun run designer to-png hoard.designer.json                 # look at it: hoard-screens/settings.phone.png, server.phone.png
+bun run designer wf dump hoard.designer.json --no-geometry -o hoard.spec.json   # later: read what Henrique changed
+# … edit hoard.spec.json …
+bun run designer wf build hoard.spec.json --into hoard.designer.json
+#   Updated hoard.designer.json: 2 screens (2 frames), 18 nodes: 1 added, 0 removed, 21 kept
+```
+
+- The whole spec is checked first; every problem comes back at once, each with its spec path and, for typos, a
+  "did you mean". Exit code 1, nothing written.
+- `dump` gives every node its `id`; `build --into` updates by id, so manual sizes and positions survive (use
+  `dump --no-geometry`, or leave `x` / `y` / `width` / `height` out of what you write) and only what the spec no
+  longer lists is removed. `build(dump(p))` gives `p` back.
+- Lucide icons (`"icon": "heart"`) are drawn by the CLI too; Iconify ones (`"ph:heart"`) show a placeholder until
+  the app opens the file.
+- Then `export-ai` packages the result for the agent that builds the app.
 
 ## The workflow
 
