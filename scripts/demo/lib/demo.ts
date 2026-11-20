@@ -90,14 +90,14 @@ export class Demo {
   }
 
   /** Moves the mouse to a target in visible steps (eased); with the button down this is a drag. */
-  async move(target: Target, aim: Aim = {}, opts: { duration?: number } = {}): Promise<Point> {
+  async move(target: Target, aim: Aim = {}, opts: { duration?: number; linear?: boolean } = {}): Promise<Point> {
     const to = await this.point(target, aim);
     const from = this.pos;
     const dist = Math.hypot(to.x - from.x, to.y - from.y);
     const duration = this.fast ? 60 : (opts.duration ?? Math.min(900, 250 + dist * 0.9));
     const n = Math.max(2, Math.round(duration / 16));
     for (let i = 1; i <= n; i++) {
-      const t = ease(i / n);
+      const t = opts.linear ? i / n : ease(i / n);
       await this.page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
       if (!this.fast) await this.page.waitForTimeout(8);
     }
@@ -139,9 +139,9 @@ export class Demo {
     this.pos = { x: this.pos.x + 4, y: this.pos.y + 4 };
     for (const v of opts.via ?? []) await this.move(v);
     for (const m of opts.modifiers ?? []) await this.page.keyboard.down(m);
-    await this.move(to, opts.toAim, { duration: opts.duration ?? 1100 });
+    // Linear: an eased tail ends in sub-pixel moves, which some gestures treat as "no change".
+    await this.move(to, opts.toAim, { duration: opts.duration ?? 1100, linear: true });
     // Linger with the button down so the insertion line / drop target is visible.
-    await this.page.mouse.move(this.pos.x + 1, this.pos.y);
     await this.pause(opts.hold ?? 700);
     await this.page.mouse.up();
     for (const m of opts.modifiers ?? []) await this.page.keyboard.up(m);
