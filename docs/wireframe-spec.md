@@ -140,8 +140,10 @@ actions, pagination (previous / next).
   same: `"Tab bar/Bottom navigation#Files"`. A flow from a path through a screen (`"Home/Tab bar/…"`) stays on that
   one instance.
 - `"selected": "auto"` (the default for bottom navigation, tabs, segmented control, sidebar navigation and the web
-  header) draws selected the item whose part opens the screen the component is on (the first one when none does):
-  one shared tab bar shows the right tab on each screen. A number keeps a fixed selection.
+  header) draws selected the item whose part opens the screen the component is on: one shared tab bar shows the
+  right tab on each screen. On a screen no item opens, the item whose screen leads to it (flows walked backwards,
+  nearest first: Settings → Server keeps Settings selected on Server; the first item when nothing leads there). A
+  number keeps a fixed selection.
 - When the list changes in the app (tabs reordered, renamed, removed), flows on its parts follow their items: by
   label, else by position for a renamed entry; a removed item's flows go.
 
