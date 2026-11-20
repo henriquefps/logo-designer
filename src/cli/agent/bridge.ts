@@ -47,18 +47,14 @@ export function designerWrapper(command: string[], sandboxRoot: string): string 
 
 /**
  * How this checkout's CLI is started: the Bun running us (or `bun`) and bin/designer.ts. Bun would otherwise read
- * `bunfig.toml` (preload scripts!), `.env` and `tsconfig.json` from the current folder, which is the job folder the
- * agent writes; and it must never install packages.
+ * `bunfig.toml` (preload scripts!) and `.env` from the current folder, which is the job folder the agent writes; and
+ * it must never install packages. A `tsconfig.json` there does not matter: Bun resolves each source file with the
+ * tsconfig nearest to it, which is this checkout's (bridge.test.ts checks a hostile one). `--tsconfig-override` is
+ * not used: Bun 1.4 prints "Internal error: directory mismatch" with it on every run, noise in all of the agent's
+ * command output.
  */
 export function defaultDesignerCommand(): string[] {
-  return [
-    process.versions.bun ? process.execPath : 'bun',
-    '--no-install',
-    '--config=/dev/null',
-    '--no-env-file',
-    `--tsconfig-override=${repoFile('tsconfig.json')}`,
-    repoFile('bin/designer.ts'),
-  ];
+  return [process.versions.bun ? process.execPath : 'bun', '--no-install', '--config=/dev/null', '--no-env-file', repoFile('bin/designer.ts')];
 }
 
 const JOB_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;

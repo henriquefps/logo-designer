@@ -65,11 +65,7 @@ function Row({ row }: { row: JobRow }) {
           </span>
         </p>
       )}
-      {over && row.summary && (
-        <p className="pl-6 text-xs whitespace-pre-line" data-testid="agent-job-summary">
-          {row.summary}
-        </p>
-      )}
+      {over && row.summary && <Summary text={row.summary} />}
       {row.error && (
         <p className="pl-6 text-xs text-destructive" data-testid="agent-job-error">
           {row.error}
@@ -99,6 +95,30 @@ function Row({ row }: { row: JobRow }) {
         )}
       </div>
     </li>
+  );
+}
+
+/** Summaries longer than this many characters are cut to a few lines, with More / Less. */
+const SUMMARY_CLAMP = 220;
+
+/**
+ * The agent's summary: a few lines, the rest behind More (a long one covered the canvas in the phase 4 end-to-end
+ * run; the prompt now asks for at most 3 sentences, but the panel does not rely on it).
+ */
+function Summary({ text }: { text: string }) {
+  const [more, setMore] = useState(false);
+  const long = text.length > SUMMARY_CLAMP;
+  return (
+    <div className="pl-6 text-xs">
+      <p className={cn('whitespace-pre-line', long && !more && 'line-clamp-4')} data-testid="agent-job-summary" title={long && !more ? text : undefined}>
+        {text}
+      </p>
+      {long && (
+        <button type="button" className="mt-0.5 text-primary hover:underline" aria-expanded={more} onClick={() => setMore(!more)}>
+          {more ? 'Less' : 'More'}
+        </button>
+      )}
+    </div>
   );
 }
 

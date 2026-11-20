@@ -69,15 +69,36 @@ export class Demo {
     await this.pause(800);
   }
 
+  /** Parts of the recording to play faster (ms since the page opened), with the factor: see `speedUp`. */
+  readonly speedSegments: { start: number; end: number; factor: number }[] = [];
+
+  /**
+   * Plays a long wait (the agent working) `factor` times faster in the video, with a visible "⏩ acelerado ×N"
+   * badge during it, so it is shortened honestly rather than cut. Resolves with `wait`'s result.
+   */
+  async speedUp<T>(factor: number, wait: () => Promise<T>): Promise<T> {
+    if (this.fast) return wait();
+    await this.page.evaluate((l) => (window as unknown as { __demoSpeed(l: string): void }).__demoSpeed(l), `⏩ acelerado ×${factor}`);
+    await this.page.waitForTimeout(150);
+    const start = Date.now() - this.openedAt;
+    try {
+      return await wait();
+    } finally {
+      const end = Date.now() - this.openedAt;
+      this.speedSegments.push({ start, end, factor });
+      await this.page.evaluate(() => (window as unknown as { __demoSpeed(l: string): void }).__demoSpeed(''));
+    }
+  }
+
   private termLines: string[] = [];
 
   /**
    * The terminal strip: appends lines (a command starts with "$ ", the rest is its output), keeping the
    * last `keep`; `{ clear: true }` starts over, no lines and `clear` hides it.
    */
-  async terminal(lines: string[], opts: { clear?: boolean; keep?: number } = {}): Promise<void> {
-    this.termLines = [...(opts.clear ? [] : this.termLines), ...lines].slice(-(opts.keep ?? 3));
-    await this.page.evaluate((l) => (window as unknown as { __demoTerminal(l: string[]): void }).__demoTerminal(l), this.termLines);
+  async terminal(lines: string[], opts: { clear?: boolean; keep?: number; width?: number } = {}): Promise<void> {
+    this.termLines = lines.length ? [...(opts.clear ? [] : this.termLines), ...lines].slice(-(opts.keep ?? 3)) : [];
+    await this.page.evaluate(([l, w]) => (window as unknown as { __demoTerminal(l: string[], w?: number): void }).__demoTerminal(l as string[], w as number | undefined), [this.termLines, opts.width] as const);
   }
 
   async pause(ms = 550): Promise<void> {

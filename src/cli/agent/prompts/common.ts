@@ -95,14 +95,15 @@ export function rules(maxRounds: number, extra: string[] = []): string {
   const list = [
     `Work only in this folder. ${PROJECT_FILE} is live: every change to it appears in the person's app within a second, so they watch you work.`,
     `The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.`,
+    `Look at files (${SPEC_FILE}, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.`,
     `Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.`,
     `Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.`,
-    `Before every build, run \`designer wf dump ${PROJECT_FILE} --no-geometry -o ${SPEC_FILE}\` and make your changes on that fresh dump: the person may be editing the project at the same time.`,
+    `Start every round from a fresh dump, \`designer wf dump ${PROJECT_FILE} --no-geometry -o ${SPEC_FILE}\`, then edit ${SPEC_FILE} and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).`,
     `Build only with \`designer wf build ${SPEC_FILE} --into ${PROJECT_FILE}\`. Never write ${PROJECT_FILE} by hand and never build a new file with -o.`,
     `At most ${maxRounds} rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.`,
     ...extra,
     `Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".`,
-    `End with one paragraph for the person: what you built, and anything you could not do.`,
+    `End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.`,
   ];
   return `Rules:\n${list.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 }

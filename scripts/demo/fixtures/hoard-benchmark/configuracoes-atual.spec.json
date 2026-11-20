@@ -1,0 +1,591 @@
+{
+  "$schema": "https://designer.hfps.dev/schema/wireframe-spec.schema.json",
+  "version": 1,
+  "name": "Hoard",
+  "screens": [
+    {
+      "name": "Configurações",
+      "status": "current",
+      "platform": "phone",
+      "root": [
+        {
+          "top-app-bar": {
+            "title": "Configurações",
+            "leading": "back",
+            "actions": 0
+          },
+          "note": "Itens que só aparecem em outros estados (não desenhados):\n• Sem servidor pareado: a linha \"Parear com um servidor de fotos\" (sub \"Leia o QR code da página de configuração do servidor, ou cole o link\") → tela de pareamento; some todo o resto da seção Servidor de fotos, menos \"Pastas do celular\".\n• Servidor em http://: o subtítulo do servidor soma \"HTTP sem criptografia: fotos e a chave trafegam sem proteção. Use o endereço https:// do servidor quando houver.\" e o cadeado vira um aviso vermelho.\n• Situação: \"Ainda não sincronizado\"; \"{n} decisões esperando para sincronizar\"; erros \"A última sincronização falhou: o servidor não estava ao alcance\" / \"O servidor não aceita mais este celular: pareie de novo\" / \"A última sincronização falhou ({erro})\" / \"O servidor recusou algumas decisões; elas serão enviadas de novo mais tarde ({erro})\". \"Sincronizar agora\" fica desativado enquanto sincroniza.\n• \"Comprimir vídeos\" (sub \"Reduza vídeos na GPU do servidor de fotos\") → tela própria: só se o servidor tem o recurso de compressão.\n• Backup sem pastas: \"Desligado: escolha as pastas do backup\". Pastas mapeadas sem nenhuma: \"Nenhuma ainda. Abra uma pasta de compartilhamento que o servidor também indexa, e o Hoard a reconhece lendo duas das fotos.\"\n• Armazenamento: \"Pastas onde o Hoard pode salvar\" (ajuda \"O Android deu ao Hoard acesso a estas pastas. Libere uma para revogar o acesso.\", uma linha por pasta com \"Liberar\"): só se o Android deu pastas pelo seletor. Acesso desligado: \"Desligado: só suas máquinas e unidades escolhidas uma a uma.\"\n• Lixeira: Android < 12 \"Precisa do Android 12 ou mais recente.\" (sem botão); não permitido: \"Não permitido: o Android pede confirmação toda vez que o Hoard move fotos do celular para a lixeira dele.\" + \"Permitir\".\n• Cópias / links do Reveal vazios: \"Nenhuma cópia neste celular.\" / \"O Reveal não tem links para arquivos do Hoard.\" (sem botão); \"Contando…\" enquanto carrega.\n• A ajuda de \"Se o arquivo já existir\" muda com a opção; o texto de \"Direção da ordem\" muda com a ordem (Tamanho: Menores/Maiores primeiro; Modificado: Mais antigos/Mais recentes primeiro)."
+        },
+        {
+          "vstack": [
+            {
+              "section-header": {
+                "label": "Servidor de fotos"
+              }
+            },
+            {
+              "text": {
+                "text": "O hoard-server guarda sua biblioteca: o Hoard mostra os itens dele na Galeria e sincroniza suas escolhas e estrelas com o Reveal e a galeria web.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "list-row": {
+                "title": "hoard-server",
+                "subtitle": "Versão 1.6.0 · https://hoard.casa.ts.net",
+                "leading": "icon",
+                "leadingIcon": "lucide:Lock",
+                "trailing": "value",
+                "value": "Endereço"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Situação",
+                "subtitle": "Sincronizado há 2 min · 12.480 itens no servidor",
+                "leading": "icon",
+                "leadingIcon": "lucide:CircleCheck",
+                "trailing": "none"
+              }
+            },
+            {
+              "button": {
+                "label": "Sincronizar agora",
+                "variant": "secondary"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Este celular",
+                "subtitle": "Agrupado com Reveal",
+                "leading": "icon",
+                "leadingIcon": "lucide:Smartphone",
+                "trailing": "none"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Backup do celular",
+                "subtitle": "2 pastas · 1.204 de 1.310 com backup · 3,2 GB liberados · 1.204 arquivos",
+                "leading": "icon",
+                "leadingIcon": "lucide:Upload",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Cache de prévias",
+                "subtitle": "312 MB de 1,1 GB",
+                "leading": "icon",
+                "leadingIcon": "lucide:Database",
+                "trailing": "value",
+                "value": "Limpar cache"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Limite do cache",
+                "options": [
+                  "256 MB",
+                  "1,1 GB",
+                  "4,3 GB"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "list-row": {
+                "title": "Miniaturas offline",
+                "subtitle": "12.480 de 12.480 itens · 140 MB",
+                "leading": "icon",
+                "leadingIcon": "lucide:Images",
+                "trailing": "value",
+                "value": "Limpar cache"
+              }
+            },
+            {
+              "checkbox": {
+                "label": "Guardar miniaturas pequenas da biblioteca inteira (só no Wi-Fi)",
+                "checked": true
+              }
+            },
+            {
+              "checkbox": {
+                "label": "Só carregando",
+                "checked": false
+              }
+            },
+            {
+              "list-row": {
+                "title": "Originais guardados",
+                "subtitle": "Fotos que você abriu, guardadas neste celular: 640 MB de 2 GiB",
+                "leading": "icon",
+                "leadingIcon": "lucide:HardDrive",
+                "trailing": "value",
+                "value": "Limpar cache"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "",
+                "options": [
+                  "512 MiB",
+                  "2 GiB",
+                  "8 GiB"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "list-row": {
+                "title": "Pastas mapeadas",
+                "subtitle": "Pastas de compartilhamentos que o servidor também indexa: as fotos delas vão para o Reveal a partir do servidor, e suas escolhas e estrelas sincronizam como as da Galeria.",
+                "leading": "icon",
+                "leadingIcon": "lucide:FolderSync",
+                "trailing": "none"
+              }
+            },
+            {
+              "list-row": {
+                "title": "nas › fotos/2024",
+                "subtitle": "No servidor: /srv/fotos/2024",
+                "trailing": "value",
+                "value": "Esquecer"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Desparear",
+                "leading": "icon",
+                "leadingIcon": "lucide:Unlink",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Pastas do celular",
+                "subtitle": "Câmera, Imagens, Filmes e WhatsApp sempre aparecem",
+                "leading": "icon",
+                "leadingIcon": "lucide:Folder",
+                "trailing": "none"
+              }
+            },
+            {
+              "list-row": {
+                "title": "/storage/emulated/0/Telegram",
+                "leading": "icon",
+                "leadingIcon": "lucide:X",
+                "trailing": "none"
+              }
+            },
+            {
+              "button": {
+                "label": "Adicionar uma pasta",
+                "variant": "text"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Tema"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "",
+                "options": [
+                  "Sistema",
+                  "Claro",
+                  "Escuro"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "section-header": {
+                "label": "Paleta"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "",
+                "options": [
+                  "Azul",
+                  "Oliva",
+                  "Violeta",
+                  "Rosa",
+                  "Grafite"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "section-header": {
+                "label": "Idioma"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "",
+                "options": [
+                  "Idioma do sistema",
+                  "English",
+                  "Português (Brasil)"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Navegação"
+              }
+            },
+            {
+              "toggle": {
+                "label": "Mostrar arquivos ocultos",
+                "description": "Arquivos e pastas que começam com ponto ou estão marcados como ocultos no servidor.",
+                "on": false
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Ordem padrão",
+                "options": [
+                  "Nome",
+                  "Tamanho",
+                  "Modificado"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Direção da ordem",
+                "options": [
+                  "De A a Z",
+                  "De Z a A"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "text": {
+                "text": "As pastas sempre aparecem antes dos arquivos.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Transferências"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Se o arquivo já existir",
+                "options": [
+                  "Perguntar (padrão)",
+                  "Manter os dois",
+                  "Substituir",
+                  "Pular"
+                ],
+                "selected": 1
+              }
+            },
+            {
+              "text": {
+                "text": "Mostra uma pergunta, com “aplicar a todos”.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Tempo limite da verificação de caminho",
+                "options": [
+                  "0,8 s",
+                  "1,5 s (padrão)",
+                  "3 s",
+                  "5 s"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "text": {
+                "text": "Quanto o Hoard espera cada endereço responder. Aumente em redes lentas.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Armazenamento do telefone"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Acesso a todos os arquivos",
+                "subtitle": "Permitido: o Hoard navega no telefone, em pendrives e cartões SD.",
+                "leading": "icon",
+                "leadingIcon": "lucide:HardDrive",
+                "trailing": "value",
+                "value": "Alterar"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Fotos copiadas para o Reveal"
+              }
+            },
+            {
+              "list-row": {
+                "title": "3 fotos, 84 MB",
+                "subtitle": "Fotos de compartilhamentos, drives e cartões SD que \"Editar no Reveal\" copiou para Pictures/Hoard. Ficam até você apagá-las; editar a mesma foto de novo reaproveita a cópia.",
+                "leading": "icon",
+                "leadingIcon": "lucide:Copy",
+                "trailing": "none"
+              }
+            },
+            {
+              "button": {
+                "label": "Apagar cópias",
+                "variant": "text"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Links do Reveal"
+              }
+            },
+            {
+              "list-row": {
+                "title": "O Reveal pode reabrir 5 arquivos enviados pelo Hoard, mesmo depois de reiniciar.",
+                "subtitle": "Fotos abrem no Reveal, o editor de RAW, a partir do navegador de arquivos e da seleção (\"Editar no Reveal\").",
+                "leading": "icon",
+                "leadingIcon": "lucide:Link",
+                "trailing": "none"
+              }
+            },
+            {
+              "button": {
+                "label": "Revogar todos",
+                "variant": "text"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Lixeira"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Abrir a lixeira",
+                "leading": "icon",
+                "leadingIcon": "lucide:Trash2",
+                "trailing": "chevron"
+              }
+            },
+            {
+              "radio-group": {
+                "label": "Esvaziar a lixeira automaticamente",
+                "options": [
+                  "Depois de 7 dias",
+                  "Depois de 30 dias",
+                  "Depois de 90 dias",
+                  "Nunca"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "text": {
+                "text": "Os dias na lixeira são apagados depois disso, em todo compartilhamento e drive que o Hoard alcançar.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Gerenciamento de mídia",
+                "subtitle": "Permitido: o Android não pergunta antes de cada envio para a lixeira, restauração ou exclusão.",
+                "leading": "icon",
+                "leadingIcon": "lucide:ShieldCheck",
+                "trailing": "value",
+                "value": "Alterar"
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Seleção de fotos"
+              }
+            },
+            {
+              "text": {
+                "text": "Assistência na seleção (o que conta como desfocada ou olhos fechados, como as sequências são agrupadas) e como \"Exportar XMP\" nomeia os arquivos.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "text": {
+                "text": "Fotos desfocadas",
+                "size": "body"
+              }
+            },
+            {
+              "segmented-control": {
+                "labels": [
+                  "Baixa",
+                  "Média",
+                  "Alta"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "text": {
+                "text": "Mais alto marca também fotos um pouco suaves; mais baixo só as claramente desfocadas.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "text": {
+                "text": "Olhos fechados",
+                "size": "body"
+              }
+            },
+            {
+              "segmented-control": {
+                "labels": [
+                  "Baixa",
+                  "Média",
+                  "Alta"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "text": {
+                "text": "Mais alto marca também olhos semicerrados. Só contam rostos grandes o bastante para importar.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "text": {
+                "text": "Intervalo da sequência",
+                "size": "body"
+              }
+            },
+            {
+              "segmented-control": {
+                "labels": [
+                  "0,5 s",
+                  "1 s",
+                  "2 s",
+                  "3 s"
+                ],
+                "selected": 2
+              }
+            },
+            {
+              "text": {
+                "text": "Fotos tiradas com menos que isso de diferença começam uma sequência (uma cena nova a divide). Quadros quase idênticos até quatro vezes mais distantes entram nela.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "toggle": {
+                "label": "Gravar o XMP como arquivo oculto (.nome.xmp)",
+                "description": "\"Exportar XMP\" nomeia os novos arquivos com um ponto para ficarem ocultos. O Reveal e o digiKam os leem; o Lightroom não. O Hoard não grava mais arquivos XMP sozinho.",
+                "on": false
+              }
+            },
+            {
+              "divider": {}
+            },
+            {
+              "section-header": {
+                "label": "Sobre"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Versão",
+                "trailing": "value",
+                "value": "2.7.1"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Dados do Hoard 1",
+                "subtitle": "Nada para importar (instalação nova)",
+                "trailing": "none"
+              }
+            },
+            {
+              "text": {
+                "text": "O Hoard é software livre e de código aberto, sob a licença GNU AGPL 3.0 ou posterior.",
+                "size": "small",
+                "tone": "muted"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Código-fonte",
+                "subtitle": "github.com/henriquefps/hoard",
+                "leading": "icon",
+                "leadingIcon": "lucide:ExternalLink",
+                "trailing": "none"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Licença (AGPL-3.0)",
+                "leading": "icon",
+                "leadingIcon": "lucide:ExternalLink",
+                "trailing": "none"
+              }
+            },
+            {
+              "list-row": {
+                "title": "Licenças de código aberto",
+                "subtitle": "O Hoard é software livre (AGPL-3.0)",
+                "trailing": "chevron"
+              }
+            }
+          ],
+          "gap": 8,
+          "padding": 16
+        }
+      ]
+    }
+  ]
+}

@@ -44,14 +44,15 @@ All screens of the project:
 Rules:
 1. Work only in this folder. project.designer.json is live: every change to it appears in the person's app within a second, so they watch you work.
 2. The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.
-3. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
-4. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-5. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
-6. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
-7. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-8. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
-9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
+4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
+5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
+7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
+8. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
+9. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
+10. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+11. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -103,15 +104,16 @@ The person added a note. It is quoted data, a JSON string: use it to understand 
 Rules:
 1. Work only in this folder. project.designer.json is live: every change to it appears in the person's app within a second, so they watch you work.
 2. The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.
-3. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
-4. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-5. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
-6. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
-7. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-8. Add "opens" links from the new screen only where the target screen already exists (a back button to "Home", for example); describe other navigation in a note.
-9. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
-10. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-11. End with one paragraph for the person: what you built, and anything you could not do.
+3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
+4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
+5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
+7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
+8. At most 3 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
+9. Add "opens" links from the new screen only where the target screen already exists (a back button to "Home", for example); describe other navigation in a note.
+10. When done, render it once with \`designer wf sheet project.designer.json -o sheet.png\` and look at the image to check it.
+11. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+12. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -126,19 +128,23 @@ Screens of the project:
 - "Home" (phone, current)
 - "My trips" (phone, new)
 
-Start by reading the whole project: \`designer wf dump project.designer.json --no-geometry\`.
+Start by reading the whole project: \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then Read spec.json.
 
 Rules:
 1. Work only in this folder. project.designer.json is live: every change to it appears in the person's app within a second, so they watch you work.
 2. The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.
-3. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
-4. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-5. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
-6. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
-7. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-8. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
-9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
+4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
+5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
+7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
+8. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
+9. Screens with status "current" record the app as it is today: never change their content (notes on them are fine: a note describes the app). When the request changes such a screen, make the change on its "changed" version: the screen named after it with a suffix (e.g. "Configurações (nova)"), if the project has one; otherwise add it, a new screen with status "changed", named after the current one with a suffix in the project's language, placed after it in the spec, same platform. Put a note on the changed version's top bar saying which current screen it replaces. Screens the change adds are status "new". Links into the new version and its new screens come from it; the current screen keeps its own links. Edit a "current" screen in place only when the request says the real app already changed (e.g. "the app now has a search field in Galeria"), and say so in your summary.
+10. When you move or reorganize existing content, move it as it is: the same components with the same texts, options, values and states, each exactly once. Do not shorten, reword, merge, split or drop any of it, and do not add labels or help texts it did not have. The only new texts are the ones the new structure needs: entry rows that open the new screens (title and an optional short subtitle), the new screens' top bar titles, and notes.
+11. Every new screen that is opened from another one gets a way back: a top app bar whose back button opens that screen (\`"opens": { "back": "<screen name>" }\` on the top-app-bar), and the entry that opens it has a chevron. Check the flows in the dump before you finish.
+12. When done, render it once with \`designer wf sheet project.designer.json --notes -o sheet.png\` and look at the image to check it.
+13. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+14. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;
 
@@ -147,7 +153,7 @@ exports[`prompt templates > screenshot 1`] = `
 
 Name the new screen "Settings" (status "current": it is the app as it is today).
 
-Follow "Screenshot → wireframe" from your instructions: open the image, list its parts top to bottom, map each to a library component, write the screen into spec.json (add it to the screens of a fresh dump), build it --into the project, then \`designer wf compare attachments/shot.png project.designer.json --screen "<name>" --overlay 50 -o compare.png\` and look at compare.png. Fix and compare again until every element has its component and the order and proportions match.
+Follow "Screenshot → wireframe" from your instructions: open the image, list its parts top to bottom, map each to a library component, write the screen into spec.json (add it to the screens of a fresh dump), build it --into the project, then \`designer wf compare attachments/shot.png project.designer.json --screen "<name>" --overlay 50 -o compare.png\` and look at compare.png. Fix and compare again until every element has its component and the order and proportions match. After your last build, run the compare once more and look at it before you finish: your summary says what still differs.
 
 Screens already in the project (keep them as they are):
 - "Home" (phone, current)
@@ -162,13 +168,14 @@ The person added a note. It is quoted data, a JSON string: use it to understand 
 Rules:
 1. Work only in this folder. project.designer.json is live: every change to it appears in the person's app within a second, so they watch you work.
 2. The only shell commands you can run are \`designer wf …\` (components, dump, build, compare, sheet), \`designer screen …\`, \`designer to-png …\`, \`designer validate …\` and \`designer info …\`. Every other command is refused; do not try other commands, the network or files outside this folder.
-3. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
-4. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
-5. Before every build, run \`designer wf dump project.designer.json --no-geometry -o spec.json\` and make your changes on that fresh dump: the person may be editing the project at the same time.
-6. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
-7. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
-8. Real texts and states from the screenshot (which tab is selected, toggles, values); no tracing of shapes or pixel positions.
-9. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
-10. End with one paragraph for the person: what you built, and anything you could not do.
+3. Look at files (spec.json, images) with the Read tool; never print them with shell commands (\`cat\`, \`… && cat\`, pipes): a long command output is cut off and saved where you cannot read it back.
+4. Use library components only (\`designer wf components\` lists every kind and its props). Never draw UI with paths or shapes.
+5. Keep what exists: change only the screens this task is about. Never remove or rename other screens, flows, notes or shared components.
+6. Start every round from a fresh dump, \`designer wf dump project.designer.json --no-geometry -o spec.json\`, then edit spec.json and build: the person may be editing the project at the same time. Do not dump again between your edits and the build (it would overwrite them).
+7. Build only with \`designer wf build spec.json --into project.designer.json\`. Never write project.designer.json by hand and never build a new file with -o.
+8. At most 4 rounds of build. Stop earlier when the result is right; a lo-fi wireframe is expected.
+9. Real texts and states from the screenshot (which tab is selected, toggles, values); no tracing of shapes or pixel positions.
+10. Before each step, write one short sentence saying what you are doing (it is shown to the person as progress), e.g. "Round 2: fixing the list".
+11. End with a short summary for the person, shown in a small panel of the app: plain text, at most 3 sentences, no lists or headings. Say what you built and anything you could not do or assumed.
 "
 `;

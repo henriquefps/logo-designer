@@ -246,6 +246,9 @@ Claude Code do is fenced four times:
    "Bash(designer validate *)" "Bash(designer info *)" Read Write Edit` and `--permission-mode dontAsk
    --permission-prompts none`: anything else, including chained commands (`designer wf … && ls /`),
    substitutions (`$(…)`), variable prefixes (`X=… designer …`) and `./designer`, is denied without asking anyone.
+   Seen in the end-to-end run: Claude Code still runs its own built-in **read-only** commands (`grep`, `head`,
+   `sed -n`, `wc`, `cat`, alone or chained after a `designer` command) on files of the job folder; outside it they
+   are refused (`cat /etc/passwd` in `scripts/agent-restrictions.ts`), and `python3`, `curl`, writes are refused.
 2. **Folder and settings.** `--restricted` confines Read / Write / Edit to the job folder and ignores the
    user's and project's settings files (their allow rules cannot widen the list); `--safe-mode
    --strict-mcp-config --disable-slash-commands` leave out CLAUDE.md, skills, plugins, hooks and MCP servers;
@@ -254,8 +257,10 @@ Claude Code do is fenced four times:
    `<workdir>/.bridge/<jobId>/bin/designer` (folder and file read-only, 0500; first on the agent's PATH), with
    the job's stream log next to it. It passes only `wf`, `screen`, `to-png`, `validate` and `info` to this
    checkout's CLI, with the sandbox root baked in, and starts Bun with `--no-install --config=/dev/null
-   --no-env-file --tsconfig-override=<repo>/tsconfig.json`: a `bunfig.toml` (its `preload` would run any
-   script), `.env` or `tsconfig.json` the agent writes into the job folder is never read. The sync server's
+   --no-env-file`: a `bunfig.toml` (its `preload` would run any script) or `.env` the agent writes into the job
+   folder is never read, and a `tsconfig.json` there does not apply (Bun resolves each source file with the
+   tsconfig nearest to it, the checkout's; `bridge.test.ts` runs the real CLI next to hostile ones).
+   `--tsconfig-override` is not used: Bun 1.4 printed "Internal error: directory mismatch" after every command with it. The sync server's
    address and key (`DESIGNER_SYNC_*`, `SYNC_API_KEY`) are removed from the agent's environment: only the bridge
    talks to the server.
 4. **The CLI's sandbox** (`src/cli/sandbox.ts`, on when `DESIGNER_SANDBOX_ROOT` is set, as the wrapper does):
@@ -282,6 +287,35 @@ bun scripts/agent-restrictions.ts
 # planted bunfig.toml + tsconfig.json + .env have no effect; an image pointing outside renders blank;
 # designer wf, build --into, inside Read/Write run. Exit 0 = all checks passed
 ```
+
+### Benchmark: Hoard's Settings, reorganized
+
+The test that decides whether the agent is good (Henrique's): the WHOLE Hoard Settings screen as one tall phone
+screen with status current (12 sections, 89 items, paired-server state; items of other states in a note;
+`scripts/demo/fixtures/hoard-benchmark/`, made by `make-current.ts` from Hoard 2.7.1's code) and his request,
+word for word, in **Ask the agent…**:
+
+> Esse menu de configurações está muito longo, tem muitos itens misturados. Organize em várias entradas, várias
+> seções, por exemplo uma entrada de servidor, uma de gerenciamento de dados, e assim por diante, cada uma com a
+> sua tela, na versão celular.
+
+Pass criteria: (1) every item exactly once across the new screens, nothing invented; (2) a short menu, ~4–7 entries,
+list rows with a chevron, sensible groups; (3) one phone sub-screen per entry, top bar with title and back, the
+original's component kinds; (4) entry → sub-screen and back → menu, working in Present; (5) the current screen
+stays current, the menu is "changed", sub-screens "new"; (6) `designer validate` and Export for AI coherent;
+(7) no manual fixing, reasonable time.
+
+```sh
+# the run, recorded (real agent, local server; sped-up waits): video + project, sheet, coverage, export in BENCH_OUT
+HOARD_SHOTS=… BENCH_OUT=/tmp/bench bun run demo 15
+# criterion 1 and the structure of 2–5 on any project: before × after, item by item
+bun scripts/benchmark-coverage.ts /tmp/bench/hoard-benchmark.designer.json
+```
+
+Results (2026-11-20): attempt 1 lost one help text (shortened), invented one label and gave no sub-screen a way
+back; the `request` template then got "move content verbatim", "a way back from every new screen" and "a note on
+the changed version naming what it replaces". Attempts 2–4 pass all seven: 89/89 items, 7–8 entries, ~55 s, one
+build round. Details, the attempts table and the files: `~/designer-demos/2026-11-20-fase4/benchmark/README.md`.
 
 ## The workflow
 

@@ -34,9 +34,18 @@ HOARD_SHOTS=~/designer-demos/inputs/hoard DEMO_E2E_DIR=/tmp/e2e bun run demo 08 
 Scenario `10-links-na-navegacao` (links from parts): a bottom navigation made into the shared "Tab bar" on four
 screens, each tab linked once from the master, each screen's own tab selected, then Present through the tabs.
 
+Scenarios `11`–`15` (phase 4, AI through `designer agent`) run the real thing: a designer-sync with an API key,
+`designer agent` with **real Claude Code** (logged in on this machine) and the app with Sync on
+(`lib/agent.ts`). 11 pastes the Hoard Settings screenshot (Turn into a wireframe with AI), 12 drags a flow to empty
+canvas (Generate with AI), 13 adapts a screen to tablet, 14 asks the agent, 15 is Henrique's benchmark (the whole
+Settings screen reorganized; `BENCH_OUT=<dir>` keeps the project, sheet, coverage report and export). The agent's
+wait is not cut: `demo.speedUp(n, wait)` plays it n× faster with an orange "⏩ acelerado ×n" badge, and the
+terminal strip shows `designer agent`'s own progress lines. Results differ from run to run (it is a real model).
+
 `node scripts/demo/watch-live.ts <dir>` runs the same pieces for a session driven by hand or by an agent: a
 designer-sync on localhost, the app in Chromium with Sync on, and a control folder (`echo <id> > <dir>/open`,
-`echo shot.png > <dir>/shot`); see the comment at its top.
+`echo shot.png > <dir>/shot`); see the comment at its top. With `--agent` it is the phase 4 setup (API key, `designer agent` with real Claude
+Code, its output in `<dir>/agent.log`), and `cp step.js <dir>/eval` runs a script against the page.
 
 Needs ffmpeg on the PATH and Playwright's Chromium (`bunx playwright install chromium`). Output:
 1280 × 840 (the app at 1280 × 800 plus the 40 px caption bar), H.264, 25 fps, a few hundred KB per
@@ -50,7 +59,10 @@ leaves `<name>.error.png` and exits non-zero.
 - `lib/overlay.ts`: runs in the page before the app (cursor, ripple, caption bar, key badge, a paste box).
   It only listens to events; it never touches the app.
 - `lib/demo.ts`: the driver: `move`, `click`, `dblclick`, `drag`, `type`, `fill`, `key`, `menu`,
-  `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and output), `pause`.
+  `zoomAt` (Ctrl + wheel), `scroll` (wheel), `caption`, `terminal` (a strip with CLI commands and output), `pause`,
+  `speedUp` (a sped-up part, encoded by `lib/encode.ts` with trim + setpts + concat).
+- `lib/agent.ts`: the phase 4 session (server with key, `designer agent`, project from a fixture spec), waiting
+  for a job with timings, putting an image on the clipboard, selecting a screen by name.
 - `lib/designer.ts`: where things are in Designer's UI (library items, Properties fields by their
   aria-label, screens by their name label, canvas nodes by the text they draw) and common gestures
   (`insertFromLibrary`, `dragFromLibrary`, `setField`, `choose`, `focusScreen`, …).

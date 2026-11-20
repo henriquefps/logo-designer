@@ -525,7 +525,8 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
   const base: DesignDocument = existing
     ? { ...structuredClone(existing), name: spec.name ?? existing.name, updatedAt: Date.now() }
     : createDocument({ name: spec.name ?? 'Wireframe', artboard: { width: 1024, height: 1024, background: { kind: 'none' } } });
-  const placed: SceneNode[] = [...frameNodes.filter((f) => f.placed).map((f) => f.node), ...canvas];
+  // The project's notes count as taken space too: a new screen never lands on the notes beside the last one.
+  const placed: SceneNode[] = [...frameNodes.filter((f) => f.placed).map((f) => f.node), ...canvas, ...(existing ? notesOf(existing) : [])];
   for (const f of frameNodes) {
     if (f.placed) continue;
     const doc = { children: placed, wireframe: { screens } };
