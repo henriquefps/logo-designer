@@ -169,3 +169,21 @@ export async function screenBlank(page: Page, name: string): Promise<Point> {
   const c = (await canvas(page).boundingBox())!;
   return { x: b.x + b.width / 2, y: Math.min(b.y + b.height, c.y + c.height) - 40 };
 }
+
+/** The canvas zoom shown in the status bar ("67%"), as a factor. */
+export async function currentZoom(page: Page): Promise<number> {
+  const t = await page.getByText(/^\d+%$/).filter({ visible: true }).first().textContent();
+  return Number(t!.replace('%', '')) / 100;
+}
+
+/** Real wheel input: zoom to about `zoom` around a screen's top-left, then scroll it to the canvas's top-left corner. */
+export async function frameScreenAt(demo: Demo, name: string, zoom: number): Promise<void> {
+  const z = await currentZoom(demo.page);
+  if (process.env.DEMO_DEBUG) console.log('zoom before', z);
+  let b = await screenBox(demo.page, name);
+  await demo.zoomAt({ x: b.x, y: b.y }, zoom / z);
+  const c = (await canvas(demo.page).boundingBox())!;
+  b = await screenBox(demo.page, name);
+  await demo.move({ x: c.x + c.width / 2, y: c.y + c.height / 2 });
+  await demo.scroll(b.x - (c.x + 30), b.y - (c.y + 40));
+}
