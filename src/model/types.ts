@@ -211,6 +211,12 @@ export interface LayoutInfo {
    * copies after it (`repeatCopy`). The container's gap is the space between the items.
    */
   repeat?: { count: number };
+  /**
+   * Shared components only (a container inside a master's content): "Content per instance". The container
+   * itself (layout, style, size rules) is shared; its children belong to each instance (sync never copies
+   * them). The master's children are what a new instance starts with. Absent = false.
+   */
+  slot?: boolean;
 }
 
 /** `outline` = 1 px border, `filled` = light grey, `outline-filled` = both. No colours. */
@@ -290,6 +296,11 @@ export interface WireframeFlow {
 /** Points an instance at its shared component (`wireframe.symbols[].id`). */
 export interface SymbolRef {
   id: Id;
+  /**
+   * Per-instance text: `{ <master node id>: { <text prop>: value } }` (the node's id in the master's id space,
+   * the prop a component's text, label, title…). Never synced; the master's text is the default. Absent = none.
+   */
+  text?: Record<Id, Record<string, string>>;
 }
 
 /**

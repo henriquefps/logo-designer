@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { StackIcon } from '@phosphor-icons/react';
 import { locate, type Id, type SceneNode } from '@/model';
 import { setReference } from '@/actions/modules/object';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
+import { notifySharedChange } from '@/wireframe/symbolCommands';
 import { LayerRow, type DropPosition } from './LayerRow';
 
 interface DropTarget {
@@ -20,6 +21,43 @@ export function LayersPanel() {
   const [drop, setDrop] = useState<DropTarget | null>(null);
   const ds = useDocStore.getState;
   const ed = useEditorStore.getState;
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Set while the panel itself changes the selection: then it does not scroll.
+  const fromPanel = useRef(false);
+  // The row to bring into view once it is rendered (a selection made on the canvas).
+  const reveal = useRef<Id | null>(null);
+  const [revealTick, setRevealTick] = useState(0);
+
+  // Follows the canvas: a selection made there (click, marquee, keyboard) opens the selected node's ancestors
+  // and scrolls its row into view (nearest: no jump when it is already visible).
+  useEffect(
+    () =>
+      useEditorStore.subscribe((st, prev) => {
+        if (st.selection === prev.selection) return;
+        if (fromPanel.current) {
+          fromPanel.current = false;
+          return;
+        }
+        const id = st.selection[st.selection.length - 1];
+        if (!id) return;
+        const loc = locate(useDocStore.getState().doc, id);
+        if (!loc) return;
+        const ancestors = loc.ancestors.map((a) => a.id);
+        setCollapsed((c) => (ancestors.some((a) => c.has(a)) ? new Set([...c].filter((x) => !ancestors.includes(x))) : c));
+        reveal.current = id;
+        setRevealTick((t) => t + 1);
+      }),
+    [],
+  );
+  useLayoutEffect(() => {
+    const id = reveal.current;
+    if (!id) return;
+    const row = rootRef.current?.querySelector(`[data-layer-id="${CSS.escape(id)}"]`);
+    if (row) {
+      row.scrollIntoView({ block: 'nearest' });
+      reveal.current = null;
+    }
+  }, [revealTick, collapsed, doc]);
 
   if (!doc.children.length) {
     return (
@@ -33,6 +71,7 @@ export function LayersPanel() {
   const select = (id: Id, e: React.MouseEvent) => {
     const node = locate(doc, id)?.node;
     if (!node) return;
+    fromPanel.current = true;
     if (e.shiftKey || e.metaKey || e.ctrlKey) ed().toggleSelection(id);
     else ed().setSelection([id]);
   };
@@ -48,10 +87,13 @@ export function LayersPanel() {
         n.delete(loc.node.id);
         return n;
       });
+      // Into the shared part of a shared component: every instance gets it (said in a toast).
+      notifySharedChange(loc.node.id);
     } else {
       const parentId = loc.parent === doc ? null : (loc.parent as SceneNode).id;
       // The list is reversed: "above" in the list = later in children.
       ds().moveNodes(dragging, parentId, drop.pos === 'above' ? loc.index + 1 : loc.index);
+      notifySharedChange(parentId);
     }
   };
 
@@ -119,7 +161,10 @@ export function LayersPanel() {
           onHover={(on) => ed().setHover(on ? n.id : null)}
           onDragStart={(e) => {
             const ids = selection.includes(n.id) ? selection : [n.id];
-            if (!selection.includes(n.id)) ed().setSelection([n.id]);
+            if (!selection.includes(n.id)) {
+              fromPanel.current = true;
+              ed().setSelection([n.id]);
+            }
             setDragging(ids);
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', ids.join(','));
@@ -148,7 +193,7 @@ export function LayersPanel() {
   renderLevel(doc.children, 0, false);
 
   return (
-    <div role="tree" aria-label="Layers" aria-multiselectable className="flex flex-col py-1" onMouseLeave={() => ed().setHover(null)}>
+    <div ref={rootRef} role="tree" aria-label="Layers" aria-multiselectable className="flex flex-col py-1" onMouseLeave={() => ed().setHover(null)}>
       {rows}
     </div>
   );

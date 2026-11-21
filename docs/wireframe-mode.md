@@ -465,8 +465,8 @@ Screen section and shown as a small badge on the frame label. Typical use: impor
 Select a group or container and **Make component**: it becomes a **master** stored in
 `wireframe.symbols` and the selection becomes an instance (`symbol: { id }`). Instances are linked
 copies: editing the content of any instance updates the master and every instance (a pipeline step
-keeps them in sync, in the same undo step). Phase 2 has no per-instance overrides except position
-and size. The library panel lists them under **My components** for inserting on other screens.
+keeps them in sync, in the same undo step). Per instance: position and size, the content of its
+**slots** (containers marked "Content per instance") and **overridden text** (see Slots and text overrides below). The library panel lists them under **My components** for inserting on other screens.
 **Detach** turns an instance back into plain content. The export describes a shared component once
 ("Shared: Top bar …") and refers to it by name in each screen. R4's repeat template may be a shared
 component.
@@ -531,6 +531,43 @@ for Import.
   `src/wireframe/__tests__/symbolImportCommands.test.ts`, `src/cli/components-import.test.ts`, `bun run
   e2e:kit-import` (Playwright: a fictional "Acme" kit made in the app, marked as a kit, then used by New document,
   Import and paste).
+
+#### Slots and text overrides (2026-11-20)
+
+From real use: an "App shell" (top bar + a card that fills the phone) placed on a screen could not take content in
+its card (every drop landed above or below the shell, and adding through Layers changed every App shell), and a
+shared "List row" showed the same label everywhere.
+
+- **Slots.** A container (vertical / horizontal stack, grid, card container) inside a shared component can be marked
+  **Content per instance** (Properties → Layout, when the container is part of an instance; `layout.slot`, spec
+  `"slot": true`). The container itself (layout, style, size rules) stays shared; its children belong to each
+  instance: sync never copies them between instances or into the master (`sharedShape` leaves them out), and every
+  rewrite of an instance keeps them. A new instance starts with the master's slot children (its default content).
+  A nested shared component keeps its own slots (per outer instance). Detach removes the flags.
+- **Drops and inserts.** The drop target search goes into instances: a slot is a target like any stack (insertion
+  line included); the rest of an instance is not (a drop there lands next to the instance). Click-insert with an
+  instance selected fills its first slot (a slot selected: that one); paste with a slot (or something in one)
+  selected goes into it. The Layers tree can still put things into a shared part: that edits the master, as
+  before, and a toast says "Changed shared component X (N instances)". Plain empty containers ("Drop elements
+  here") take drops as before (test in `__tests__/slots.test.ts`).
+- **Text overrides.** Editing a text prop (title, label, subtitle, heading text…: the `text` / `multiline` props)
+  of a component inside an instance in Properties stays on that instance (`symbol.text`: master node id → prop →
+  value). Properties shows **Overridden here** with **Reset to shared** and **Use everywhere** (the value becomes
+  the master's; instances without their own text follow). The master's text is the default; changing it updates the
+  instances that do not override it. Other prop edits, and text edited outside Properties (the CLI, a spec), change
+  the master as before.
+- **Spec.** `{ "use": "App shell", "content": [ … ] }` fills the only slot; several: `"slots": { "<slot name>": [ … ]
+  }`; `"text": { "<node name or path>": "…" }` (the component's main text prop) or `{ "<node>": { "<prop>": "…" } }`.
+  Node and slot names are the master's (a unique name, else a path of names "Body/Row", else the id); `wf dump`
+  writes them back only where they differ from the master.
+- **Export for AI.** "Shared: App shell, content:" with the instance's slot content under it (several slots: one
+  "In "Body":" line each), "Shared: Acme · List row — text: Row "Inbox"" for overrides; the README marks a master's
+  slot "— content per instance".
+- **Layers follows the canvas.** A selection made on the canvas (click, marquee, keyboard) opens the selected node's
+  ancestors in Layers and scrolls its row into view (nearest: no jump when it is visible); a selection made in Layers
+  never scrolls it.
+- Code map: `docs/architecture.md` → Shared components → Slots and text overrides. Checks:
+  `src/wireframe/__tests__/slots.test.ts`, `bun run e2e:slots` (Playwright). Screenshots: `docs/screenshots/slots/`.
 
 ### Export additions
 
@@ -1028,8 +1065,6 @@ with a note stating its rule) showed one bug and the gaps below.
   are 32 (some kits use 36); the toolbar is 56 with a bottom divider. A note can state the kit's numbers; a density
   prop on these components would close it.
 - **Top app bar always draws a bottom divider**; a header without one cannot be drawn with it.
-- **No per-instance text in shared components.** An instance cannot override a label, so masters carry neutral
-  text ("Item name", "Save") and screens with their own text use library rows or detached instances.
 - **No end alignment in a stack** (no `justify`): sheet footers and Cancel / confirm pairs sit at the start instead
   of the end; a stack cannot centre a free overlay either (a desktop dialog is placed by `x` / `y`).
 - **No per-side padding:** a shell's margin around its card also adds space above the card, under the header.

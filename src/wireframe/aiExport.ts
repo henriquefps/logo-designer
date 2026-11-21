@@ -34,7 +34,7 @@ import { flowOpensLine, flowReadmeSection, flowScreenSection, flowSourceText, ST
 import { flowSources, flowsOf, partLabel } from './flows';
 import { styleWords } from './containers';
 import { repeatCount, repeatTemplate } from './repeat';
-import { instancePrefix, instancesOf, newSymbolInstance, symbolsOf } from './symbols';
+import { instancePrefix, instancesOf, isSlot, newSymbolInstance, slotsOf, symbolsOf } from './symbols';
 
 const PLATFORM_ORDER: ScreenPlatform[] = ['phone', 'tablet', 'desktop'];
 const platformLabel = (p: ScreenPlatform) => p[0].toUpperCase() + p.slice(1);
@@ -178,13 +178,15 @@ class TreeWriter {
       for (const c of n.children) {
         if (c.type !== 'group' || c.component || c.repeatCopy) continue;
         if (c.symbol && this.shared.has(c.symbol.id)) {
+          // A slot's content is the instance's own: written like any content, not as part of the shared piece.
           const mark = (g: GroupNode) => {
             for (const x of g.children) {
               insideShared.set(x.id, c.id);
-              if (x.type === 'group') mark(x);
+              if (x.type === 'group' && !isSlot(x)) mark(x);
             }
           };
           mark(c);
+          for (const slot of slotsOf(c)) scanShared(slot);
         } else scanShared(c);
       }
     };
@@ -210,14 +212,17 @@ class TreeWriter {
     const aliasDescendants = (n: GroupNode, root: Id) => {
       for (const c of n.children) {
         this.alias.set(c.id, root);
-        if (c.type === 'group') aliasDescendants(c, root);
+        if (c.type === 'group' && !isSlot(c)) aliasDescendants(c, root);
       }
     };
     const scan = (n: GroupNode) => {
       for (const c of n.children) {
         if (c.type !== 'group') continue;
-        if (isComponentNode(c) || (c.symbol && this.shared.has(c.symbol.id))) aliasDescendants(c, c.id);
-        else scan(c);
+        if (isComponentNode(c)) aliasDescendants(c, c.id);
+        else if (c.symbol && this.shared.has(c.symbol.id)) {
+          aliasDescendants(c, c.id);
+          for (const slot of slotsOf(c)) scan(slot);
+        } else scan(c);
       }
     };
     scan(frame);
@@ -299,17 +304,39 @@ class TreeWriter {
       return this.line(depth, withPos(text), [n.id, ...carried], extra);
     }
     const shared = n.symbol && this.shared.get(n.symbol.id);
-    if (shared) return this.line(depth, withPos(`Shared: ${shared}`), [n.id, ...carried]);
+    if (shared) return this.instance(n, shared, depth, withPos, carried);
     const kids = n.children.filter((c) => c.visible && !c.reference && !c.repeatCopy);
-    if (!kids.length) return;
+    // A master's slot: said so (what an instance puts there is described on its screen).
+    const slot = this.master && n.layout?.slot ? ' — content per instance' : '';
+    if (!kids.length) {
+      if (slot && n.layout) this.line(depth, withPos(`${containerName(n.layout)}${slot} (empty by default)`), [n.id, ...carried]);
+      return;
+    }
     if (n.layout) {
       const template = repeatTemplate(n);
       if (template && kids.includes(template)) return this.repeat(n as GroupNode & { layout: LayoutInfo }, template, kids, depth, withPos, carried);
       // A single child in a plain stack adds nothing: list the child directly.
-      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos && !styleWords(n.layout)) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
-      this.line(depth, withPos(containerName(n.layout)), [n.id, ...carried]);
+      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos && !styleWords(n.layout) && !slot) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
+      this.line(depth, withPos(`${containerName(n.layout)}${slot}${slot ? ', by default:' : ''}`), [n.id, ...carried]);
     } else this.line(depth, withPos('Group'), [n.id, ...carried]);
     this.write(n, depth + 1, false);
+  }
+
+  /**
+   * A shared instance: "Shared: App shell", with the text it overrides ("— text: Title "Inbox"") and what its
+   * slots hold, under it ("Shared: App shell, content:"; several slots: one "In <slot>:" line each).
+   */
+  private instance(n: GroupNode, name: string, depth: number, withPos: (t: string) => string, carried: Id[]): void {
+    const text = overrideWords(n);
+    const filled = slotsOf(n).filter((sl) => sl.children.some((c) => c.visible && !c.reference));
+    const head = `Shared: ${name}${text ? ` — text: ${text}` : ''}`;
+    this.line(depth, withPos(filled.length ? `${head}, content:` : head), [n.id, ...carried]);
+    if (filled.length === 1) this.write(filled[0], depth + 1, false);
+    else
+      for (const sl of filled) {
+        this.lines.push(`${'  '.repeat(depth + 1)}- In ${JSON.stringify(sl.name)}:`);
+        this.write(sl, depth + 2, false);
+      }
   }
 
   /** A repeating container: "List of N × (template)", the template's content under it, then any other children. */
@@ -410,6 +437,30 @@ function flowEntries(doc: DesignDocument): FlowEntry[] {
 }
 
 // ---------- shared components ----------
+
+/** The text an instance overrides, for its line: `Row "Inbox"`, `Row: title "Inbox", subtitle "2 new"`. */
+function overrideWords(n: GroupNode): string {
+  const text = n.symbol?.text;
+  if (!text) return '';
+  const prefix = instancePrefix(n.id);
+  const byId = new Map<Id, SceneNode>();
+  const visit = (nodes: readonly SceneNode[]) => {
+    for (const c of nodes) {
+      byId.set(c.id, c);
+      if (c.type === 'group' && !c.component && !c.symbol) visit(c.children);
+    }
+  };
+  visit(n.children);
+  const parts: string[] = [];
+  for (const [key, props] of Object.entries(text)) {
+    const target = byId.get(prefix + key);
+    const label = target?.name || key;
+    const entries = Object.entries(props);
+    if (entries.length === 1) parts.push(`${label} ${JSON.stringify(entries[0][1])}`);
+    else parts.push(`${label}: ${entries.map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(', ')}`);
+  }
+  return parts.join('; ');
+}
 
 const sharedNames = (doc: DesignDocument): ReadonlyMap<Id, string> => new Map(symbolsOf(doc).map((s) => [s.id, s.name]));
 

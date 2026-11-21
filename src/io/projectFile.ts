@@ -237,6 +237,11 @@ function layoutInfo(v: unknown, path: string): LayoutInfo {
     if (!Number.isInteger(c) || c < 1 || c > MAX_REPEAT) fail(at(rp, 'count'), `expected a whole number from 1 to ${MAX_REPEAT}, got ${show(r.count)}`);
     out.repeat = { count: c };
   }
+  // Shared components: "Content per instance" (docs/wireframe-mode.md → Shared components → Slots).
+  if (o.slot !== undefined && o.slot !== null) {
+    if (typeof o.slot !== 'boolean') fail(at(path, 'slot'), `expected true or false, got ${show(o.slot)}`);
+    if (o.slot) out.slot = true;
+  }
   return out;
 }
 
@@ -326,9 +331,36 @@ function wireframeFields(o: Obj, type: string, depth: number, path: string, ctx:
     if (type !== 'group') ctx.warnings.push(`${sp}: ignored, only a group can be a shared component instance (this is a ${type})`);
     else if (out.screen || out.component || out.note) ctx.warnings.push(`${sp}: ignored, a screen frame, component or note cannot also be a shared component`);
     else if (!id || !ctx.symbols?.has(id)) ctx.warnings.push(`${at(sp, 'id')}: unknown shared component ${show(ref.id)}; loaded as a plain group`);
-    else out.symbol = { id };
+    else {
+      out.symbol = { id };
+      const text = symbolText(ref.text, at(sp, 'text'), ctx.warnings);
+      if (text) out.symbol.text = text;
+    }
   }
   return out;
+}
+
+/** An instance's text overrides (`symbol.text`: node id → prop → string). Bad entries are dropped with a warning. */
+function symbolText(v: unknown, path: string, warnings: string[]): Record<string, Record<string, string>> | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v !== 'object' || Array.isArray(v)) {
+    warnings.push(`${path}: ignored, expected { "<node id>": { "<prop>": "text" } }`);
+    return undefined;
+  }
+  const out: Record<string, Record<string, string>> = {};
+  for (const [id, props] of Object.entries(v as Record<string, unknown>)) {
+    if (!props || typeof props !== 'object' || Array.isArray(props)) {
+      warnings.push(`${at(path, id)}: ignored, expected { "<prop>": "text" }`);
+      continue;
+    }
+    const kept: Record<string, string> = {};
+    for (const [k, t] of Object.entries(props as Record<string, unknown>)) {
+      if (typeof t === 'string') kept[k] = t;
+      else warnings.push(`${at(at(path, id), k)}: ignored, expected a string`);
+    }
+    if (Object.keys(kept).length) out[id] = kept;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Shared components (`wireframe.symbols`): masters with their content, validated like nodes in their own id space. */

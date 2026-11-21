@@ -68,7 +68,7 @@ Every node is **one** of these, plus the common keys:
 | … all defaults | `{ "divider": {} }` or `{ "divider": null }` |
 | … explicit | `{ "kind": "list-row", "props": { "title": "Language" } }` |
 | Container | `{ "vstack": [ …children ], "gap": 8 }`, `{ "hstack": [ … ] }`, `{ "grid": [ … ], "columns": 3 }` |
-| Shared component instance | `{ "use": "Trip card" }` (a name from `components`, or its id) |
+| Shared component instance | `{ "use": "Trip card" }` (a name from `components`, or its id); its own slot content and text: `{ "use": "App shell", "content": [ … ], "text": { "Title": "Inbox" } }` |
 | Plain group | `{ "group": [ …children ] }` (children placed by `x` / `y`) |
 | Anything else, as in a project file | `{ "node": { "type": "rect", … } }` (what `dump` writes for shapes that are not wireframe pieces) |
 
@@ -122,6 +122,13 @@ with (a tab bar whose content says `"position": "pinned-bottom"` is pinned on ev
 with `{ "use": "Trip card" }`, also as a repeat template or inside another component (never inside itself). Ids
 inside `content` are the master's own; an instance's nodes get `<instance id>~s~<master id>`, so a flow can start
 inside one instance: `"from": "Home/card/Lisbon"` or `"from": "card~s~title"`.
+
+**Per-instance content and text.** A container inside `content` with `"slot": true` holds content per instance (its
+children in `content` are the default). An instance fills it with `"content": [ …nodes ]` (the master has one slot)
+or `"slots": { "<slot name>": [ … ] }`, and sets its own text with `"text": { "<node>": "…" }` (the component's main
+text prop) or `"text": { "<node>": { "<prop>": "…" } }`. `<node>` and `<slot name>` name a node of the master: its
+name when unique, else a path of names (`"Body/Row"`), else its id. Left out: the master's. `wf dump` writes them
+only where they differ from the master.
 
 ## Links from parts
 

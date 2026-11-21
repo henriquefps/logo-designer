@@ -47,6 +47,7 @@ export function LayerRow(p: LayerRowProps) {
   return (
     <div
       role="treeitem"
+      data-layer-id={node.id}
       aria-selected={selected}
       aria-expanded={isGroup ? p.expanded : undefined}
       aria-level={depth + 1}

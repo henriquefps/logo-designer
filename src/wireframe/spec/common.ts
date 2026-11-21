@@ -4,6 +4,7 @@ import { walk, type GroupNode, type Id, type LayoutInfo, type SceneNode, type Sc
 import { getComponent } from '../library/registry';
 import { CONTAINER_PRESETS, LAYOUT_KIND_LABEL } from '../containers';
 import { deepEqual } from '../repeat';
+import { slotsOf } from '../symbols';
 
 /** A layout without its materialized size (what a container *is*). */
 export function layoutShape(l: LayoutInfo): LayoutInfo {
@@ -39,12 +40,16 @@ export function hasDefaultPlacement(n: SceneNode): boolean {
  */
 export function sourceIds(nodes: SceneNode[]): Set<Id> {
   const out = new Set<Id>();
-  walk(nodes, (n) => {
-    if (n.repeatCopy) return false;
-    out.add(n.id);
-    if (n.type === 'group' && (n.component || n.symbol || n.note)) return false;
-    return true;
-  });
+  const visit = (list: SceneNode[]) =>
+    walk(list, (n) => {
+      if (n.repeatCopy) return false;
+      out.add(n.id);
+      // What an instance puts in its slots is stated (`content`).
+      if (n.type === 'group' && n.symbol) for (const slot of slotsOf(n)) visit(slot.children);
+      if (n.type === 'group' && (n.component || n.symbol || n.note)) return false;
+      return true;
+    });
+  visit(nodes);
   return out;
 }
 

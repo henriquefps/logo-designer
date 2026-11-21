@@ -312,6 +312,40 @@
           "type": "string",
           "description": "A shared component's name (or id)."
         },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Node"
+          },
+          "description": "This instance's content for the master's only slot (a container marked \"slot\": true)."
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Node"
+            }
+          },
+          "description": "This instance's content per slot: { \"<slot name>\": [ …nodes ] }."
+        },
+        "text": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "description": "This instance's own text: { \"<node name or path in the master>\": \"text\" } (its main text prop) or { \"<node>\": { \"<prop>\": \"text\" } }."
+        },
         "id": {
           "$ref": "#/definitions/common.id"
         },
@@ -723,6 +757,10 @@
           "maximum": 50,
           "description": "Repeat the first child N times (a list of anything)."
         },
+        "slot": {
+          "type": "boolean",
+          "description": "Inside a shared component's content: content per instance (its children are the default)."
+        },
         "id": {
           "$ref": "#/definitions/common.id"
         },
@@ -829,6 +867,10 @@
           "maximum": 50,
           "description": "Repeat the first child N times (a list of anything)."
         },
+        "slot": {
+          "type": "boolean",
+          "description": "Inside a shared component's content: content per instance (its children are the default)."
+        },
         "id": {
           "$ref": "#/definitions/common.id"
         },
@@ -934,6 +976,10 @@
           "minimum": 1,
           "maximum": 50,
           "description": "Repeat the first child N times (a list of anything)."
+        },
+        "slot": {
+          "type": "boolean",
+          "description": "Inside a shared component's content: content per instance (its children are the default)."
         },
         "id": {
           "$ref": "#/definitions/common.id"
