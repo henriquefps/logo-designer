@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDocument, createEllipse, createGroup, createRect, findNode, worldBounds } from '@/model';
+import { addScreen } from '@/wireframe/screens';
 import { copyNodes, cutNodes, pasteNodes } from '../clipboard';
 import { HISTORY_LIMIT, useDocStore } from '../useDocStore';
 
@@ -106,6 +107,30 @@ describe('useDocStore', () => {
     // cannot move a group into itself
     s().moveNodes([g.id], g.id, 0);
     expect(ids()).toEqual([a.id, g.id]);
+  });
+
+  it('duplicating a screen puts the copy beside it, clear of other frames; plain nodes keep the small offset', () => {
+    const doc = createDocument({ name: 'W', wireframe: { screens: [] } });
+    const a = addScreen(doc, { platform: 'phone', name: 'Home', x: 0, y: 0, layout: null });
+    const b = addScreen(doc, { platform: 'phone', name: 'Trips', x: 390 + 80, y: 0, layout: null });
+    s().load(doc);
+    const [dup] = s().duplicate([a]);
+    const src = findNode(s().doc, a)!;
+    const copy = findNode(s().doc, dup)!;
+    const next = findNode(s().doc, b)!;
+    expect(copy.transform.y).toBe(src.transform.y);
+    // Right of the screen that was already beside the original, with the usual gap.
+    expect(copy.transform.x).toBeGreaterThanOrEqual(next.transform.x + 390 + 80);
+    const box = worldBounds(s().doc, dup)!;
+    for (const o of [a, b]) {
+      const r = worldBounds(s().doc, o)!;
+      expect(box.x >= r.x + r.width || r.x >= box.x + box.width).toBe(true);
+    }
+    // A plain node inside a wireframe still gets the small offset.
+    const r = createRect();
+    s().addNodes([r]);
+    const [rd] = s().duplicate([r.id]);
+    expect(findNode(s().doc, rd)!.transform.x).toBe(r.transform.x + 10);
   });
 
   it('duplicates and uses the clipboard', () => {

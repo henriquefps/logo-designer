@@ -2,7 +2,7 @@
 // propagation, undo, per-instance size, detach, delete master, nesting (in a repeat, in another master),
 // duplicate / paste, flows, export, file validation.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDocument, createGroup, createText, findNode, type ComponentNode, type DesignDocument, type GroupNode, type LayoutInfo, type SceneNode, type ScreenNode, type TextNode } from '@/model';
+import { createDocument, createGroup, createText, findNode, worldBounds, type ComponentNode, type DesignDocument, type GroupNode, type LayoutInfo, type SceneNode, type ScreenNode, type TextNode } from '@/model';
 import { parseProject, serializeProject, validateDocument } from '@/io/projectFile';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -23,6 +23,8 @@ import {
   inSync,
   instancePrefix,
   instancesOf,
+  makeComponent,
+  makeComponentProblem,
   makeSymbol,
   makeSymbolProblem,
   newSymbolInstance,
@@ -97,6 +99,32 @@ describe('make component', () => {
     s().undo();
     expect(node(s().doc, 'c').symbol).toBeUndefined();
     expect(symbolsOf(s().doc)).toHaveLength(0);
+  });
+
+  it('a single library component is wrapped in a hug vertical stack first (one undo step, same place)', () => {
+    s().load(twoScreens([heading('h', 'Lisbon'), image('img')]));
+    const before = worldBounds(s().doc, 'h');
+    expect(makeComponentProblem(node<ComponentNode>(s().doc, 'h'))).toBeNull();
+    expect(makeComponentProblem(createText({ text: 'x' }))).toBe('Select a stack or a component');
+    let made: { symbolId: string; nodeId: string } | null = null;
+    s().apply((d) => void (made = makeComponent(d, 'h', 'Heading')), { label: 'Make component' });
+    const m = made as unknown as { symbolId: string; nodeId: string };
+    const wrapper = node(s().doc, m.nodeId);
+    expect(wrapper.symbol?.id).toBe(m.symbolId);
+    expect(wrapper.layout).toMatchObject({ kind: 'vstack' });
+    expect(wrapper.name).toBe('Heading');
+    // The heading is the wrapper's only child, and the wrapper sits where the heading was.
+    expect(wrapper.children).toHaveLength(1);
+    expect(symbolsOf(s().doc)[0].content.layout).toMatchObject({ kind: 'vstack' });
+    const after = worldBounds(s().doc, m.nodeId);
+    expect(after?.x).toBeCloseTo(before!.x);
+    expect(after?.y).toBeCloseTo(before!.y);
+    expect(after?.width).toBeCloseTo(before!.width);
+    expect(after?.height).toBeCloseTo(before!.height);
+    s().undo();
+    expect(node(s().doc, 'h').symbol).toBeUndefined();
+    expect(symbolsOf(s().doc)).toHaveLength(0);
+    expect(findNode(s().doc, m.nodeId)).toBeNull();
   });
 
   it('only for groups and containers, with a default name from the container or its first label', () => {

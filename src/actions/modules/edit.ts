@@ -1,6 +1,7 @@
 import { ArrowArcLeftIcon, ArrowArcRightIcon, CopyIcon, ScissorsIcon, ClipboardIcon, TrashIcon } from '@phosphor-icons/react';
 import { walk } from '@/model';
 import { copyNodes, cutNodes, hasClipboard, pasteNodes } from '@/store/clipboard';
+import { revealScreen } from '@/wireframe/commands';
 import { notifyPasteImport } from '@/wireframe/symbolImportCommands';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -86,7 +87,12 @@ const actions: Action[] = [
     order: 13,
     shortcut: 'mod+d',
     enabled: hasSelection,
-    run: () => ed().setSelection(ds().duplicate(editableSelection())),
+    run: () => {
+      const ids = ds().duplicate(editableSelection());
+      ed().setSelection(ids);
+      // A duplicated screen lands beside the original, maybe off screen: keep it in view.
+      for (const id of ids) revealScreen(id);
+    },
   },
   {
     id: 'edit.delete',

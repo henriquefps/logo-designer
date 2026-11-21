@@ -53,6 +53,8 @@ import { resolveProps, type PropSpec } from './library/types';
 import { buildComponentInto } from './steps/components';
 import { deepEqual } from './repeat';
 import { plain, type PipelineContext } from './types';
+import { wrapInLayout } from './layoutEdit';
+import { itemSizing } from './layout';
 
 export const SYMBOL_SEP = '~s~';
 /** Id prefix of everything inside instance `id`. */
@@ -447,6 +449,18 @@ export function makeSymbolProblem(n: SceneNode | null | undefined, path: readonl
   return null;
 }
 
+/**
+ * Why Object → Make component is unavailable for `n` (null = it can run): a stack / group (`makeSymbolProblem`)
+ * or a single library component, which `makeComponent` wraps in a hug vertical stack first.
+ */
+export function makeComponentProblem(n: SceneNode | null | undefined, path: readonly SceneNode[] = []): string | null {
+  if (n?.type === 'group' && n.component && !n.screen && !n.note && !n.symbol) {
+    if (n.repeatCopy || path.some((a) => a.repeatCopy || (a.type === 'group' && (a.component || a.symbol)))) return 'Select the original, not a copy';
+    return null;
+  }
+  return makeSymbolProblem(n, path) && 'Select a stack or a component';
+}
+
 const LABEL_PROPS = ['title', 'label', 'text', 'message'];
 
 /** Default name for a new shared component: the container's own name when the user gave one, else the first label inside, else the first component's kind ("Bottom navigation"). */
@@ -542,6 +556,47 @@ export function makeSymbol(d: Draft<DocLike>, nodeId: Id, name: string): Id | nu
   wf.symbols = [...((wf.symbols ?? []) as WireframeSymbol[]), { id, name: label, content }] as Draft<WireframeSymbol>[];
   remapRefs(d, map);
   return id;
+}
+
+/**
+ * Make component for a stack, a group or one library component (on a draft, inside `apply`). A single library
+ * component is first wrapped in a hug vertical stack that takes its place and size, and that stack becomes the
+ * master's content. Returns the master id and the node that is now its first instance, or null.
+ */
+export function makeComponent(d: Draft<DocLike>, nodeId: Id, name: string): { symbolId: Id; nodeId: Id } | null {
+  const doc = plain(d) as DocLike;
+  const path = findPath(doc.children, nodeId);
+  const node = path?.[path.length - 1];
+  if (!path || makeComponentProblem(node, path.slice(0, -1))) return null;
+  let target = nodeId;
+  if (node?.type === 'group' && node.component) {
+    const wrapped = wrapInLayout(d as DocLike, [nodeId], 'vstack');
+    if (!wrapped) return null;
+    target = wrapped;
+    // The wrapper is named after the component, not "Vertical stack".
+    const w = findNodeDraft(d.children as Draft<SceneNode>[], wrapped);
+    if (w) {
+      w.name = node.name;
+      // The wrapper stands in for the component: an edge-to-edge one (a list row, a top bar) stays edge to edge.
+      const it = itemSizing(node);
+      if (it.bleed) w.layoutItem = { ...w.layoutItem, bleed: true };
+      // A hugging component (a button) keeps its width: the wrapper hugs it instead of filling the row.
+      if (it.width !== 'fill') w.layoutItem = { ...w.layoutItem, width: it.width };
+    }
+  }
+  const symbolId = makeSymbol(d, target, name);
+  return symbolId ? { symbolId, nodeId: target } : null;
+}
+
+function findNodeDraft(nodes: Draft<SceneNode>[], id: Id): Draft<SceneNode> | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.type === 'group') {
+      const r = findNodeDraft(n.children as Draft<SceneNode>[], id);
+      if (r) return r;
+    }
+  }
+  return null;
 }
 
 /** A new instance of `s` (plain), its top-left at `at` in its parent's space. `width`: a free container's width. */

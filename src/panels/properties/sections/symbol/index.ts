@@ -12,7 +12,7 @@ const section: PropertySection = {
   when: (ctx) => {
     if (!ctx.doc.wireframe || ctx.nodes.length !== 1) return false;
     const n = ctx.nodes[0];
-    if (n.type === 'group' && (n.symbol || (!n.screen && !n.note && !n.component && !n.repeatCopy))) return true;
+    if (n.type === 'group' && (n.symbol || (!n.screen && !n.note && !n.repeatCopy))) return true;
     return !!locate(ctx.doc, n.id)?.ancestors.some((a) => a.type === 'group' && a.symbol);
   },
   Component: SymbolSection,
