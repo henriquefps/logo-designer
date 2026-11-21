@@ -210,7 +210,10 @@ Wireframe mode):
   Add screen ▸ and the Screens section of Properties add one to the right of everything; Object → Duplicate
   screen as ▸ and the Screen section add variants. Click a frame's name label to grab the whole frame.
 - Objects dropped on a frame become its children; dragged off, they go back to the canvas (or to the frame they
-  land on). A plain duplicate of a frame (⌘D, Alt-drag) becomes a new logical screen "<name> copy".
+  land on). A plain duplicate of a frame (⌘D, Alt-drag) becomes a new logical screen "<name> copy". ⌘D / Edit →
+  Duplicate puts the copy beside the original (to its right with the usual screen gap, moved further right past any
+  frame or note in the way, same top) and brings it into view; Alt-drag leaves it where it is dropped. Other nodes keep
+  the small 10 px offset.
 - `designer new --preset wireframe` (empty), `designer screen` (add a screen or a variant), `to-png` (one PNG per
   frame, `<slug>.<platform>.png`, the export package's naming) and `to-svg --screen` exist; see `docs/agents.md`.
 
@@ -462,7 +465,7 @@ Screen section and shown as a small badge on the frame label. Typical use: impor
 
 ### Shared components (user components)
 
-Select a group or container and **Make component**: it becomes a **master** stored in
+Select a group, a container or a single library component (a list row, a button) and **Make component**: it becomes a **master** stored in
 `wireframe.symbols` and the selection becomes an instance (`symbol: { id }`). Instances are linked
 copies: editing the content of any instance updates the master and every instance (a pipeline step
 keeps them in sync, in the same undo step). Per instance: position and size, the content of its
@@ -484,6 +487,10 @@ component.
   prompt with the container's own name, else its first label. **Detach** (⌥⌘B, Properties) leaves plain content.
   **My components** is the first section of the library: preview, name, rename, delete (asks first when instances exist;
   they become plain content), click or drag to insert like a library component.
+- **One library component**: Make component wraps it first in a hug vertical stack (named after the component) that takes
+  its place and size (an edge-to-edge component such as a list row keeps `bleed`, a hugging one such as a button keeps
+  its width), and that stack is the master's content: same undo step, same look on the canvas. Properties shows the
+  button for it too. A node inside a shared component or a copy cannot be made one.
 - ⌘D / Alt-drag / paste of an instance stay linked (same master); their flows follow. Pasted into another document,
   the masters come along (see Kits, import and paste below).
 - **Flows inside an instance**: a flow from an element inside an instance belongs to that instance's node only (the

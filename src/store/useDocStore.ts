@@ -9,6 +9,7 @@ import {
   fromTransform,
   getContainer,
   getParent,
+  isScreenNode,
   locate,
   multiply,
   invert,
@@ -26,6 +27,7 @@ import {
 } from '@/model';
 import { attachFlows, copyFlows, copyIdMap, flowsOf, screenIdsOf } from '@/wireframe/flows';
 import { runWireframePipeline } from '@/wireframe/pipeline';
+import { screenHeight, variantPosition } from '@/wireframe/screens';
 
 enablePatches();
 
@@ -538,7 +540,11 @@ export const useDocStore = create<DocState>()((set, get) => {
             const original = findNode(doc, id)!;
             const copy = cloneWithNewIds(original);
             copyIdMap(original, copy, idMap);
-            copy.transform = { ...copy.transform, x: copy.transform.x + offset, y: copy.transform.y + offset };
+            if (doc.wireframe && isScreenNode(original)) {
+              // A screen lands beside the original in free canvas space (like Add screen), not on top of it.
+              const pos = variantPosition(d as DesignDocument, original, original.screen.width, screenHeight(original));
+              copy.transform = { ...copy.transform, x: pos.x, y: pos.y };
+            } else copy.transform = { ...copy.transform, x: copy.transform.x + offset, y: copy.transform.y + offset };
             (loc.parent.children as SceneNode[]).splice(loc.index + 1, 0, copy);
             newIds.unshift(copy.id);
           }

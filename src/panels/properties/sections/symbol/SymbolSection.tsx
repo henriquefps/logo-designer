@@ -3,7 +3,7 @@ import { locate } from '@/model';
 import { Button } from '@/components/ui/button';
 import { useEditorStore } from '@/store/useEditorStore';
 import { detachSymbolSelected, startMakeComponent, startRenameSymbol } from '@/wireframe/symbolCommands';
-import { getSymbol, instancesOf, makeSymbolProblem, sharedOwner, slotsOf } from '@/wireframe/symbols';
+import { getSymbol, instancesOf, makeComponentProblem, sharedOwner, slotsOf } from '@/wireframe/symbols';
 import { Section } from '../../../shared/Section';
 import type { SelectionContext } from '../../types';
 
@@ -14,7 +14,7 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
   const owner = n.type === 'group' && n.symbol ? n : [...(loc?.ancestors ?? [])].reverse().find((a) => a.type === 'group' && a.symbol);
   const s = owner?.type === 'group' && owner.symbol ? getSymbol(ctx.doc, owner.symbol.id) : null;
   if (!s || !owner) {
-    if (makeSymbolProblem(n, loc?.ancestors)) return null;
+    if (makeComponentProblem(n, loc?.ancestors)) return null;
     return (
       <Section title="Shared component">
         <Button size="sm" variant="outline" className="w-full" onClick={() => startMakeComponent()}>

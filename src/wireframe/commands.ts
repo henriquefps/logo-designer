@@ -125,6 +125,12 @@ export function setScreenPlatform(frameId: Id, platform: ScreenPlatform): boolea
   return true;
 }
 
+/** Brings the screen frame `id` into view (pans, zooms out if needed); a no-op for anything else. */
+export function revealScreen(id: Id) {
+  const f = useDocStore.getState().doc.children.find((n) => n.id === id);
+  if (f && isScreenNode(f)) revealRect({ x: f.transform.x, y: f.transform.y, width: f.screen.width, height: f.screen.height });
+}
+
 /** Pans (and zooms out if needed) so `r` is visible. */
 function revealRect(r: { x: number; y: number; width: number; height: number }) {
   const ed = useEditorStore.getState();

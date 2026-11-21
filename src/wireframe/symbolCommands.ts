@@ -21,8 +21,8 @@ import {
   getSymbol,
   instancesOf,
   isSymbolInstance,
-  makeSymbol,
-  makeSymbolProblem,
+  makeComponent,
+  makeComponentProblem,
   newSymbolInstance,
   reaches,
   renameSymbol,
@@ -47,11 +47,18 @@ const open = (state: NonNullable<SymbolDialogState>) => {
 
 /** The one selected node that can become a shared component, or null. */
 export function makeTarget(doc = useDocStore.getState().doc): GroupNode | null {
+  return makeTargetOrReason(doc).node;
+}
+
+/** The make target, or why there is none (the disabled-reason hint of Object → Make component). */
+export function makeTargetOrReason(doc = useDocStore.getState().doc): { node: GroupNode | null; reason: string | null } {
   const sel = useEditorStore.getState().selection;
-  if (!doc.wireframe || sel.length !== 1) return null;
+  if (!doc.wireframe) return { node: null, reason: null };
+  if (sel.length !== 1) return { node: null, reason: 'Select a stack or a component' };
   const loc = locate(doc, sel[0]);
-  if (!loc) return null;
-  return makeSymbolProblem(loc.node, loc.ancestors) ? null : (loc.node as GroupNode);
+  if (!loc) return { node: null, reason: null };
+  const reason = makeComponentProblem(loc.node, loc.ancestors);
+  return reason ? { node: null, reason } : { node: loc.node as GroupNode, reason: null };
 }
 
 /** Object → Make component: asks for a name (default: the container's or the first text's label). */
@@ -64,10 +71,11 @@ export function startMakeComponent(): boolean {
 
 /** Makes `nodeId` the first instance of a new shared component (one undo step). Returns the master id. */
 export function makeComponentCommand(nodeId: Id, name: string): Id | null {
-  let id: Id | null = null;
-  useDocStore.getState().apply((d) => void (id = makeSymbol(d, nodeId, name)), { label: 'Make component' });
-  if (id) useEditorStore.getState().setSelection([nodeId]);
-  return id;
+  let made: { symbolId: Id; nodeId: Id } | null = null;
+  useDocStore.getState().apply((d) => void (made = makeComponent(d, nodeId, name)), { label: 'Make component' });
+  const m = made as { symbolId: Id; nodeId: Id } | null;
+  if (m) useEditorStore.getState().setSelection([m.nodeId]);
+  return m?.symbolId ?? null;
 }
 
 export function startRenameSymbol(symbolId: Id) {
