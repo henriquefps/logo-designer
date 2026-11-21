@@ -37,6 +37,8 @@ HOARD_SHOTS=~/designer-demos/inputs/hoard DEMO_E2E_DIR=/tmp/e2e bun run demo 08 
 Scenario `10-links-na-navegacao` (links from parts): a bottom navigation made into the shared "Tab bar" on four
 screens, each tab linked once from the master, each screen's own tab selected, then Present through the tabs.
 
+Scenarios `18`–`20` (kits, PRs #62/#63): `18-kit-hfps` (New document → "Start with components from: hfps-kit", inserting `hfps · …` components, then the sample sheet), `19-importar-componentes` (Library → Import from project… into Roam, twice) and `20-colar-entre-projetos` (copy an instance with nested masters in the hfps-kit sample, paste into Roam, one undo).
+
 Scenarios `11`–`15` (phase 4, AI through `designer agent`) run the real thing: a designer-sync with an API key,
 `designer agent` with **real Claude Code** (logged in on this machine) and the app with Sync on
 (`lib/agent.ts`). 11 pastes the Hoard Settings screenshot (Turn into a wireframe with AI), 12 drags a flow to empty
