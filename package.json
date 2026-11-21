@@ -19,6 +19,7 @@
     "e2e:agent-app": "node scripts/agent-app-e2e.ts",
     "e2e:new-document": "node scripts/new-document-e2e.ts",
     "e2e:samples": "node scripts/samples-e2e.ts",
+    "e2e:kit-import": "node scripts/kit-import-e2e.ts",
     "e2e:agent-offline": "bun scripts/agent-offline-e2e.ts"
   },
   "dependencies": {

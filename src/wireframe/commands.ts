@@ -4,7 +4,10 @@ import { isScreenNode, platformDef, type DesignDocument, type Id, type ScreenNod
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
+import { loadSample } from '@/samples/open';
+import { kitSamples } from '@/samples/registry';
 import { addScreen, duplicateScreenAs, freePlatforms } from './screens';
+import { importSymbols } from './symbolImport';
 import { fitTarget } from './view';
 
 /** The empty wireframe document: no artboard in use, one phone screen. */
@@ -22,15 +25,22 @@ export function newWireframeDocument(base: DesignDocument, name = 'Wireframe', p
   return doc;
 }
 
-/** New document → Wireframe (or the still-empty first document, reused): one screen of `platform` (phone by default). */
-export async function createWireframeDocument(options: { name?: string; platform?: ScreenPlatform } = {}) {
+/**
+ * New document → Wireframe (or the still-empty first document, reused): one screen of `platform` (phone by
+ * default). `kit`: a component kit sample whose shared components the project starts with (only its masters:
+ * no screens, no notes).
+ */
+export async function createWireframeDocument(options: { name?: string; platform?: ScreenPlatform; kit?: string } = {}) {
   const wanted = options.name?.trim();
+  // Loaded first: a kit that cannot be read fails before any project is made.
+  const kit = options.kit ? await loadKit(options.kit) : null;
   const ds = useDocStore.getState();
   const pristine = ds.doc.children.length === 0 && ds.past.length === 0 && ds.future.length === 0;
   if (!pristine) await useProjectsStore.getState().create(wanted || 'Wireframe');
   const doc = useDocStore.getState().doc;
   const name = wanted || (pristine && !doc.icon && !doc.wireframe && doc.name !== 'Untitled' ? doc.name : 'Wireframe');
   const next = newWireframeDocument(doc, name, options.platform ?? 'phone');
+  if (kit) importSymbols(next, kit);
   // A fresh document: replace it without an undo step (load runs the pipeline), then save it.
   useDocStore.getState().load(next);
   useEditorStore.getState().setSelection([]);
@@ -38,6 +48,12 @@ export async function createWireframeDocument(options: { name?: string; platform
   useEditorStore.getState().fitRect(fitTarget(useDocStore.getState().doc));
   await useProjectsStore.getState().rename(next.id, next.name);
   await useProjectsStore.getState().flush();
+}
+
+async function loadKit(id: string): Promise<DesignDocument> {
+  const sample = kitSamples().find((s) => s.id === id);
+  if (!sample) throw new Error(`Unknown component kit “${id}”.`);
+  return loadSample(sample);
 }
 
 /** The selected screen frame (exactly one selected object that is a frame), or null. */

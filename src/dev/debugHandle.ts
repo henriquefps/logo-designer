@@ -16,8 +16,11 @@ import * as flowModel from '@/wireframe/flows';
 import * as containers from '@/wireframe/containerCommands';
 import * as symbols from '@/wireframe/symbolCommands';
 import * as symbolModel from '@/wireframe/symbols';
+import * as symbolImport from '@/wireframe/symbolImport';
+import * as clipboard from '@/store/clipboard';
+import * as samples from '@/samples/registry';
 
 /** Dev-only handle for browser QA scripts (`window.__designer`). Never bundled in production. */
 export function installDebugHandle() {
-  (window as unknown as Record<string, unknown>).__designer = { model, useDocStore, useEditorStore, useProjectsStore, actions, tools, sync, agent, fontStore, fontUploads, theme, wireframe, components, flows, flowModel, containers, symbols, symbolModel };
+  (window as unknown as Record<string, unknown>).__designer = { model, useDocStore, useEditorStore, useProjectsStore, actions, tools, sync, agent, fontStore, fontUploads, theme, wireframe, components, flows, flowModel, containers, symbols, symbolModel, symbolImport, clipboard, samples };
 }

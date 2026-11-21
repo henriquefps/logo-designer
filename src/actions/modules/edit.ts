@@ -1,6 +1,7 @@
 import { ArrowArcLeftIcon, ArrowArcRightIcon, CopyIcon, ScissorsIcon, ClipboardIcon, TrashIcon } from '@phosphor-icons/react';
 import { walk } from '@/model';
 import { copyNodes, cutNodes, hasClipboard, pasteNodes } from '@/store/clipboard';
+import { notifyPasteImport } from '@/wireframe/symbolImportCommands';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { doc, editableSelection, hasSelection, sel } from '../selection';
@@ -72,7 +73,10 @@ const actions: Action[] = [
     icon: ClipboardIcon,
     shortcut: 'mod+v',
     enabled: hasClipboard,
-    run: () => ed().setSelection(pasteNodes()),
+    run: () => {
+      ed().setSelection(pasteNodes());
+      notifyPasteImport();
+    },
   },
   {
     id: 'edit.duplicate',

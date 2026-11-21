@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { isFirstVisit, markWelcomed } from './welcome';
 import { DESIGN_MODES, firstStep, modeDef, moveFocus, pickMode, type DesignMode, type ModeOptions, type Step } from './modes';
 import { createDocument } from './create';
+import { toast } from 'sonner';
 import { ModeIllustration } from './illustrations';
 import { FreePanel, IconPanel, WireframePanel } from './ModeOptions';
 import { RecentProjects } from './RecentProjects';
@@ -110,6 +111,8 @@ export function NewDocumentDialog({ open, onOpenChange }: { open: boolean; onOpe
     try {
       await createDocument(options);
       close(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not create the document.');
     } finally {
       setBusy(false);
     }

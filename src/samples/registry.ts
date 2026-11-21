@@ -42,3 +42,5 @@ export const SAMPLES: readonly SampleDef[] = [
 
 export const sampleById = (id: string): SampleDef | undefined => SAMPLES.find((s) => s.id === id);
 export const samplesFor = (mode: DesignMode): SampleDef[] => SAMPLES.filter((s) => s.mode === mode);
+/** Samples offered as component kits (`kit: true`). */
+export const kitSamples = (): SampleDef[] => SAMPLES.filter((s) => s.kit);

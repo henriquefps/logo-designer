@@ -59,7 +59,8 @@ const step: WireframeStep = {
       if (index < 0) continue;
       fromList.splice(index, 1);
       const t = toTransform(multiply(invert(frameMatrix(m.to)), multiply(frameMatrix(m.from), fromTransform(m.node.transform))));
-      const moved = { ...m.node, transform: t } as SceneNode;
+      // A deep copy: `m.node` is the frozen input, and later steps (components, layout) write into the moved subtree.
+      const moved = structuredClone({ ...m.node, transform: t }) as SceneNode;
       const toList = (m.to ? (d.children.find((n) => n.id === m.to!.id) as Draft<ScreenNode>).children : d.children) as Draft<SceneNode>[];
       toList.push(moved as Draft<SceneNode>);
     }

@@ -45,6 +45,8 @@ export interface WireframeOptions {
   name: string;
   /** Platform of the first screen. */
   platform: ScreenPlatform;
+  /** A component kit sample id: the project starts with its shared components. Undefined = none. */
+  kit?: string;
 }
 
 export interface FreeOptions {

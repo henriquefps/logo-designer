@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { SCREEN_PLATFORMS, type IconShapeSetting, type ScreenPlatform } from '@/model';
 import { ARTBOARD_PRESETS } from '@/panels/properties/sections/artboard/presets';
 import { NumberField } from '@/panels/shared/NumberField';
-import { samplesFor, type SampleDef } from '@/samples/registry';
+import { kitSamples, samplesFor, type SampleDef } from '@/samples/registry';
 import { SampleCard } from '@/samples/SampleCard';
 import { defaultName, MAX_SIDE, type FreeOptions, type IconOptions, type ModeOptions, type WireframeOptions } from './modes';
 
@@ -211,6 +211,34 @@ function Samples({ mode, onOpenSample, disabled }: { mode: ModeOptions['mode']; 
   );
 }
 
+const NO_KIT = 'none';
+
+/** "Start with components from": None, or a component kit sample (its shared components, no screens). */
+function KitField({ value, onChange, disabled }: { value?: string; onChange: (kit: string | undefined) => void; disabled?: boolean }) {
+  const id = useId();
+  const kits = kitSamples();
+  if (!kits.length) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>Start with components from</Label>
+      <Select value={value ?? NO_KIT} onValueChange={(v) => onChange(v === NO_KIT ? undefined : v)} disabled={disabled}>
+        <SelectTrigger id={id} className="w-full" data-testid="new-wireframe-kit">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_KIT}>None</SelectItem>
+          {kits.map((k) => (
+            <SelectItem key={k.id} value={k.id}>
+              {k.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">{value ? 'The project starts with the kit’s shared components (My components in the library), without its screens.' : 'A kit adds its shared components to the new project. You can also import them later from the library.'}</p>
+    </div>
+  );
+}
+
 export function WireframePanel({ options, onChange, onCreate, onOpenSample, disabled }: PanelProps<WireframeOptions> & { onOpenSample?: (s: SampleDef) => void }) {
   const name = useId();
   const set = (patch: Partial<WireframeOptions>) => onChange({ ...options, ...patch });
@@ -230,6 +258,7 @@ export function WireframePanel({ options, onChange, onCreate, onOpenSample, disa
           );
         })}
       </Group>
+      <KitField value={options.kit} onChange={(kit) => set({ kit })} disabled={disabled} />
       <p className="text-sm text-muted-foreground">The canvas is infinite: add more screens, other platforms, components and the flow between screens once it is open.</p>
       <Samples mode="wireframe" onOpenSample={onOpenSample} disabled={disabled} />
     </div>

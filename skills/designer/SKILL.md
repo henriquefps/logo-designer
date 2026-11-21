@@ -116,6 +116,10 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
   with `columns`), or a shared component (`{ "use": "Tab bar" }`, defined once under `components`).
 - Lists and galleries: one item with `"repeat": N` on its container, not N copies. Anything on several screens
   (tab bar, a card): a shared component.
+- Component kits: start from one with `designer new --kit hfps-kit -o app.designer.json` (its shared components,
+  no screens), or add them to a project with `designer wf components import app.designer.json --from sample:hfps-kit
+  [--only "hfps · Top bar,…"]` (re-running is a no-op). Then `{ "use": "hfps · Top bar" }` in the spec, and
+  `designer wf dump` shows each master's content.
 - More than the component offers (a top bar with 6 icons, a row with a button on its right): build it from
   stacks of library pieces (`{ "hstack": [ { "heading": … }, { "icon": { "icon": "search" } }, … ] }`), and put
   what still cannot be drawn in a note. Icons are Lucide names (`search`, `trash-2`, `settings`); `wf build` warns
@@ -180,4 +184,5 @@ When you are given `<project>-for-ai.zip` (or its folder) to **build the app**:
    → opens Gallery; Files → opens Files") and the Flow section; implement every "Note:" (they are
    requirements, not comments) and ask when one is ambiguous.
 5. `project.designer.json` is the editable source: `designer wf dump` it for an exact, machine-readable tree.
+6. Shared components named `hfps · …` come from the hfps-kit sample: when building the app from the export, implement them with the hfps-kit design system (hfps-kit skill).
 

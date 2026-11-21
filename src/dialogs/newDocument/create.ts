@@ -36,7 +36,7 @@ export async function createDocument(o: ModeOptions) {
     }
     case 'wireframe': {
       const { createWireframeDocument } = await import('@/wireframe/commands');
-      return createWireframeDocument({ name: o.name, platform: o.platform });
+      return createWireframeDocument({ name: o.name, platform: o.platform, ...(o.kit ? { kit: o.kit } : {}) });
     }
   }
 }

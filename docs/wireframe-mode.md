@@ -484,14 +484,41 @@ component.
   prompt with the container's own name, else its first label. **Detach** (⌥⌘B, Properties) leaves plain content.
   **My components** is the first section of the library: preview, name, rename, delete (asks first when instances exist;
   they become plain content), click or drag to insert like a library component.
-- ⌘D / Alt-drag / paste of an instance stay linked (same master); their flows follow. Pasted into a document without
-  that master, an instance becomes a plain group.
+- ⌘D / Alt-drag / paste of an instance stay linked (same master); their flows follow. Pasted into another document,
+  the masters come along (see Kits, import and paste below).
 - **Flows inside an instance**: a flow from an element inside an instance belongs to that instance's node only (the
   other instances don't get it). It survives edits made through other instances; deleting the element (in any instance)
   deletes it everywhere and the flow with it.
 - A repeat template may be an instance: its copies follow the master. A master may contain other shared components;
   never itself.
 - Export for AI: README "Shared components" (each once: its tree and where it is used); screens say "Shared: Trip card".
+
+#### Kits, import and paste (2026-11-20)
+
+Shared components used to live in one project only. A **component kit** is a bundled sample whose masters are
+meant to be reused (`kit: true` in `src/samples/registry.ts`; `hfps-kit` today); any project with shared components
+can also be a source.
+
+- **Import from project…** (Library → My components): pick a source (component kits first, then your other projects
+  that have shared components), tick its components (all ticked, each with a preview), Import. One undo step; a toast
+  says how many came in, how many were already there, and how many master links were left out.
+- **New document → Wireframe → "Start with components from"**: None (default) or a kit. The project starts with the
+  kit's masters only (no screens, no notes), plus its usual first screen.
+- **Paste between documents keeps instances**: the clipboard (in-app and the system clipboard's JSON) carries the
+  masters of the instances it holds. Pasting into a document that lacks them imports them (same rules) in the paste's
+  undo step, and a toast names them. Within the same document nothing changes. An old payload without masters still
+  pastes plain groups.
+- **Rules** (`src/wireframe/symbolImport.ts`, pure): the chosen masters are copied with fresh master ids, with every
+  master they nest (transitively, dependencies first); their content keeps its node ids (the master's own id space).
+  A master with the same name (or "Name N") and the same shared content (`masterShape`, node ids ignored, nested
+  masters compared through the import) is **reused**, not copied; same name with other content gets "Name 2". So
+  importing the same kit twice changes nothing. **Master flows** (links defined on a shared component) follow a copied
+  master when the target has a logical screen of the same name (case-insensitive); the others are dropped and counted.
+- **CLI**: `designer wf components import <project> --from <file.designer.json|sample:<id>> [--only "<name>,…"]
+  [-o file] [--json]` and `designer new --kit <id>` (implies `--preset wireframe`; `--json` with `-o`).
+- Code map: `docs/architecture.md` → Shared components → Kits, import and paste. Screenshots:
+  `docs/screenshots/kit-import/`. Checks: `src/wireframe/__tests__/symbolImport.test.ts`,
+  `src/cli/components-import.test.ts`, `bun run e2e:kit-import` (Playwright, the real hfps-kit).
 
 ### Export additions
 
