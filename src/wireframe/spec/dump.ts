@@ -4,7 +4,7 @@
 // computes (positions and sizes in a stack) is left out too, and geometry nobody computes (free
 // positions, fixed sizes, frame positions, notes) is written. `buildFromSpec(dumpToSpec(p))` gives
 // back `p` (tested in __tests__/roundtrip.test.ts).
-import { platformDef, walk, type DesignDocument, type Id, type LayoutInfo, type SceneNode, type ScreenNode, type WireframeSymbol } from '@/model';
+import { platformDef, walk, type DesignDocument, type GroupNode, type Id, type LayoutInfo, type SceneNode, type ScreenNode, type WireframeSymbol } from '@/model';
 import { partsOfNode } from '../flows';
 import { getComponent } from '../library/registry';
 import { checkProp, type PropSpec } from '../library/types';
@@ -12,6 +12,8 @@ import { defaultLayout, defaultScreenLayout } from '../layout';
 import { frames } from '../screens';
 import { isNoteNode, notesOf } from '../notes';
 import { deepEqual } from '../repeat';
+import { instancePrefix, slotsOf } from '../symbols';
+import { primaryTextProp } from './parse';
 import { defaultName, hasDefaultPlacement, layoutShape, placedByLayout } from './common';
 import { SPEC_SCHEMA_URL, SPEC_VERSION, type SpecComponent, type SpecFlow, type SpecFrameLayout, type SpecNode, type SpecNote, type SpecScreen, type SpecVariant, type WireframeSpec } from './types';
 
@@ -86,6 +88,7 @@ function layoutDiff(l: LayoutInfo): Record<string, unknown> {
   if (l.style !== undefined) out.style = l.style;
   if (l.radius !== undefined) out.radius = l.radius;
   if (l.repeat) out.repeat = l.repeat.count;
+  if (l.slot) out.slot = true;
   return out;
 }
 
@@ -109,7 +112,7 @@ function dumpNode(n: SceneNode, ctx: DumpCtx, parentLays: boolean, frameChild = 
     const s = ctx.symbols.find((x) => x.id === n.symbol!.id);
     if (!s) return raw(n);
     // A per-instance layout box only matters when no layout places it (handled by commonKeys' `size`).
-    return { use: ctx.useRef(s.id), ...common };
+    return { use: ctx.useRef(s.id), ...instanceOwn(n, s, ctx), ...common };
   }
   if (n.component) {
     const props = propsDiff(n.component.kind, n.component.props);
@@ -123,6 +126,79 @@ function dumpNode(n: SceneNode, ctx: DumpCtx, parentLays: boolean, frameChild = 
   if (n.note || n.screen) return raw(n);
   const children = n.children.map((c) => dumpNode(c, ctx, false)).filter((c): c is SpecNode => !!c);
   return { group: children, ...common };
+}
+
+const withoutIds = (v: unknown): unknown => {
+  if (Array.isArray(v)) return v.map(withoutIds);
+  if (!v || typeof v !== 'object') return v;
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v)) if (k !== 'id') out[k] = withoutIds(x);
+  return out;
+};
+
+/** How a dump names a master node (a slot, a component with text): its name when unique, else its path of names, else its id. */
+function masterRef(s: WireframeSymbol, id: Id): string {
+  const all: { n: SceneNode; path: string }[] = [];
+  const visit = (nodes: readonly SceneNode[], at: string) => {
+    for (const n of nodes) {
+      const p = at ? `${at}/${n.name}` : n.name;
+      all.push({ n, path: p });
+      if (n.type === 'group' && !n.component && !n.symbol) visit(n.children, p);
+    }
+  };
+  visit(s.content.children, '');
+  const hit = all.find((x) => x.n.id === id);
+  if (!hit || !hit.n.name.trim()) return id;
+  const lc = (x: string) => x.trim().toLowerCase();
+  if (all.filter((x) => lc(x.n.name) === lc(hit.n.name)).length === 1 && !hit.n.name.includes('/')) return hit.n.name;
+  if (all.filter((x) => lc(x.path) === lc(hit.path)).length === 1) return hit.path;
+  return id;
+}
+
+/** What an instance has of its own: slot content that differs from the master's default (`content` / `slots`), and `text`. */
+function instanceOwn(n: GroupNode, s: WireframeSymbol, ctx: DumpCtx): SpecNode {
+  const out: SpecNode = {};
+  const slots = slotsOf(s.content);
+  const prefix = instancePrefix(n.id);
+  const fills: Record<string, SpecNode[]> = {};
+  for (const slot of slots) {
+    const holder = findIn(n.children, prefix + slot.id);
+    if (!holder || holder.type !== 'group') continue;
+    const mine = holder.children.map((c) => dumpNode(c, ctx, true)).filter((c): c is SpecNode => !!c);
+    const def = slot.children.map((c) => dumpNode(c, ctx, true)).filter((c): c is SpecNode => !!c);
+    if (deepEqual(withoutIds(mine), withoutIds(def))) continue;
+    fills[slots.length === 1 ? '' : masterRef(s, slot.id)] = mine;
+  }
+  if (slots.length === 1 && fills['']) out.content = fills[''];
+  else if (Object.keys(fills).length) out.slots = fills;
+  const text = n.symbol?.text;
+  if (text) {
+    const t: Record<string, unknown> = {};
+    const masterNodes = new Map<Id, SceneNode>();
+    walk(s.content.children, (x) => {
+      masterNodes.set(x.id, x);
+      return !(x.type === 'group' && (x.component || x.symbol));
+    });
+    for (const [id, props] of Object.entries(text)) {
+      const target = masterNodes.get(id);
+      const def = target?.type === 'group' && target.component ? getComponent(target.component.kind) : undefined;
+      const keys = Object.keys(props);
+      t[masterRef(s, id)] = def && keys.length === 1 && keys[0] === primaryTextProp(def) ? props[keys[0]] : { ...props };
+    }
+    if (Object.keys(t).length) out.text = t;
+  }
+  return out;
+}
+
+function findIn(nodes: readonly SceneNode[], id: Id): SceneNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.type === 'group' && !n.component && !n.symbol) {
+      const hit = findIn(n.children, id);
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 /** A frame's root layout as the spec writes it (undefined = the platform default). */

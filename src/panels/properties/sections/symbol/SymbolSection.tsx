@@ -3,7 +3,7 @@ import { locate } from '@/model';
 import { Button } from '@/components/ui/button';
 import { useEditorStore } from '@/store/useEditorStore';
 import { detachSymbolSelected, startMakeComponent, startRenameSymbol } from '@/wireframe/symbolCommands';
-import { getSymbol, instancesOf, makeSymbolProblem } from '@/wireframe/symbols';
+import { getSymbol, instancesOf, makeSymbolProblem, sharedOwner, slotsOf } from '@/wireframe/symbols';
 import { Section } from '../../../shared/Section';
 import type { SelectionContext } from '../../types';
 
@@ -26,6 +26,9 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
   }
   const copies = instancesOf(ctx.doc, s.id).length;
   const inside = owner !== n;
+  // In one of the instance's slots: this instance's own content, not part of the shared component.
+  const own = inside && !sharedOwner(loc?.ancestors ?? []);
+  const slots = owner.type === 'group' ? slotsOf(owner) : [];
   return (
     <Section title="Shared component">
       <div className="flex min-w-0 items-center gap-2">
@@ -35,7 +38,9 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
       </div>
       {inside ? (
         <>
-          <p className="text-xs text-muted-foreground">Part of “{s.name}”: changes here go to every instance.</p>
+          <p className="text-xs text-muted-foreground">
+            {own ? `In the content of this “${s.name}”: it belongs to this instance only.` : `Part of “${s.name}”: changes here go to every instance (text stays on this one).`}
+          </p>
           <Button size="sm" variant="outline" onClick={() => useEditorStore.getState().setSelection([owner.id])}>
             Select the component
           </Button>
@@ -51,6 +56,11 @@ export function SymbolSection({ ctx }: { ctx: SelectionContext }) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">Double-click to edit the content: every instance follows. Position and size are this instance’s own.</p>
+          {slots.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {slots.length === 1 ? `“${slots[0].name}” holds` : `${slots.map((x) => `“${x.name}”`).join(', ')} hold`} content per instance: drop elements there.
+            </p>
+          )}
         </>
       )}
     </Section>

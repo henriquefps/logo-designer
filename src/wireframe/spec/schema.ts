@@ -49,6 +49,7 @@ const CONTAINER: Record<string, Schema> = {
   style: { enum: [...STYLES] },
   radius: { enum: [...RADII] },
   repeat: { type: 'integer', minimum: 1, maximum: MAX_REPEAT, description: 'Repeat the first child N times (a list of anything).' },
+  slot: { type: 'boolean', description: 'Inside a shared component\'s content: content per instance (its children are the default).' },
 };
 
 function propSchema(s: PropSpec): Schema {
@@ -107,7 +108,22 @@ export function wireframeSpecSchema(): Schema {
       required: ['kind'],
       additionalProperties: false,
     },
-    Use: { type: 'object', properties: { use: { type: 'string', description: 'A shared component\'s name (or id).' }, ...COMMON_REFS }, required: ['use'], additionalProperties: false },
+    Use: {
+      type: 'object',
+      properties: {
+        use: { type: 'string', description: 'A shared component\'s name (or id).' },
+        content: { type: 'array', items: ref('Node'), description: 'This instance\'s content for the master\'s only slot (a container marked "slot": true).' },
+        slots: { type: 'object', additionalProperties: { type: 'array', items: ref('Node') }, description: 'This instance\'s content per slot: { "<slot name>": [ …nodes ] }.' },
+        text: {
+          type: 'object',
+          additionalProperties: { anyOf: [{ type: 'string' }, { type: 'object', additionalProperties: { type: 'string' } }] },
+          description: 'This instance\'s own text: { "<node name or path in the master>": "text" } (its main text prop) or { "<node>": { "<prop>": "text" } }.',
+        },
+        ...COMMON_REFS,
+      },
+      required: ['use'],
+      additionalProperties: false,
+    },
     Group: { type: 'object', properties: { group: { type: 'array', items: ref('Node') }, ...COMMON_REFS }, required: ['group'], additionalProperties: false },
     RawNode: {
       type: 'object',

@@ -127,4 +127,20 @@ export function setRepeat(ids: Id[], count: number | null) {
   );
 }
 
+/**
+ * Shared components: "Content per instance" on a container inside an instance (its master's container). The
+ * edit goes to the master like any other; from then on each instance keeps what it puts there.
+ */
+export function setSlot(id: Id, on: boolean) {
+  useDocStore.getState().updateNodes(
+    [id],
+    (n) => {
+      if (n.type !== 'group' || !n.layout || n.screen || n.component || n.symbol) return;
+      if (on) n.layout.slot = true;
+      else delete n.layout.slot;
+    },
+    { label: on ? 'Content per instance' : 'Shared content' },
+  );
+}
+
 export { DEFAULT_REPEAT, MAX_REPEAT };

@@ -411,6 +411,10 @@
             "count"
           ],
           "description": "Repeat the first child (the template) `count` times: the pipeline generates `count − 1` read-only copies after it (`repeatCopy`). The container's gap is the space between the items."
+        },
+        "slot": {
+          "type": "boolean",
+          "description": "Shared components only (a container inside a master's content): \"Content per instance\". The container itself (layout, style, size rules) is shared; its children belong to each instance (sync never copies them). The master's children are what a new instance starts with. Absent = false."
         }
       },
       "required": [
@@ -531,12 +535,28 @@
       "properties": {
         "id": {
           "$ref": "#/definitions/Id"
+        },
+        "text": {
+          "$ref": "#/definitions/Record%3CId%2CRecord%3Cstring%2Cstring%3E%3E",
+          "description": "Per-instance text: `{ <master node id>: { <text prop>: value } }` (the node's id in the master's id space, the prop a component's text, label, title…). Never synced; the master's text is the default. Absent = none."
         }
       },
       "required": [
         "id"
       ],
       "description": "Points an instance at its shared component (`wireframe.symbols[].id`)."
+    },
+    "Record<Id,Record<string,string>>": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Record%3Cstring%2Cstring%3E"
+      }
+    },
+    "Record<string,string>": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "PathNode": {
       "type": "object",

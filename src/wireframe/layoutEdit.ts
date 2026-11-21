@@ -95,34 +95,49 @@ function dropIndex(c: ContainerNode, p: Vec, exclude: Set<Id>): number {
  * The deepest stack / grid (or screen frame with a layout) under a document point, and the index a
  * node dropped there takes. `exclude`: nodes being dragged (they and their subtrees are not targets,
  * and the index is counted without them). Component instances, hidden and locked nodes are skipped.
- * Null when the point is on no layout (empty canvas, a free frame).
+ * Inside a shared component instance only its slots ("Content per instance") take drops: the rest of it
+ * is shared, so a drop there goes to the stack around the instance. Null when the point is on no layout
+ * (empty canvas, a free frame).
  */
 export function layoutDropTarget(doc: DocLike, point: Vec, opts: { exclude?: readonly Id[] } = {}): LayoutDropTarget | null {
   const exclude = new Set(opts.exclude ?? []);
-  const search = (nodes: readonly SceneNode[], parentM: Matrix): LayoutDropTarget | null => {
+  // `shared`: inside an instance's shared content (not in one of its slots).
+  const search = (nodes: readonly SceneNode[], parentM: Matrix, shared: boolean): LayoutDropTarget | null => {
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      // Repeat copies are read-only: never a target (the template is). Shared instances are units, not containers.
-      if (n.type !== 'group' || n.component || n.symbol || n.repeatCopy || !n.visible || n.locked || exclude.has(n.id)) continue;
+      // Repeat copies are read-only: never a target (the template is).
+      if (n.type !== 'group' || n.component || n.repeatCopy || !n.visible || n.locked || exclude.has(n.id)) continue;
       const m = multiply(parentM, fromTransform(n.transform));
       const local = apply(invert(m), point);
       if (n.screen) {
         if (!rectContains({ x: 0, y: 0, width: n.screen.width, height: n.screen.height }, local)) continue;
         // The frame is the target (when it lays out); content outside it is clipped.
-        const inner = search(n.children, m);
+        const inner = search(n.children, m, false);
         if (inner) return inner;
         return laysOut(n) ? { containerId: n.id, index: indexAt(n, local, exclude) } : null;
       }
+      if (n.symbol) {
+        // A shared instance is not a target itself; its slots are.
+        if (n.layout && !rectContains(containerRect(n as ContainerNode), local)) continue;
+        const inner = search(n.children, m, true);
+        if (inner) return inner;
+        continue;
+      }
       if (laysOut(n)) {
         if (!rectContains(containerRect(n), local)) continue;
-        return search(n.children, m) ?? { containerId: n.id, index: dropIndex(n, local, exclude) };
+        if (shared && !n.layout.slot) {
+          const inner = search(n.children, m, true);
+          if (inner) return inner;
+          continue;
+        }
+        return search(n.children, m, false) ?? { containerId: n.id, index: dropIndex(n, local, exclude) };
       }
-      const inner = search(n.children, m);
+      const inner = search(n.children, m, shared);
       if (inner) return inner;
     }
     return null;
   };
-  return search(doc.children, IDENTITY);
+  return search(doc.children, IDENTITY, false);
 }
 
 /**

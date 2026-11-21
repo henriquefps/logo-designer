@@ -11,6 +11,7 @@ import { appendPosition, defaultPlacement, detachInstance, dropPosition, newInst
 import { frameOf, frames } from './screens';
 import { placementArea } from './placement';
 import { layoutDropTarget } from './layoutEdit';
+import { isSymbolInstance, resetComponentText, setComponentText, shareComponentText, sharedOwner, slotTarget, textTarget } from './symbols';
 
 const iconProps = (def: AnyComponentDef, props: Record<string, unknown>) =>
   Object.entries(def.props as Record<string, PropSpec>)
@@ -35,16 +36,27 @@ export interface Target {
 }
 
 /**
- * Where a click in the library inserts: into the selected container (a frame or a stack), after the
- * selected object inside one, else into the screen of the selection, else the screen in view.
+ * Where a click in the library inserts: into the selected container (a frame or a stack, or the slot of a
+ * shared instance), after the selected object inside one, else into the screen of the selection, else the
+ * screen in view.
  */
 export function clickTarget(doc: DesignDocument): Target {
   const sel = useEditorStore.getState().selection;
   if (sel.length === 1) {
     let loc = locate(doc, sel[0]);
-    // A shared instance (or anything inside one) is a unit: insert next to the instance, never inside it.
-    const outer = loc && [...loc.ancestors, loc.node].find((a) => a.type === 'group' && !!a.symbol);
-    if (outer) loc = locate(doc, outer.id);
+    const into = loc && slotTarget(loc.node, loc.ancestors);
+    if (into) return { parentId: into.id, container: into };
+    // Anything in the shared part of an instance: insert next to the instance, never inside it (it would
+    // change every instance). An instance in a slot is the slot's content: next to it is in the slot.
+    let owner = loc && sharedOwner(loc.ancestors);
+    while (owner) {
+      loc = locate(doc, owner.id);
+      owner = loc && sharedOwner(loc.ancestors);
+    }
+    if (loc && isSymbolInstance(loc.node)) {
+      const parent = loc.parent !== doc ? (loc.parent as GroupNode) : null;
+      if (parent && (isScreenNode(parent) || (parent.layout && !parent.component))) return { parentId: parent.id, index: parent.layout ? loc.index + 1 : undefined, container: parent };
+    }
     const n = loc?.node;
     if (n && n.type === 'group' && !n.symbol && (isScreenNode(n) || (n.layout && !n.component))) return { parentId: n.id, container: n };
     const parent = loc && loc.parent !== doc ? (loc.parent as GroupNode) : null;
@@ -132,6 +144,16 @@ export async function insertComponent(kind: string, at?: Vec): Promise<Id | null
   return id;
 }
 
+/** Reset to shared: component `id` (inside an instance) shows its master's `prop` again. One undo step. */
+export function resetComponentTextCommand(id: Id, prop: string) {
+  useDocStore.getState().apply((d) => void resetComponentText(d, id, prop), { label: 'Reset to shared' });
+}
+
+/** Use for every instance: this instance's `prop` becomes the master's (instances without their own follow). */
+export function shareComponentTextCommand(id: Id, prop: string) {
+  useDocStore.getState().apply((d) => void shareComponentText(d, id, prop), { label: 'Use text in every instance' });
+}
+
 /** The selected component instance (exactly one selected object that is one), or null. */
 export function selectedInstance(): ComponentNode | null {
   const { doc } = useDocStore.getState();
@@ -150,6 +172,11 @@ export async function setComponentProp(id: Id, key: string, value: unknown) {
   if (spec?.type === 'icon' && typeof value === 'string') await ensureIcons([value]);
   const cur = n.component.props[key];
   if (JSON.stringify(cur ?? (spec ? checkProp(spec, undefined).value : undefined)) === JSON.stringify(value)) return;
+  // Text inside a shared component instance stays on that instance (docs/wireframe-mode.md → Text overrides).
+  if ((spec?.type === 'text' || spec?.type === 'multiline') && typeof value === 'string' && textTarget(useDocStore.getState().doc, id)) {
+    useDocStore.getState().apply((d) => setComponentText(d, id, key, value), { label: `Change ${spec.label.toLowerCase()} (this instance)` });
+    return;
+  }
   useDocStore.getState().updateNodes(
     [id],
     (d) => {

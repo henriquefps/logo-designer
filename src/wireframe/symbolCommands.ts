@@ -2,6 +2,7 @@
 // (with the name prompt), insert from My components (click / drop), rename, delete master, detach.
 // Document logic: ./symbols.ts (pure); this file adds the stores.
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { findNode, isScreenNode, locate, topmostIds, type DesignDocument, type GroupNode, type Id, type SceneNode, type Vec } from '@/model';
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
@@ -13,6 +14,7 @@ import { placementArea } from './placement';
 import { contentBottom } from './screens';
 import { localizeSharedFlows } from './flows';
 import {
+  sharedOwner,
   defaultSymbolName,
   deleteSymbol,
   detachSymbolInstance,
@@ -201,4 +203,23 @@ export function insertSymbol(symbolId: Id, at?: Vec): Id | null {
   const [id] = useDocStore.getState().addNodes([node], { parentId: target.parentId, index: target.index, label: `Add ${s.name}` });
   useEditorStore.getState().setSelection([id]);
   return id;
+}
+
+/**
+ * After something was put into `parentId` (Layers, a command): when that is the shared part of an instance (not
+ * one of its slots), the master changed and every instance with it. Says so in a toast. Returns the master's name.
+ */
+export function notifySharedChange(parentId: Id | null): string | null {
+  if (!parentId) return null;
+  const doc = useDocStore.getState().doc;
+  const loc = locate(doc, parentId);
+  if (!loc) return null;
+  const owner = sharedOwner([...loc.ancestors, loc.node]);
+  const s = owner && getSymbol(doc, owner.symbol.id);
+  if (!s) return null;
+  const n = instancesOf(doc, s.id).length;
+  toast(`Changed shared component ${s.name} (${n} ${n === 1 ? 'instance' : 'instances'})`, {
+    description: 'Put it in a slot (“Content per instance”) to keep it on one screen.',
+  });
+  return s.name;
 }

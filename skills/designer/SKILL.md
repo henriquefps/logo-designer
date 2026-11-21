@@ -121,6 +121,11 @@ You write a small JSON **spec**; `designer wf build` turns it into the project t
   app.designer.json` (its shared components, no screens), or add them to a project with `designer wf components
   import app.designer.json --from kit.designer.json [--only "Acme · Top bar,…"]` (re-running is a no-op). Then
   `{ "use": "Acme · Top bar" }` in the spec, and `designer wf dump` shows each master's content.
+- Per-instance content in a shared component: mark a container of its `content` `"slot": true` (an app shell's body),
+  then fill it on each screen with `{ "use": "App shell", "content": [ …nodes ] }` (several slots: `"slots": {
+  "Body": [ … ] }`). Per-instance text: `{ "use": "Acme · List row", "text": { "Row": "Inbox" } }` (a node name in
+  the master → its main text, or `{ "Row": { "subtitle": "…" } }`). The master's slot children and text are the
+  defaults; `wf dump` writes only what differs.
 - More than the component offers (a top bar with 6 icons, a row with a button on its right): build it from
   stacks of library pieces (`{ "hstack": [ { "heading": … }, { "icon": { "icon": "search" } }, … ] }`), and put
   what still cannot be drawn in a note. Icons are Lucide names (`search`, `trash-2`, `settings`); `wf build` warns

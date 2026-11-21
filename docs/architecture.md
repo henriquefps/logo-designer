@@ -633,7 +633,8 @@ User components (phase 2): a group or container the user built (a "Trip card" co
 button) made reusable. Model: masters in `wireframe.symbols: { id, name, content }[]` (not on the canvas; `content` is a
 group in the master's own id space), instances are groups with `symbol: { id }` whose children are **real nodes**
 materialized from the master (like component children and repeat copies), with ids `<instance id>~s~<master id>`
-(`instancePrefix`). What instances share: the root's `layout` minus `size`, and the content. Per instance: the root's id,
+(`instancePrefix`). What instances share: the root's `layout` minus `size`, and the content (except slot content and
+overridden text, below). Per instance: the root's id,
 name, transform, `layoutItem`, `layout.size`, visibility, lock, opacity (position and size; the size reaches the content
 through the container's layout, R1). Unlike library instances, the content is editable: `hitTest` treats an instance as
 a group (double-click enters it), so every editing tool works inside it.
@@ -675,6 +676,24 @@ a group (double-click enters it), so every editing tool works inside it.
   card)`); the README's **Shared components** section describes each master once (its tree, nested ones by name) with
   the screens it is used on.
 
+- **Slots and text overrides** (docs/wireframe-mode.md → Slots and text overrides). Model: `LayoutInfo.slot` (a
+  container of a master: "Content per instance"), `SymbolRef.text` (an instance's text: master node id → prop → value).
+  In `symbols.ts`: `isSlot`, `slotsOf`, `sharedOwner(ancestors)` (the innermost instance whose *shared* part holds a
+  node; null inside a slot), `slotTarget` (click-insert / paste), `textPropKeys`, `textTarget`, `setComponentText`,
+  `resetComponentText`, `shareComponentText`. Sync: `sharedShape(root, prefix, drop)` leaves slot children out and
+  drops the instance's overridden props (`masterShape(s, drop)` the same on the master side, so `inSync` compares like
+  with like; nested instances compare without their `symbol.text`); `contentOf(inst, s, symbols, prevContent)` keeps
+  the master's slot children, the master's value of overridden props and nested references' own `symbol`;
+  `materializeChildren(…, text)` applies overrides (rebuilding that component); `reconcileNode` keeps a slot's
+  children and a nested instance's own text (rematerialized from its master); `mapByPosition` does not enter slots;
+  in `syncSymbols`, an instance in a slot of a rewritten instance is still synced (found by id). Import dedup compares
+  `masterDefinition` (slot defaults included); `retarget` keeps nested `symbol.text`. Drops: `layoutDropTarget`
+  searches instances with a `shared` flag (only slots are targets). App: `containerCommands.setSlot`, Properties
+  Layout ("Content" switch), Component section ("Overridden here", Reset to shared, Use everywhere),
+  `symbolCommands.notifySharedChange` (Layers drop into a shared part → toast), `clipboard.pasteSlot`, Layers
+  (`data-layer-id` rows; `useEditorStore.subscribe` opens ancestors and scrolls nearest unless the panel selected).
+  Spec: `slot` (containers), `content` / `slots` / `text` on `use` (`USE_KEYS`; `text` next to `use` is not the text
+  kind), `fillSlots` / `instanceText` in build, `instanceOwn` in dump. File: `projectFile` validates both fields.
 - **Kits, import and paste** (`symbolImport.ts` pure, `symbolImportCommands.ts` app; docs/wireframe-mode.md → Kits,
   import and paste): `planSymbolImport(target, source, { ids?, sameIds? })` → `{ map, added, reused, flows,
   droppedFlows }` and `importSymbols` (plan + `applySymbolImport` on a document or draft). `withNested` orders the

@@ -12,6 +12,7 @@ import {
   ALIGNS,
   COMMON_KEYS,
   CONTAINER_KEYS,
+  USE_KEYS,
   CONTAINER_KINDS,
   FORM_KEYS,
   POSITIONS,
@@ -183,7 +184,9 @@ class Parser {
       return null;
     }
     const formKeys: readonly string[] = FORM_KEYS;
-    const forms = Object.keys(v).filter((k) => formKeys.includes(k) || (!RESERVED_KEYS.has(k) && !!getComponent(k)));
+    let forms = Object.keys(v).filter((k) => formKeys.includes(k) || (!RESERVED_KEYS.has(k) && !!getComponent(k)));
+    // Next to `use`, `text` is the instance's own text, not the text component.
+    if (forms.includes('use')) forms = forms.filter((k) => !(USE_KEYS as readonly string[]).includes(k));
     if (forms.length === 0) {
       const unknown = Object.keys(v).find((k) => !RESERVED_KEYS.has(k));
       if (unknown) this.fail(join(path, unknown), `unknown component kind${suggest(unknown, this.kinds)} (\`designer wf components\` lists them)`);
@@ -214,15 +217,36 @@ class Parser {
         style: this.choice(v, 'style', path, STYLES),
         radius: this.choice(v, 'radius', path, RADII),
         repeat,
+        slot: this.bool(v, 'slot', path),
         children: this.nodes(v[form], join(path, form)),
       };
     }
     const containerOnly = Object.keys(v).filter((k) => (CONTAINER_KEYS as readonly string[]).includes(k));
     for (const k of containerOnly) this.fail(join(path, k), `only stacks and grids take "${k}"`);
     if (form === 'use') {
-      this.unknownKeys(v, path, [...commonKeys, ...CONTAINER_KEYS, 'use']);
+      this.unknownKeys(v, path, [...commonKeys, ...CONTAINER_KEYS, ...USE_KEYS, 'use']);
       const ref = this.str(v, 'use', path);
-      return ref === undefined ? null : { ...c, form: 'use', ref };
+      if (ref === undefined) return null;
+      const out: NormNode & { form: 'use' } = { ...c, form: 'use', ref };
+      if (v.content !== undefined && v.slots !== undefined) this.fail(join(path, 'slots'), 'use "content" (the only slot) or "slots" (by name), not both');
+      if (v.content !== undefined) out.fills = [{ path: join(path, 'content'), children: this.nodes(v.content, join(path, 'content')) }];
+      else if (v.slots !== undefined) {
+        if (!isObj(v.slots)) this.fail(join(path, 'slots'), `expected { "<slot name>": [ …nodes ] }, got ${show(v.slots)}`);
+        else out.fills = Object.entries(v.slots).map(([slot, list]) => ({ slot, path: join(join(path, 'slots'), slot), children: this.nodes(list, join(join(path, 'slots'), slot)) }));
+      }
+      if (v.text !== undefined) {
+        if (!isObj(v.text)) this.fail(join(path, 'text'), `expected { "<node name>": "text" }, got ${show(v.text)}`);
+        else {
+          out.text = [];
+          for (const [node, value] of Object.entries(v.text)) {
+            const p = join(join(path, 'text'), node);
+            if (typeof value === 'string') out.text.push({ node, path: p, value });
+            else if (isObj(value) && Object.values(value).every((x) => typeof x === 'string')) out.text.push({ node, path: p, value: value as Record<string, string> });
+            else this.fail(p, `expected the text, or { "<prop>": "text" }, got ${show(value)}`);
+          }
+        }
+      }
+      return out;
     }
     if (form === 'group') {
       this.unknownKeys(v, path, [...commonKeys, ...CONTAINER_KEYS, 'group']);

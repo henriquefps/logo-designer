@@ -98,8 +98,11 @@ export interface SpecNote {
  * A node of a screen tree. Exactly one form key:
  * - a library component: `{ "<kind>": { ...props } }`, `{ "<kind>": "text" }` (the first text prop),
  *   `{ "<kind>": ["a", "b"] }` (the first list prop), or `{ "kind": "<kind>", "props": { … } }`;
- * - a container: `{ "vstack" | "hstack" | "grid": [ ...children ], gap, padding, align, columns, style, radius, repeat }`;
- * - a shared component instance: `{ "use": "<component name or id>" }`;
+ * - a container: `{ "vstack" | "hstack" | "grid": [ ...children ], gap, padding, align, columns, style, radius, repeat, slot }`
+ *   (`slot: true` in a shared component's content: "Content per instance");
+ * - a shared component instance: `{ "use": "<component name or id>" }`, with what this instance puts in the master's
+ *   slot (`content: [ … ]`; several slots: `slots: { "<slot name>": [ … ] }`) and its own text
+ *   (`text: { "<node name or path>": "…" }`, or `{ "<node>": { "<prop>": "…" } }`);
  * - a plain group: `{ "group": [ ...children ] }`;
  * - any other object, as stored in the project file: `{ "node": { ... } }`.
  * Plus the common keys below.
@@ -112,8 +115,11 @@ export const COMMON_KEYS = ['id', 'name', 'hidden', 'locked', 'opacity', 'width'
 export const CONTAINER_KINDS = ['vstack', 'hstack', 'grid'] as const;
 export const FORM_KEYS = ['kind', 'use', 'group', 'node', ...CONTAINER_KINDS] as const;
 /** Keys only containers take. */
-export const CONTAINER_KEYS = ['gap', 'padding', 'align', 'columns', 'style', 'radius', 'repeat'] as const;
+export const CONTAINER_KEYS = ['gap', 'padding', 'align', 'columns', 'style', 'radius', 'repeat', 'slot'] as const;
+/** Keys only shared component instances (`use`) take. */
+export const USE_KEYS = ['content', 'slots', 'text'] as const;
 /** Names a component kind can never take (they mean something else in a node). */
+// (`USE_KEYS` are not reserved: `text` is also a component kind; next to `use` it means the instance's text.)
 export const RESERVED_KEYS: ReadonlySet<string> = new Set<string>([...COMMON_KEYS, ...FORM_KEYS, ...CONTAINER_KEYS, 'props']);
 
 export const POSITIONS = ['flow', 'pinned-bottom', 'free'] as const;
@@ -157,9 +163,17 @@ export type NormNode =
       style?: ContainerStyle;
       radius?: ContainerRadius;
       repeat?: number;
+      slot?: boolean;
       children: NormNode[];
     })
-  | (NormCommon & { form: 'use'; ref: string })
+  | (NormCommon & {
+      form: 'use';
+      ref: string;
+      /** What this instance puts in the master's slots (`slot` undefined = `content`: the only slot). */
+      fills?: { slot?: string; path: string; children: NormNode[] }[];
+      /** Its own text: node (name, path or id in the master) → the primary text prop's value, or prop → value. */
+      text?: { node: string; path: string; value: string | Record<string, string> }[];
+    })
   | (NormCommon & { form: 'group'; children: NormNode[] })
   | (NormCommon & { form: 'node'; node: SceneNode });
 

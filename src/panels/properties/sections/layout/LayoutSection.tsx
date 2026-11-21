@@ -4,7 +4,9 @@ import { isMac } from '@/actions/registry';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { DEFAULT_REPEAT, MAX_REPEAT, setContainerRadius, setContainerStyle, setRepeat } from '@/wireframe/containerCommands';
+import { locate } from '@/model';
+import { DEFAULT_REPEAT, MAX_REPEAT, setContainerRadius, setContainerStyle, setRepeat, setSlot } from '@/wireframe/containerCommands';
+import { getSymbol, isSymbolInstance, sharedOwner } from '@/wireframe/symbols';
 import { RADIUS_LABELS, STYLE_LABELS, containerRadius, containerStyle } from '@/wireframe/containers';
 import { setLayout, unwrapSelection, wrapSelection } from '@/wireframe/layoutCommands';
 import { repeatCount } from '@/wireframe/repeat';
@@ -45,6 +47,10 @@ export function LayoutSection({ ctx }: { ctx: SelectionContext }) {
     );
   }
   const ids = [node.id];
+  // A container in a shared component's content (not its root): it can hold content per instance.
+  const loc = isFrame || isSymbolInstance(node) ? null : locate(ctx.doc, node.id);
+  const owner = loc ? sharedOwner(loc.ancestors) : null;
+  const ownerName = owner ? (getSymbol(ctx.doc, owner.symbol.id)?.name ?? owner.name) : '';
   return (
     <Section
       title={isFrame ? 'Screen layout' : 'Layout'}
@@ -139,6 +145,19 @@ export function LayoutSection({ ctx }: { ctx: SelectionContext }) {
               </p>
             </>
           )}
+        </>
+      )}
+      {owner && (
+        <>
+          <FieldRow label="Content">
+            <Switch aria-label="Content per instance" checked={!!layout.slot} onCheckedChange={(on) => setSlot(node.id, on)} />
+            <span className="text-xs text-muted-foreground">Content per instance</span>
+          </FieldRow>
+          <p className="text-xs text-muted-foreground">
+            {layout.slot
+              ? `Each instance of “${ownerName}” keeps what you put here; the container itself is shared.`
+              : `Part of “${ownerName}”: what you put here goes to every instance. Turn on to fill it per instance.`}
+          </p>
         </>
       )}
       <p className="text-xs text-muted-foreground">

@@ -2,7 +2,7 @@
 // components). Every edit is one undo step; the pipeline rebuilds the instance.
 import { useEffect, useState } from 'react';
 import { LinkBreakIcon, MinusCircleIcon, PlusIcon, ShapesIcon, XIcon } from '@phosphor-icons/react';
-import { isComponentNode, type ComponentNode } from '@/model';
+import { isComponentNode, type ComponentNode, type DesignDocument } from '@/model';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +12,8 @@ import { IconsPanel } from '@/assets-icons/IconsPanel';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
 import { getComponent } from '@/wireframe/library/registry';
 import { AUTO, checkProp, isPropVisible, resolveProps, type PropSpec } from '@/wireframe/library/types';
-import { detachSelected, setComponentProp } from '@/wireframe/componentCommands';
+import { detachSelected, resetComponentTextCommand, setComponentProp, shareComponentTextCommand } from '@/wireframe/componentCommands';
+import { textTarget } from '@/wireframe/symbols';
 import { ensureIcons } from '@/wireframe/iconLoader';
 import { iconDisplayName, iconGlyph, normalizeIconName, recolor } from '@/wireframe/icons';
 import { cn } from '@/lib/utils';
@@ -28,12 +29,16 @@ const optionLabel = (spec: Extract<PropSpec, { type: 'choice' }>, o: string) => 
 export function ComponentSection({ ctx }: { ctx: SelectionContext }) {
   const node = ctx.nodes[0];
   if (!node || !isComponentNode(node)) return null;
-  return <InstanceFields key={node.id} node={node} />;
+  return <InstanceFields key={node.id} node={node} doc={ctx.doc} />;
 }
 
-function InstanceFields({ node }: { node: ComponentNode }) {
+function InstanceFields({ node, doc }: { node: ComponentNode; doc: DesignDocument }) {
   const def = getComponent(node.component.kind);
   if (!def) return null;
+  // Inside a shared component instance, text stays on this instance (an override of the master's).
+  const shared = textTarget(doc, node.id);
+  const overridden = new Set(shared ? Object.keys(shared.inst.symbol.text?.[shared.key] ?? {}) : []);
+  const isText = (spec: PropSpec) => spec.type === 'text' || spec.type === 'multiline';
   const props = resolveProps(def, node.component.props, node.component.resolved);
   const set = (key: string, value: unknown) => void setComponentProp(node.id, key, value);
   // Props that can follow the screen show their stored value ('auto') and what it resolves to now.
@@ -51,8 +56,24 @@ function InstanceFields({ node }: { node: ComponentNode }) {
       {Object.entries(def.props as Record<string, PropSpec>)
         .filter(([, spec]) => isPropVisible(spec, props))
         .map(([key, spec]) => (
-        <PropField key={key} id={`${node.id}-${key}`} spec={spec} value={value(key, spec)} resolved={props[key]} onChange={(v) => set(key, v)} />
+        <div key={key} className="flex flex-col gap-1">
+          <PropField id={`${node.id}-${key}`} spec={spec} value={value(key, spec)} resolved={props[key]} onChange={(v) => set(key, v)} />
+          {shared && isText(spec) && overridden.has(key) && (
+            <div className="flex flex-wrap items-center gap-1 pl-22" data-testid={`override-${key}`}>
+              <span className="text-xs font-medium text-primary">Overridden here</span>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => resetComponentTextCommand(node.id, key)} title={`Show the text of “${shared.master.name}” again`}>
+                Reset to shared
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => shareComponentTextCommand(node.id, key)} title="Make this the text of every instance that does not have its own">
+                Use everywhere
+              </Button>
+            </div>
+          )}
+        </div>
       ))}
+      {shared && Object.values(def.props as Record<string, PropSpec>).some(isText) && (
+        <p className="text-xs text-muted-foreground">Text changes stay on this instance of “{shared.master.name}”; other changes go to every instance.</p>
+      )}
       <p className="text-xs text-muted-foreground" title="How the AI export describes this component">
         {def.describe(props)}
       </p>

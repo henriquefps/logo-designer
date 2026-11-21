@@ -6,14 +6,15 @@
 // - The chosen masters are copied with fresh master ids, plus every master they nest (transitively). Their
 //   content keeps its node ids (they are in the master's own id space), so master flows keep their `from`.
 // - Dedup: a master whose name is the incoming one (or "<name> N") and whose shared content is the same
-//   (`masterShape`, node ids ignored, nested masters compared through the import) is reused, not copied.
+//   (`masterDefinition`: slots' default content included, node ids ignored, nested masters compared through the
+//   import) is reused, not copied.
 //   Same name with other content gets "<name> 2". Importing the same kit twice is a no-op.
 // - Master flows (`flows[].symbol`) of a copied master follow it when the target has a logical screen with
 //   the name of the flow's target screen; the others are dropped and counted.
 import type { Draft } from 'immer';
 import { newId, type DesignDocument, type GroupNode, type Id, type SceneNode, type WireframeFlow, type WireframeScreen, type WireframeSymbol } from '@/model';
 import { deepEqual } from './repeat';
-import { masterShape, symbolsOf } from './symbols';
+import { masterDefinition, symbolsOf } from './symbols';
 import { plain } from './types';
 
 /** What an import reads from the source: its masters, and for master flows its flows and screens. */
@@ -74,12 +75,12 @@ function canonical(s: WireframeSymbol, ref: (id: Id) => Id): unknown {
     const out: Record<string, unknown> = {};
     for (const [k, x] of Object.entries(o)) {
       if (isNode && k === 'id') out[k] = counter++;
-      else if (isNode && k === 'symbol' && x && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string') out[k] = { id: ref((x as { id: Id }).id) };
+      else if (isNode && k === 'symbol' && x && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string') out[k] = { ...(x as object), id: ref((x as { id: Id }).id) };
       else out[k] = walk(x);
     }
     return out;
   };
-  return walk(masterShape(s));
+  return walk(masterDefinition(s));
 }
 
 /** True when `name` is `base` or `base N` (a renamed copy of an earlier import). */
@@ -94,7 +95,8 @@ function uniqueName(base: string, taken: ReadonlySet<string>): string {
 function retarget(content: GroupNode, id: Id, name: string, map: ReadonlyMap<Id, Id>): GroupNode {
   const go = (n: SceneNode): SceneNode => {
     if (n.type !== 'group') return n;
-    const symbol = n.symbol && !n.component ? { id: map.get(n.symbol.id) ?? n.symbol.id } : n.symbol;
+    // Slots and their default content come along as they are; a nested reference keeps its text.
+    const symbol = n.symbol && !n.component ? { ...n.symbol, id: map.get(n.symbol.id) ?? n.symbol.id } : n.symbol;
     return { ...n, ...(symbol ? { symbol } : {}), children: n.children.map(go) };
   };
   return structuredClone({ ...content, id, name, children: content.children.map(go) });

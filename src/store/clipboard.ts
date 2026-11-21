@@ -1,4 +1,7 @@
-import { cloneWithNewIds, sortByDocumentOrder, topmostIds, type DesignDocument, type Id, type SceneNode, type WireframeFlow } from '@/model';
+import { cloneWithNewIds, locate, sortByDocumentOrder, topmostIds, type DesignDocument, type Id, type SceneNode, type WireframeFlow } from '@/model';
+import { insertIntoLayout } from '@/wireframe/layoutEdit';
+import { isSlot, sharedOwner, slotTarget } from '@/wireframe/symbols';
+import { useEditorStore } from './useEditorStore';
 import { attachFlows, copyFlows, copyIdMap, flowsInside, screenIdsOf } from '@/wireframe/flows';
 import { detachUnknownInstances, importForPaste, symbolSourceFor, type SymbolImport, type SymbolSource } from '@/wireframe/symbolImport';
 import { useDocStore } from './useDocStore';
@@ -59,18 +62,38 @@ export function pasteNodes(nodes: SceneNode[] = buffer, flows: WireframeFlow[] =
     return c;
   });
   const copied = copyFlows(flows, ids);
+  const slot = pasteSlot();
   useDocStore.getState().apply(
     (d) => {
       const plan = importForPaste(d, copies, symbols);
       if (plan && (plan.added.length || plan.reused.length)) lastImport = plan;
       detachUnknownInstances(d, copies);
-      (d.children as SceneNode[]).push(...copies);
+      // Into the selected slot of a shared instance (its own content); else on top of the canvas.
+      if (!slot || !insertIntoLayout(d, slot.parentId, copies, slot.index)) (d.children as SceneNode[]).push(...copies);
       // Flows whose target screen does not exist in this document are dropped.
       if (copied.length) attachFlows(d as DesignDocument, copied, screenIdsOf(copies));
     },
     { label: 'Paste' },
   );
   return copies.map((c) => c.id);
+}
+
+/**
+ * Wireframes: where a paste goes when the selection is in a slot of a shared instance (the slot itself, an
+ * instance with a slot, or something in a slot: after it). Null = the usual place (the canvas, then the screen
+ * under it).
+ */
+function pasteSlot(): { parentId: Id; index?: number } | null {
+  const doc = useDocStore.getState().doc;
+  const sel = useEditorStore.getState().selection;
+  if (!doc.wireframe || sel.length !== 1) return null;
+  const loc = locate(doc, sel[0]);
+  if (!loc) return null;
+  const into = slotTarget(loc.node, loc.ancestors);
+  if (into) return { parentId: into.id };
+  const parent = loc.parent !== doc ? (loc.parent as SceneNode) : null;
+  if (parent && isSlot(parent) && sharedOwner(loc.ancestors.slice(0, -1))) return { parentId: parent.id, index: loc.index + 1 };
+  return null;
 }
 
 export interface ClipboardPayload {

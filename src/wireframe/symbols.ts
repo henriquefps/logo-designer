@@ -16,6 +16,14 @@
 //   differ between instances of different widths and are ignored when instances are compared (`sharedShape`).
 // - Nested instances (an instance inside a master) are stored without children; materializing expands them
 //   from their own master. A master can never contain itself (such a reference becomes a plain group).
+// - Slots ("Content per instance", `layout.slot` on a container of the master): the container is shared, its
+//   children belong to each instance. They are left out of `sharedShape`, never written into the master by an
+//   edit, and kept by every rewrite; the master's slot children are what a new instance starts with.
+// - Text overrides (`symbol.text` on an instance: master node id → text prop → value): a component's text
+//   edited in an instance stays there. The overridden props are left out when the instance is compared with
+//   its master, put back to the master's value when the instance's content becomes the master's, and applied
+//   on top of the master whenever the instance is rewritten. A nested instance's own `symbol.text` and slots
+//   are its own too (per outer instance); the nested reference in the master holds what a new one starts with.
 //
 // Sync (the `symbols` step, `syncSymbols`, every phase, same undo step as the change):
 // 1. An instance the change edited (it existed before, it changed, and its shared shape no longer matches its
@@ -41,7 +49,8 @@ import {
   type WireframeSymbol,
 } from '@/model';
 import { getComponent } from './library/registry';
-import { resolveProps } from './library/types';
+import { resolveProps, type PropSpec } from './library/types';
+import { buildComponentInto } from './steps/components';
 import { deepEqual } from './repeat';
 import { plain, type PipelineContext } from './types';
 
@@ -53,6 +62,58 @@ type DocLike = Pick<DesignDocument, 'children' | 'wireframe'>;
 export type SymbolInstance = GroupNode & { symbol: { id: Id } };
 
 export const isSymbolInstance = (n: SceneNode): n is SymbolInstance => n.type === 'group' && !!n.symbol;
+/** A container whose children belong to each instance (`layout.slot`, "Content per instance"). */
+export const isSlot = (n: SceneNode | null | undefined): n is GroupNode & { layout: LayoutInfo } =>
+  !!n && n.type === 'group' && !!n.layout?.slot && !n.component && !n.screen && !n.symbol;
+
+/** Per-instance text: master node id → text prop → value (`SymbolRef.text`). */
+export type TextOverrides = Record<Id, Record<string, string>>;
+
+/** The props of a library kind that hold text (text and multiline props): what an instance may override. */
+export function textPropKeys(kind: string): string[] {
+  const def = getComponent(kind);
+  if (!def) return [];
+  return Object.entries(def.props as Record<string, PropSpec>)
+    .filter(([, spec]) => spec.type === 'text' || spec.type === 'multiline')
+    .map(([k]) => k);
+}
+
+/**
+ * The innermost instance whose shared content holds a node with these ancestors (top first), or null: the node
+ * is in a slot (the instance's own content) or in no instance. A slot's own container is shared.
+ */
+export function sharedOwner(ancestors: readonly SceneNode[]): SymbolInstance | null {
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const a = ancestors[i];
+    if (isSlot(a)) return null;
+    if (isSymbolInstance(a)) return a;
+  }
+  return null;
+}
+
+/**
+ * The slot a click in the library fills for a selected node: the node itself when it is a slot of an instance,
+ * an instance's first slot, or null.
+ */
+export function slotTarget(n: SceneNode, ancestors: readonly SceneNode[]): GroupNode | null {
+  if (isSlot(n)) return sharedOwner(ancestors) ? n : null;
+  if (isSymbolInstance(n)) return slotsOf(n)[0] ?? null;
+  return null;
+}
+
+/** The slots of an instance (or a master's content), in document order, not those of nested instances. */
+export function slotsOf(root: GroupNode): (GroupNode & { layout: LayoutInfo })[] {
+  const out: (GroupNode & { layout: LayoutInfo })[] = [];
+  const visit = (nodes: readonly SceneNode[]) => {
+    for (const n of nodes) {
+      if (n.type !== 'group' || n.component || n.symbol || n.repeatCopy) continue;
+      if (isSlot(n)) out.push(n);
+      else visit(n.children);
+    }
+  };
+  visit(root.children);
+  return out;
+}
 const NO_SYMBOLS: readonly WireframeSymbol[] = Object.freeze([]);
 /** The document's masters (a stable empty list when none: safe in store selectors). */
 export const symbolsOf = (doc: DocLike): readonly WireframeSymbol[] => doc.wireframe?.symbols ?? NO_SYMBOLS;
@@ -73,48 +134,100 @@ const withoutResolved = (c: ComponentInfo): ComponentInfo => (c.resolved ? omit(
 
 // ---------- comparing instances ----------
 
-function normNode(n: SceneNode, prefix: string, parentLays: boolean): unknown {
+/** `props` without the keys in `drop` (the same object when there are none). */
+function dropKeys(props: Record<string, unknown>, drop: Record<string, string> | undefined): Record<string, unknown> {
+  if (!drop) return props;
+  const keys = Object.keys(drop).filter((k) => k in props);
+  if (!keys.length) return props;
+  const out = { ...props };
+  for (const k of keys) delete out[k];
+  return out;
+}
+
+function normNode(n: SceneNode, prefix: string, parentLays: boolean, drop: TextOverrides | undefined, slots = false): unknown {
   const flow = inFlow(n, parentLays);
-  const o: Record<string, unknown> = { ...n, id: stripId(n.id, prefix) };
+  const id = stripId(n.id, prefix);
+  const o: Record<string, unknown> = { ...n, id };
   if (flow) o.transform = { ...n.transform, x: 0, y: 0 };
   if (n.type === 'group') {
     if (n.component) {
       o.children = undefined; // built from kind + props + size
-      // `resolved` (a tab bar's selected tab on this screen) is per instance, never shared.
-      o.component = flow ? { kind: n.component.kind, props: n.component.props } : withoutResolved(n.component);
+      // `resolved` (a tab bar's selected tab on this screen) is per instance, never shared; so is overridden text.
+      const props = dropKeys(n.component.props, drop?.[id]);
+      o.component = flow ? { kind: n.component.kind, props } : { ...withoutResolved(n.component), props };
     } else if (n.symbol) {
       o.children = undefined; // from its own master
       o.layout = undefined;
+      o.symbol = slots ? n.symbol : { id: n.symbol.id }; // its text overrides are this instance's own
     } else {
       if (n.layout && flow) o.layout = withoutSize(n.layout);
-      o.children = normKids(n.children, prefix, !!n.layout);
+      // A slot's children belong to the instance.
+      o.children = isSlot(n) && !slots ? undefined : normKids(n.children, prefix, !!n.layout, drop, slots);
     }
   }
   return o;
 }
 
-const normKids = (kids: readonly SceneNode[], prefix: string, lays: boolean) => kids.filter((c) => !c.repeatCopy).map((c) => normNode(c, prefix, lays));
+const normKids = (kids: readonly SceneNode[], prefix: string, lays: boolean, drop: TextOverrides | undefined, slots = false) =>
+  kids.filter((c) => !c.repeatCopy).map((c) => normNode(c, prefix, lays, drop, slots));
 
-const shapeCache = new WeakMap<object, { prefix: string; value: unknown }>();
+const shapeCache = new WeakMap<object, { prefix: string; drop: TextOverrides | undefined; value: unknown }[]>();
 
 /**
  * What instances of one master share, in the master's id space: the root's layout (without its size) and
- * the content, without what the layout computes. Two instances are in sync when their shapes are equal.
+ * the content, without what the layout computes, without slot content and without the text props in `drop`
+ * (an instance's own `symbol.text` by default). Two instances are in sync when their shapes are equal.
  * `prefix`: the instance's id prefix (`''` for a master's `content`). Memoized by node identity.
  */
-export function sharedShape(root: GroupNode, prefix = instancePrefix(root.id)): unknown {
-  const hit = shapeCache.get(root);
-  if (hit && hit.prefix === prefix) return hit.value;
-  const value = { layout: root.layout ? withoutSize(root.layout) : undefined, children: normKids(root.children, prefix, !!root.layout) };
-  shapeCache.set(root, { prefix, value });
+export function sharedShape(root: GroupNode, prefix = instancePrefix(root.id), drop: TextOverrides | undefined = root.symbol?.text): unknown {
+  const hits = shapeCache.get(root);
+  const hit = hits?.find((h) => h.prefix === prefix && h.drop === drop);
+  if (hit) return hit.value;
+  const value = { layout: root.layout ? withoutSize(root.layout) : undefined, children: normKids(root.children, prefix, !!root.layout, drop) };
+  const list = hits ?? [];
+  if (list.length >= 8) list.shift();
+  list.push({ prefix, drop, value });
+  if (!hits) shapeCache.set(root, list);
   return value;
 }
 
-export const masterShape = (s: WireframeSymbol) => sharedShape(s.content, '');
+/** A master's shared shape; `drop`: leave out these text props (an instance's overrides, to compare with it). */
+export const masterShape = (s: WireframeSymbol, drop?: TextOverrides) => sharedShape(s.content, '', drop);
 
-/** True when `inst` shows exactly its master's content. */
+/** Everything a master defines, its slots' default content and nested references' text included (import dedup). */
+export const masterDefinition = (s: WireframeSymbol) => ({
+  layout: s.content.layout ? withoutSize(s.content.layout) : undefined,
+  children: normKids(s.content.children, '', !!s.content.layout, undefined, true),
+});
+
+/** True when `inst` shows exactly its master's content (its slots and its own text left out). */
 export function inSync(inst: GroupNode, s: WireframeSymbol): boolean {
-  return deepEqual(sharedShape(inst), masterShape(s));
+  return deepEqual(sharedShape(inst), masterShape(s, inst.symbol?.text));
+}
+
+/** A component node with `text` applied to its props and rebuilt (a fresh node; `n` is left as it is). */
+function withText(n: GroupNode & { component: ComponentInfo }, text: Record<string, string> | undefined): GroupNode {
+  if (!text) return n;
+  const keys = textPropKeys(n.component.kind).filter((k) => typeof text[k] === 'string' && n.component.props[k] !== text[k]);
+  if (!keys.length) return n;
+  const props = { ...n.component.props };
+  for (const k of keys) props[k] = text[k];
+  const out = { ...n, component: { ...n.component, props } } as GroupNode & { component: ComponentInfo };
+  buildComponentInto(out as Draft<typeof out>, out.component.size);
+  return out;
+}
+
+/** Nodes of a master's content by id (not inside components or nested instances). */
+function indexContent(content: GroupNode | undefined): Map<Id, SceneNode> {
+  const out = new Map<Id, SceneNode>();
+  const visit = (nodes: readonly SceneNode[]) => {
+    for (const n of nodes) {
+      out.set(n.id, n);
+      if (n.type === 'group' && !n.component && !n.symbol) visit(n.children);
+    }
+  };
+  if (content) visit(content.children);
+  return out;
 }
 
 // ---------- instance → master ----------
@@ -141,18 +254,46 @@ export function reaches(symbols: readonly WireframeSymbol[], from: Id, target: I
 /**
  * The master content an instance shows (plain), in the master's id space: repeat copies left out (the
  * repeat step makes them), nested instances without children. A nested instance that would make the master
- * contain itself is kept as a plain group.
+ * contain itself is kept as a plain group. `prev` (the master's content before this edit): what stays the
+ * master's although the instance shows its own — the children of its slots, the text the instance overrides,
+ * nested instances' text overrides.
  */
-export function contentOf(inst: GroupNode, s: Pick<WireframeSymbol, 'id' | 'name'>, symbols: readonly WireframeSymbol[]): GroupNode {
+export function contentOf(inst: GroupNode, s: Pick<WireframeSymbol, 'id' | 'name'>, symbols: readonly WireframeSymbol[], prev?: GroupNode): GroupNode {
   const prefix = instancePrefix(inst.id);
+  const was = indexContent(prev);
+  const over = inst.symbol?.text;
   const strip = (n: SceneNode): SceneNode => {
     const id = stripId(n.id, prefix);
     if (n.type !== 'group') return { ...n, id };
-    if (n.component?.resolved) return { ...n, id, component: withoutResolved(n.component), children: kids(n.children) };
-    if (n.symbol && !n.component) {
-      if (!reaches(symbols, n.symbol.id, s.id)) return { ...n, id, children: [] };
+    const old = was.get(id);
+    if (n.component) {
+      let component = withoutResolved(n.component);
+      const keys = over?.[id];
+      if (keys && old?.type === 'group' && old.component?.kind === component.kind) {
+        // The instance's own text: the master keeps its value.
+        const props = { ...component.props };
+        for (const k of Object.keys(keys)) {
+          if (k in old.component.props) props[k] = old.component.props[k];
+          else delete props[k];
+        }
+        component = { ...component, props };
+        if (deepEqual(props, old.component.props) && deepEqual(component.size, old.component.size)) return { ...n, id, component, children: old.children };
+        const node = { ...n, id, component, children: kids(n.children) } as GroupNode & { component: ComponentInfo };
+        buildComponentInto(node as Draft<typeof node>, component.size);
+        return node;
+      }
+      return component === n.component ? { ...n, id, children: kids(n.children) } : { ...n, id, component, children: kids(n.children) };
+    }
+    if (n.symbol) {
+      if (!reaches(symbols, n.symbol.id, s.id)) {
+        // Its text overrides are this instance's; the master's reference keeps its own (a new one: these).
+        const symbol = old?.type === 'group' && old.symbol?.id === n.symbol.id ? old.symbol : n.symbol;
+        return { ...n, id, symbol, children: [] };
+      }
       return { ...omit(n, 'symbol'), id, children: kids(n.children) };
     }
+    // A slot's children are this instance's: the master keeps its own (a new slot: what it holds now).
+    if (isSlot(n) && isSlot(old)) return { ...n, id, children: old.children };
     return { ...n, id, children: kids(n.children) };
   };
   const kids = (list: readonly SceneNode[]) => list.filter((c) => !c.repeatCopy).map(strip);
@@ -175,8 +316,11 @@ function instanceLayout(shared: LayoutInfo | undefined, own: LayoutInfo | undefi
   return size ? { ...withoutSize(shared), size } : withoutSize(shared);
 }
 
-/** The children of instance `instId` of `content` (plain nodes, ids prefixed, nested instances expanded). */
-export function materializeChildren(content: GroupNode, instId: Id, symbols: readonly WireframeSymbol[], stack: readonly Id[] = []): SceneNode[] {
+/**
+ * The children of instance `instId` of `content` (plain nodes, ids prefixed, nested instances expanded with
+ * their own text overrides). `text`: the instance's text overrides, applied on top of the master's.
+ */
+export function materializeChildren(content: GroupNode, instId: Id, symbols: readonly WireframeSymbol[], stack: readonly Id[] = [], text?: TextOverrides): SceneNode[] {
   const prefix = instancePrefix(instId);
   const go = (n: SceneNode): SceneNode => {
     const id = prefix + n.id;
@@ -187,9 +331,10 @@ export function materializeChildren(content: GroupNode, instId: Id, symbols: rea
         return { ...omit(n, 'symbol'), id, children: n.children.map(go) };
       }
       const layout = instanceLayout(m.content.layout, n.layout);
-      return { ...omit(n, 'layout'), ...(layout ? { layout } : {}), id, children: materializeChildren(m.content, id, symbols, [...stack, m.id]) };
+      return { ...omit(n, 'layout'), ...(layout ? { layout } : {}), id, children: materializeChildren(m.content, id, symbols, [...stack, m.id], n.symbol.text) };
     }
-    return { ...n, id, children: n.children.map(go) };
+    const out = { ...n, id, children: n.children.map(go) };
+    return out.component && text?.[n.id] ? withText(out as GroupNode & { component: ComponentInfo }, text[n.id]) : out;
   };
   return content.children.map(go);
 }
@@ -204,11 +349,19 @@ function reprefix(nodes: readonly SceneNode[], from: string, to: string): SceneN
 
 const sameExceptXY = (a: Transform, b: Transform) => a.rotation === b.rotation && a.scaleX === b.scaleX && a.scaleY === b.scaleY;
 
-/** `want` (from the master), keeping what `have` (the instance's current node) owns: its id and its layout values. */
-function reconcileNode(have: SceneNode, want: SceneNode, prefix: string, parentLays: boolean): SceneNode {
+/**
+ * `want` (from the master), keeping what `have` (the instance's current node) owns: its id, its layout values,
+ * the children of its slots and a nested instance's own text overrides.
+ */
+function reconcileNode(have: SceneNode, want: SceneNode, prefix: string, parentLays: boolean, symbols: readonly WireframeSymbol[]): SceneNode {
   if (have.type !== want.type) return want;
   const flow = inFlow(want, parentLays);
   let w = want;
+  if (w.type === 'group' && w.symbol && have.type === 'group' && have.symbol?.id === w.symbol.id && !deepEqual(have.symbol, w.symbol)) {
+    // A nested instance keeps its own text overrides (they are this outer instance's, not the master's).
+    const m = symbols.find((s) => s.id === w.symbol!.id);
+    if (m) w = { ...w, symbol: have.symbol, children: materializeChildren(m.content, w.id, symbols, [m.id], have.symbol.text) };
+  }
   if (have.id !== want.id && w.type === 'group' && (w.component || w.symbol)) w = { ...w, children: reprefix(w.children, want.id, have.id) };
   const r: Record<string, unknown> = { ...w, id: have.id };
   if (flow) r.transform = sameExceptXY(have.transform, w.transform) ? have.transform : { ...w.transform, x: have.transform.x, y: have.transform.y };
@@ -221,18 +374,19 @@ function reconcileNode(have: SceneNode, want: SceneNode, prefix: string, parentL
       }
     } else {
       if (w.layout && have.layout?.size && (flow || w.symbol)) r.layout = { ...w.layout, size: have.layout.size };
-      r.children = reconcileList(have.children, w.children, prefix, !!w.layout);
+      // A slot's children are the instance's own (a slot it did not have yet starts with the master's).
+      r.children = isSlot(w) && !have.component && !have.symbol ? have.children : reconcileList(have.children, w.children, prefix, !!w.layout, symbols);
     }
   }
   return deepEqual(r, have) ? have : (r as unknown as SceneNode);
 }
 
-function reconcileList(have: readonly SceneNode[], want: readonly SceneNode[], prefix: string, lays: boolean): SceneNode[] {
+function reconcileList(have: readonly SceneNode[], want: readonly SceneNode[], prefix: string, lays: boolean, symbols: readonly WireframeSymbol[]): SceneNode[] {
   const byMaster = new Map<Id, SceneNode>();
   for (const h of have) if (!h.repeatCopy) byMaster.set(stripId(h.id, prefix), h);
   const out = want.map((w) => {
     const h = byMaster.get(stripId(w.id, prefix));
-    return h ? reconcileNode(h, w, prefix, lays) : w;
+    return h ? reconcileNode(h, w, prefix, lays, symbols) : w;
   });
   // Repeat copies stay; the repeat step rewrites or removes them.
   for (const h of have) if (h.repeatCopy) out.push(h);
@@ -247,7 +401,8 @@ function mapByPosition(have: readonly SceneNode[], want: readonly SceneNode[], o
     const b = want[i];
     if (a.type !== b.type) continue;
     if (a.id !== b.id) out.set(a.id, b.id);
-    if (a.type === 'group' && b.type === 'group' && !a.component && !b.component) mapByPosition(a.children, b.children, out);
+    // A slot's children are the copy's own: they keep their ids.
+    if (a.type === 'group' && b.type === 'group' && !a.component && !b.component && !isSlot(b)) mapByPosition(a.children, b.children, out);
   }
 }
 
@@ -264,7 +419,7 @@ function renameIds(nodes: readonly SceneNode[], map: ReadonlyMap<Id, Id>): Scene
  * they already match. `renames` collects id changes (fresh copies), for flows and notes.
  */
 export function syncedInstance(inst: GroupNode, s: WireframeSymbol, symbols: readonly WireframeSymbol[], opts: { fresh?: boolean; renames?: Map<Id, Id> } = {}): { children: SceneNode[]; layout: LayoutInfo | undefined } {
-  const want = materializeChildren(s.content, inst.id, symbols, [s.id]);
+  const want = materializeChildren(s.content, inst.id, symbols, [s.id], inst.symbol?.text);
   let have = inst.children;
   if (opts.fresh) {
     const map = new Map<Id, Id>();
@@ -275,7 +430,7 @@ export function syncedInstance(inst: GroupNode, s: WireframeSymbol, symbols: rea
     }
   }
   const layout = instanceLayout(s.content.layout, inst.layout);
-  return { children: reconcileList(have, want, instancePrefix(inst.id), !!layout), layout };
+  return { children: reconcileList(have, want, instancePrefix(inst.id), !!layout, symbols), layout };
 }
 
 // ---------- creating, inserting, detaching, deleting ----------
@@ -410,6 +565,15 @@ export function newSymbolInstance(s: WireframeSymbol, symbols: readonly Wirefram
 export function detachSymbolInstance(node: Draft<SceneNode>): boolean {
   if (node.type !== 'group' || !node.symbol) return false;
   delete node.symbol;
+  // Plain content has no slots (nested instances keep theirs).
+  const visit = (nodes: Draft<SceneNode>[]) => {
+    for (const n of nodes) {
+      if (n.type !== 'group' || n.component || n.symbol) continue;
+      if (n.layout?.slot) delete n.layout.slot;
+      visit(n.children as Draft<SceneNode>[]);
+    }
+  };
+  visit(node.children as Draft<SceneNode>[]);
   return true;
 }
 
@@ -482,6 +646,108 @@ export function deleteSymbol(d: Draft<DocLike>, id: Id): boolean {
   return true;
 }
 
+// ---------- text overrides ----------
+
+export interface TextTarget {
+  /** The instance whose shared content holds the node (the override lives on it). */
+  inst: SymbolInstance;
+  master: WireframeSymbol;
+  /** The node's id in the master (the override's key). */
+  key: Id;
+  /** The node in the master's content. */
+  masterNode: GroupNode & { component: ComponentInfo };
+}
+
+/** Where a text edit of component `id` stays per instance, or null (not in an instance's shared content). */
+export function textTarget(doc: DocLike, id: Id): TextTarget | null {
+  const path = findPath(doc.children, id);
+  if (!path) return null;
+  const node = path[path.length - 1];
+  if (node.type !== 'group' || !node.component) return null;
+  const inst = sharedOwner(path.slice(0, -1));
+  const master = inst && getSymbol(doc, inst.symbol.id);
+  if (!inst || !master) return null;
+  const key = stripId(id, instancePrefix(inst.id));
+  const masterNode = indexContent(master.content).get(key);
+  if (masterNode?.type !== 'group' || masterNode.component?.kind !== node.component.kind) return null;
+  return { inst, master, key, masterNode: masterNode as GroupNode & { component: ComponentInfo } };
+}
+
+/** The props of component `id` its instance overrides (empty when none or not in an instance). */
+export function overriddenProps(doc: DocLike, id: Id): string[] {
+  const t = textTarget(doc, id);
+  return t ? Object.keys(t.inst.symbol.text?.[t.key] ?? {}) : [];
+}
+
+/** Sets (a string) or clears (null) one text override of instance `instId` (on a draft). */
+export function setTextOverride(d: Draft<DocLike>, instId: Id, key: Id, prop: string, value: string | null): void {
+  const inst = draftById(d.children as Draft<SceneNode>[], instId);
+  if (!inst || inst.type !== 'group' || !inst.symbol) return;
+  const text = (inst.symbol.text ?? {}) as Record<Id, Record<string, string>>;
+  if (value === null) {
+    if (!text[key] || !(prop in text[key])) return;
+    delete text[key][prop];
+    if (!Object.keys(text[key]).length) delete text[key];
+    if (!Object.keys(text).length) delete inst.symbol.text;
+    return;
+  }
+  if (text[key]?.[prop] === value) return;
+  if (!inst.symbol.text) inst.symbol.text = {};
+  inst.symbol.text[key] = { ...(inst.symbol.text[key] ?? {}), [prop]: value };
+}
+
+/**
+ * Edits text prop `prop` of component `id` (on a draft). Inside an instance's shared content the value stays
+ * on that instance (an override; the master's value clears it); elsewhere it is a plain prop edit.
+ */
+export function setComponentText(d: Draft<DocLike>, id: Id, prop: string, value: string): void {
+  const doc = plain(d) as DocLike;
+  const t = textTarget(doc, id);
+  const node = draftById(d.children as Draft<SceneNode>[], id);
+  if (!node || node.type !== 'group' || !node.component) return;
+  if (node.component.props[prop] !== value) node.component.props[prop] = value;
+  if (!t) return;
+  const shared = resolvedText(t.masterNode, prop);
+  setTextOverride(d, t.inst.id, t.key, prop, value === shared ? null : value);
+}
+
+/** The master's value of a text prop (its default when unset). */
+function resolvedText(n: GroupNode & { component: ComponentInfo }, prop: string): string {
+  const def = getComponent(n.component.kind);
+  const props = def ? (resolveProps(def, n.component.props) as Record<string, unknown>) : n.component.props;
+  return String(props[prop] ?? '');
+}
+
+/** "Reset to shared" (on a draft): component `id` shows the master's text for `prop` again. */
+export function resetComponentText(d: Draft<DocLike>, id: Id, prop: string): boolean {
+  const t = textTarget(plain(d) as DocLike, id);
+  const node = draftById(d.children as Draft<SceneNode>[], id);
+  if (!t || !node || node.type !== 'group' || !node.component) return false;
+  const was = t.masterNode.component.props[prop];
+  if (was === undefined) delete node.component.props[prop];
+  else node.component.props[prop] = was as never;
+  setTextOverride(d, t.inst.id, t.key, prop, null);
+  return true;
+}
+
+/** "Use for every instance" (on a draft): the instance's text for `prop` becomes the master's; instances that do not override it follow. */
+export function shareComponentText(d: Draft<DocLike>, id: Id, prop: string): boolean {
+  const doc = plain(d) as DocLike;
+  const t = textTarget(doc, id);
+  const node = findPath(doc.children, id)?.pop();
+  if (!t || !node || node.type !== 'group' || !node.component) return false;
+  const value = node.component.props[prop];
+  const ms = d.wireframe?.symbols?.find((x) => x.id === t.master.id);
+  const target = ms && draftById(ms.content.children as Draft<SceneNode>[], t.key);
+  if (!target || target.type !== 'group' || !target.component) return false;
+  if (value === undefined) delete target.component.props[prop];
+  else target.component.props[prop] = value as never;
+  // The master's built children follow (instances copy them).
+  buildComponentInto(target as Draft<GroupNode & { component: ComponentInfo }>, plain(target.component.size));
+  setTextOverride(d, t.inst.id, t.key, prop, null);
+  return true;
+}
+
 // ---------- the pipeline step ----------
 
 type Path = number[];
@@ -499,17 +765,30 @@ function nodeAt(d: Draft<{ children: SceneNode[] }>, path: Path): Draft<SceneNod
 interface Found {
   path: Path;
   node: SymbolInstance;
+  /** Paths of the slots around it (an instance in a slot is not rewritten with the instance that holds it). */
+  slots: Path[];
 }
 
 /** Instances in document order (outer before inner). `all`: every subtree, else only those the change touched. */
-function findInstances(nodes: readonly SceneNode[], ctx: PipelineContext, all: boolean, path: Path, out: Found[]) {
+function findInstances(nodes: readonly SceneNode[], ctx: PipelineContext, all: boolean, path: Path, out: Found[], slots: Path[] = []) {
   nodes.forEach((n, i) => {
     if (n.type !== 'group' || n.component || n.repeatCopy) return;
     if (!all && ctx.phase !== 'load' && ctx.previous(n.id) === n) return;
     const p = [...path, i];
-    if (n.symbol) out.push({ path: p, node: n as SymbolInstance });
-    findInstances(n.children, ctx, all, p, out);
+    if (n.symbol) out.push({ path: p, node: n as SymbolInstance, slots });
+    findInstances(n.children, ctx, all, p, out, isSlot(n) ? [...slots, p] : slots);
   });
+}
+
+function draftById(nodes: Draft<SceneNode>[], id: Id): Draft<SceneNode> | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.type === 'group') {
+      const hit = draftById(n.children as Draft<SceneNode>[], id);
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 const under = (path: Path, root: Path) => path.length > root.length && root.every((v, i) => path[i] === v);
@@ -540,7 +819,7 @@ export function syncSymbols(d: Draft<DesignDocument>, ctx: PipelineContext): voi
       if (!prev || prev === node || prev.type !== 'group' || prev.symbol?.id !== node.symbol.id) continue;
       const s = original.find((x) => x.id === node.symbol.id);
       if (!s || changed.has(s.id) || inSync(node, s)) continue;
-      changed.set(s.id, { ...s, content: contentOf(node, s, original) });
+      changed.set(s.id, { ...s, content: contentOf(node, s, original, s.content) });
       sources.add(node.id);
     }
   }
@@ -560,10 +839,13 @@ export function syncSymbols(d: Draft<DesignDocument>, ctx: PipelineContext): voi
   findInstances(doc.children, ctx, ctx.phase === 'load' || moved.size > 0, [], all);
   const renames = new Map<Id, Id>();
   const rewritten: Path[] = [];
-  for (const { path, node } of all) {
-    if (rewritten.some((r) => under(path, r))) continue; // its outer instance was rewritten (nested ones expanded)
+  for (const { path, node, slots } of all) {
+    // Its outer instance was rewritten (nested ones expanded), unless it is in a slot of it (the slot kept it).
+    const outer = rewritten.filter((r) => under(path, r));
+    if (outer.some((r) => !slots.some((sp) => under(sp, r)))) continue;
     const s = symbols.find((x) => x.id === node.symbol.id);
-    const draft = () => nodeAt(d, path) as Draft<GroupNode>;
+    // Under a rewritten instance its path may have moved: found by id.
+    const draft = () => (outer.length ? draftById(d.children as Draft<SceneNode>[], node.id) : nodeAt(d, path)) as Draft<GroupNode>;
     if (!s) {
       delete draft().symbol; // a master that does not exist (pasted from another document): plain content
       continue;

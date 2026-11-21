@@ -33,14 +33,14 @@ import { getComponent } from '../library/registry';
 import { storedProps } from '../library/types';
 import { defaultLayout, defaultScreenLayout } from '../layout';
 import { buildComponentInto } from '../steps/components';
-import { materializeChildren, reaches } from '../symbols';
+import { instancePrefix, isSlot, materializeChildren, reaches, slotsOf, textPropKeys, type TextOverrides } from '../symbols';
 import { createScreenFrame, frames, newScreenPosition, screenSlug, variantPosition } from '../screens';
 import { defaultPlacement } from '../instances';
 import { buildNoteChildren, isNoteNode, notePositionFor, noteRect, notesOf, type NoteNode } from '../notes';
 import { flowSource, flowSourceLabel, partsOfNode } from '../flows';
 import { materializeDocument } from '../pipeline';
 import { defaultName, layoutShape, sourceIds } from './common';
-import { parseSpec } from './parse';
+import { parseSpec, primaryTextProp } from './parse';
 import { SpecError, type NormComponent, type NormNode, type NormSpec, type NormVariant, type SpecIssue } from './types';
 
 export interface BuildSummary {
@@ -202,6 +202,10 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
     if (n.style !== undefined) layout.style = n.style;
     if (n.radius !== undefined) layout.radius = n.radius;
     if (n.repeat !== undefined) layout.repeat = { count: n.repeat };
+    if (n.slot) {
+      layout.slot = true;
+      if (!place.master) ctx.warnings.push(`${n.path}.slot: only a container inside a shared component's content can be a slot; ignored here`);
+    }
     const prevSize = prev?.type === 'group' && prev.layout && !prev.symbol ? prev.layout.size : undefined;
     const size = n.size ?? (laid ? undefined : prevSize);
     if (size) layout.size = { ...size };
@@ -221,14 +225,19 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
     const size = n.size ?? (laid ? undefined : prevSize);
     const layout = shared ? { ...layoutShape(shared), ...(size ? { size: { ...size } } : {}) } : undefined;
     itemBase = s.content.layoutItem ? { ...s.content.layoutItem } : undefined;
+    const text = instanceText(n, s, ctx);
     node = {
       ...createGroup({ name: n.name ?? s.name }),
       id,
       ...(layout ? { layout } : {}),
-      symbol: { id: s.id },
+      symbol: { id: s.id, ...(text ? { text } : {}) },
       // In a master, nested instances are stored without children (materialized from their own master).
-      children: place.master ? [] : structuredClone(materializeChildren(s.content, id, ctx.symbols, [s.id])),
+      children: place.master ? [] : structuredClone(materializeChildren(s.content, id, ctx.symbols, [s.id], text)),
     };
+    if (n.fills?.length) {
+      if (place.master) ctx.issues.push({ path: n.fills[0].path, message: `a shared component inside another one's content takes the content of "${s.name}" as it is (fill its slot on the screens)` });
+      else fillSlots(node, n, s, ctx);
+    }
   } else {
     const prevGroup = prev?.type === 'group' && !prev.symbol && !prev.component && !prev.layout ? prev : undefined;
     const children = buildChildren(n.children, { parentLays: false, prevParent: prevGroup, index: 0, master: place.master, symbol: place.symbol }, ctx);
@@ -245,6 +254,86 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
   if (n.position === 'pinned-bottom' && !place.frame && !place.master) ctx.warnings.push(`${n.path}: "pinned-bottom" only applies to a screen's direct children; here it stays in the flow`);
   collectSugar(n, id, place, ctx);
   return node;
+}
+
+/** Master nodes a `text` or `slots` key can name: by id, by a path of names ("Body/Row") or by a unique name. */
+function masterNode(s: WireframeSymbol, ref: string, accept: (n: SceneNode) => boolean): SceneNode | undefined {
+  const all: { n: SceneNode; path: string }[] = [];
+  const visit = (nodes: readonly SceneNode[], at: string) => {
+    for (const n of nodes) {
+      const p = at ? `${at}/${n.name}` : n.name;
+      all.push({ n, path: p });
+      if (n.type === 'group' && !n.component && !n.symbol) visit(n.children, p);
+    }
+  };
+  visit(s.content.children, '');
+  const ok = all.filter((x) => accept(x.n));
+  const byId = ok.find((x) => x.n.id === ref);
+  if (byId) return byId.n;
+  const byPath = ok.filter((x) => lc(x.path) === lc(ref));
+  if (byPath.length === 1) return byPath[0].n;
+  const byName = ok.filter((x) => lc(x.n.name) === lc(ref));
+  return byName.length === 1 ? byName[0].n : undefined;
+}
+
+/** A `use` node's `text`: the overrides by master node id (issues recorded). */
+function instanceText(n: NormNode & { form: 'use' }, s: WireframeSymbol, ctx: Ctx): TextOverrides | undefined {
+  if (!n.text?.length) return undefined;
+  const out: TextOverrides = {};
+  const components = (x: SceneNode) => x.type === 'group' && !!x.component && textPropKeys(x.component.kind).length > 0;
+  for (const t of n.text) {
+    const target = masterNode(s, t.node, components) as (GroupNode & { component: ComponentInfo }) | undefined;
+    if (!target) {
+      const names: string[] = [];
+      walk(s.content.children, (x) => {
+        if (components(x)) names.push(`"${x.name}"`);
+        return !(x.type === 'group' && (x.component || x.symbol));
+      });
+      ctx.issues.push({ path: t.path, message: `no component with text named "${t.node}" in "${s.name}"${names.length ? ` (${names.join(', ')})` : ''}` });
+      continue;
+    }
+    const keys = textPropKeys(target.component.kind);
+    const def = getComponent(target.component.kind)!;
+    const values: Record<string, string> = {};
+    if (typeof t.value === 'string') values[primaryTextProp(def) ?? keys[0]] = t.value;
+    else
+      for (const [k, v] of Object.entries(t.value)) {
+        if (keys.includes(k)) values[k] = v;
+        else ctx.issues.push({ path: `${t.path}.${k}`, message: `${def.kind} has no text prop "${k}" (text props: ${keys.join(', ')})` });
+      }
+    out[target.id] = { ...(out[target.id] ?? {}), ...values };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Puts a `use` node's `content` / `slots` into the instance's slots (built like any content). */
+function fillSlots(node: GroupNode, n: NormNode & { form: 'use' }, s: WireframeSymbol, ctx: Ctx) {
+  const slots = slotsOf(s.content);
+  const prefix = instancePrefix(node.id);
+  for (const fill of n.fills ?? []) {
+    let slot: SceneNode | undefined;
+    if (fill.slot === undefined) {
+      if (!slots.length) {
+        ctx.issues.push({ path: fill.path, message: `"${s.name}" has no slot (mark a container of its content "slot": true)` });
+        continue;
+      }
+      if (slots.length > 1) {
+        ctx.issues.push({ path: fill.path, message: `"${s.name}" has several slots (${slots.map((x) => `"${x.name}"`).join(', ')}): use "slots": { "<slot name>": [ … ] }` });
+        continue;
+      }
+      slot = slots[0];
+    } else {
+      slot = masterNode(s, fill.slot, (x) => isSlot(x));
+      if (!slot) {
+        ctx.issues.push({ path: fill.path, message: `"${s.name}" has no slot "${fill.slot}"${slots.length ? ` (slots: ${slots.map((x) => `"${x.name}"`).join(', ')})` : ''}` });
+        continue;
+      }
+    }
+    const holder = findNode({ children: node.children } as DesignDocument, prefix + slot.id);
+    if (!holder || holder.type !== 'group') continue;
+    const prev = ctx.prev.get(holder.id);
+    holder.children = buildChildren(fill.children, { parentLays: true, prevParent: prev?.type === 'group' ? prev : undefined, index: 0 }, ctx);
+  }
 }
 
 function collectSugar(n: NormNode, id: Id, place: Place, ctx: Ctx) {
@@ -473,6 +562,7 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
   const claim = (n: NormNode) => {
     if (n.id !== undefined) ctx.claimed.add(n.id);
     if (n.form === 'container' || n.form === 'group') n.children.forEach(claim);
+    if (n.form === 'use') for (const f of n.fills ?? []) f.children.forEach(claim);
   };
   for (const s of spec.screens) {
     for (const v of s.variants) {
