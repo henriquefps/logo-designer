@@ -291,7 +291,12 @@ function buildSymbols(spec: NormSpec, existing: DesignDocument | null, ctx: Ctx)
     const match = (c.id !== undefined ? old.find((s) => s.id === c.id) : undefined) ?? old.find((s) => lc(s.name) === lc(c.name));
     return { c, id: c.id ?? match?.id ?? newId('sym'), prev: match };
   });
-  ctx.symbols = heads.map(({ c, id }) => ({ id, name: c.name, content: { ...createGroup({ name: c.name }), id, children: [] } }));
+  // Placeholders while the masters are built; they carry the content's own size and placement, so an instance of
+  // one master inside another starts with it (a hug button stays hug), whatever order the masters come in.
+  ctx.symbols = heads.map(({ c, id }) => {
+    const item = layoutItemOf(c.content, undefined);
+    return { id, name: c.name, content: { ...createGroup({ name: c.name }), id, children: [], ...(item ? { layoutItem: item } : {}) } };
+  });
   const built = heads.map(({ c, id, prev }) => buildMaster(c, id, prev, ctx));
   ctx.symbols = built;
   // A master may contain other masters, never itself.
