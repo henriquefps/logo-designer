@@ -37,11 +37,16 @@ Usage: designer wf <command> [options]
                      default, options, visibleWhen, help), sizing, placement and an example;
                      Markdown, or JSON with --json. Kinds filter it
   components import <project> --from <other.designer.json|sample:<id>> [--only "<name>,…"] [-o file] [--json]
-                     copies shared components (masters) from another project or a bundled
-                     sample / component kit, with every master they nest. One with the same
+                     copies shared components (masters) from another project (a component kit or
+                     any project with shared components) or a bundled sample, with every master they nest. One with the same
                      name and content is reused (importing twice changes nothing); same name,
                      other content: "<name> 2". Master links whose screen this project lacks
                      (by name) are left out. In place unless -o; --json: a report on stdout
+  kit <project> [--off] [-o file]
+                     marks the project as a component kit (wireframe.kit): the app offers it in
+                     New document → "Start with components from" and lists it first in Import
+                     components (Properties → Project → Use as component kit). --off unmarks it.
+                     In place unless -o
 
   sheet <project> [-o sheet.png] [--platform P] [--notes] [--scale S] [--max N]
                      one image of every frame as on the canvas: names, platform, status badges
@@ -58,7 +63,7 @@ A spec in one breath: { "screens": [ { "name": "Settings", "root": [
 Schema: https://designer.hfps.dev/schema/wireframe-spec.schema.json
 `;
 
-class WfUsage extends Error {}
+export class WfUsage extends Error {}
 
 const OPTIONS = {
   output: { type: 'string', short: 'o' },
@@ -74,6 +79,7 @@ const OPTIONS = {
   overlay: { type: 'string' },
   from: { type: 'string' },
   only: { type: 'string' },
+  off: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -163,6 +169,46 @@ function summaryLine(r: SpecBuildResult, into: boolean): string {
   return into ? `${base}: ${s.added} added, ${s.removed} removed, ${s.kept} kept` : base;
 }
 
+/**
+ * A source of shared components: `sample:<id>` (a bundled sample; `kit`: only one flagged as a kit) or a project
+ * file. Throws WfUsage for an unknown sample, an Error for a file that is not a wireframe or has no shared components.
+ */
+export async function loadComponentSource(from: string, io: CliIO, opts: { kit?: boolean } = {}): Promise<DesignDocument> {
+  let source: DesignDocument;
+  if (from.startsWith('sample:')) {
+    try {
+      const r = await loadSampleDoc(from.slice('sample:'.length), opts);
+      for (const w of r.warnings) io.err(`warning: ${w}`);
+      source = r.doc;
+    } catch (e) {
+      if (e instanceof SampleUsage) throw new WfUsage(e.message);
+      throw e;
+    }
+  } else source = await loadProject(from, io);
+  if (!source.wireframe?.symbols?.length) throw new Error(`${from} has no shared components`);
+  return source;
+}
+
+/** `wf kit <project> [--off]`: sets or clears `wireframe.kit`. */
+async function setKit(pos: string[], values: { [k: string]: string | boolean | undefined }, io: CliIO): Promise<number> {
+  if (pos.length !== 1) throw new WfUsage('wf kit takes one project file');
+  if (values.into || values.json || values.from || values.only) throw new WfUsage('wf kit takes only --off and -o');
+  const doc = await loadProject(pos[0], io);
+  const on = !values.off;
+  const dest = typeof values.output === 'string' ? values.output : pos[0];
+  const was = !!doc.wireframe!.kit;
+  if (on) doc.wireframe!.kit = true;
+  else delete doc.wireframe!.kit;
+  const n = doc.wireframe!.symbols?.length ?? 0;
+  io.err(
+    on
+      ? `${pos[0]} ${was ? 'is already' : 'is now'} a component kit (${n} shared component${n === 1 ? '' : 's'})${n ? '' : ': add some, or it has nothing to offer'}`
+      : `${pos[0]} ${was ? 'is no longer' : 'was not'} a component kit`,
+  );
+  if (was !== on || typeof values.output === 'string') await write(serializeProject(materializeDocument(doc)), dest, io, 'wireframe project');
+  return 0;
+}
+
 /** `wf components import <project> --from <file|sample:id> [--only names]`. */
 async function importComponents(pos: string[], values: { [k: string]: string | boolean | undefined }, io: CliIO): Promise<number> {
   if (pos.length !== 1) throw new WfUsage('wf components import takes one project file (the one to import into)');
@@ -172,19 +218,8 @@ async function importComponents(pos: string[], values: { [k: string]: string | b
   const dest = typeof values.output === 'string' ? values.output : pos[0];
   if (values.json && (!dest || dest === '-')) throw new WfUsage('--json writes the report to stdout: the project needs a file (-o, or not from stdin)');
   const target = await loadProject(pos[0], io);
-  let source: DesignDocument;
-  if (from.startsWith('sample:')) {
-    try {
-      const r = await loadSampleDoc(from.slice('sample:'.length));
-      for (const w of r.warnings) io.err(`warning: ${w}`);
-      source = r.doc;
-    } catch (e) {
-      if (e instanceof SampleUsage) throw new WfUsage(e.message);
-      throw e;
-    }
-  } else source = await loadProject(from, io);
-  const masters = source.wireframe?.symbols ?? [];
-  if (!masters.length) throw new Error(`${from} has no shared components`);
+  const source = await loadComponentSource(from, io);
+  const masters = source.wireframe!.symbols!;
   let ids: string[] | undefined;
   if (typeof values.only === 'string') {
     const names = values.only.split(',').map((n) => n.trim()).filter(Boolean);
@@ -264,6 +299,7 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
       case 'components': {
         if (pos[0] === 'import') return await importComponents(pos.slice(1), values, io);
         if (values.from || values.only) throw new WfUsage('--from / --only are options of `wf components import`');
+        if (values.off) throw new WfUsage('--off is an option of `wf kit`');
         if (values.into || values['no-geometry']) throw new WfUsage('--into / --no-geometry are not components options');
         const cat = componentCatalog();
         if (pos.length) {
@@ -275,6 +311,8 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
         else await write(catalogMarkdown(cat) + '\n', values.output, io, 'catalog');
         return 0;
       }
+      case 'kit':
+        return await setKit(pos, values, io);
       case 'sheet':
       case 'compare':
         try {

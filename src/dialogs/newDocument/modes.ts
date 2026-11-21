@@ -45,7 +45,7 @@ export interface WireframeOptions {
   name: string;
   /** Platform of the first screen. */
   platform: ScreenPlatform;
-  /** A component kit sample id: the project starts with its shared components. Undefined = none. */
+  /** A component kit (a source key: "project:<id>" or "sample:<id>"): the project starts with its shared components. Undefined = none. */
   kit?: string;
 }
 

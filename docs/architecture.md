@@ -261,7 +261,7 @@ Tests: `newDocument.test.ts` (Vitest) and `bun run e2e:new-document` (Playwright
 
 Finished projects bundled with the app (`public/samples/<id>.designer.json` + a thumbnail), listed in
 `registry.ts` (`SampleDef`: id, name, one-line description, mode, file, thumbnail, `kit` = offered as a component
-kit, `kitSamples()`; pure data, the CLI imports it too). Adding one is two files and one entry (README → Samples).
+kit like a project marked as one, `kitSamples()`; none ships as a kit today; pure data, the CLI imports it too). Adding one is two files and one entry (README → Samples).
 
 - **Opening always copies** (`copy.ts`, pure): `sampleCopy` gives the document a new id, fresh timestamps, no
   `live` mark, and a name no project has (`uniqueName`: "Roam (sample)", "Roam (sample) 2", …).
@@ -280,21 +280,9 @@ kit, `kitSamples()`; pure data, the CLI imports it too). Adding one is two files
   `scripts/samples/roam.spec.json`; without arguments it rebuilds from that spec (`wf build`, a fixed id and date
   so rebuilds are byte-identical), validates, and renders the thumbnail (`to-png --screen Explore`) and
   `docs/screenshots/sample-roam-sheet.png` (`wf sheet --notes`). 387 KB of compact JSON, 27 KB gzipped.
-- **hfps-kit** (`kit: true` in the registry: offered as a component kit) is built by `scripts/samples/hfps-kit.ts`,
-  whose spec is TypeScript data: 36 shared components named `hfps · <Pattern>` (nested where the kit nests them:
-  the shells hold the top bar and sidebar, sheets hold the buttons, the summary strips repeat `hfps · Metric`),
-  15 screens (20 frames) in five rows under canvas section titles, and a note per component with its rule and
-  the React / Compose piece. Two `wf build`s: the first measures frame heights, where each component lands and the
-  notes' heights; the second places the rows and puts each frame's notes in a column beside it, level with their
-  component and never overlapping. Every spec node gets an id from its place, so rebuilds are byte-identical.
-  Renders `docs/screenshots/sample-hfps-kit-sheet.png` and the thumbnail (`to-png --screen "Example · Settings"`);
-  and one PNG per frame in `docs/screenshots/hfps-kit/` (`<screen>.<platform>.png`, 900 wide). ~650 KB of compact JSON, 42 KB gzipped. Gaps the
-  library still has: wireframe-mode.md → The hfps-kit sample.
 - Tests: `src/samples/__tests__/samples.test.ts` (registry files, copy semantics, `openSample` against the
   projects store, the Roam file: names, statuses, renamed screen, tab bar links, no dangling flows/notes, known
-  component kinds, two rows without overlaps, spec round trip; the hfps-kit file: kit flag, `hfps · ` names, nested
-  masters keep their size, every master placed with a note, no frame / note overlaps, round trip),
-  `src/cli/main.test.ts` (`new --sample`), and
+  component kinds, two rows without overlaps, spec round trip), `src/cli/main.test.ts` (`new --sample`), and
   `bun run e2e:samples` (Playwright: open from New document and from Help, Present mode reaches a Settings
   sub-screen through the Profile tab; `SHOTS=<dir>` saves light/dark screenshots).
 
@@ -698,11 +686,16 @@ a group (double-click enters it), so every editing tool works inside it.
   `pasteNodes` runs `importForPaste` (only masters whose id the target lacks, `sameIds` so a nested master the target
   has by id stays itself), `remapInstances`, `detachUnknownInstances` and the insert in **one** `apply`.
   `lastPasteImport()` feeds the toast (`notifyPasteImport`). App: Library → My components → **Import from project…**
-  (`dialogs/importComponents`, `importSourceRefs`: `kitSamples()` then the other local projects, read with
-  `loadDocument` and kept when they have masters; previews by `SymbolPreview.tsx`, shared with My components), New
-  document → Wireframe → "Start with components from" (`WireframeOptions.kit` → `createWireframeDocument({ kit })`,
-  `loadSample` + `importSymbols` on the new document before it loads). CLI: `wf components import` (`src/cli/wf.ts`,
-  `loadSampleDoc` for `sample:<id>`), `new --kit` (`src/cli/main.ts`).
+  (`dialogs/importComponents`, `componentSources()`: kits first (`kitSamples()`, then local projects with
+  `wireframe.kit`), then the other local projects; each read once with `loadDocument` (the open project from the
+  editor) and kept when it has masters; previews by `SymbolPreview.tsx`, shared with My components; the button
+  counts `withNested(ticked)` and `importSummary(plan, picked)` titles the toast with the same total), New
+  document → Wireframe → "Start with components from" (`componentSources({ kitsOnly })`; `WireframeOptions.kit` is a
+  source key, `project:<id>` / `sample:<id>` → `createWireframeDocument({ kit })` → `loadSourceByKey` +
+  `importSymbols` on the new document before it loads). The flag: `wireframe.kit` (validated in
+  `projectFile.ts`, kept by `wf build --into`), toggled by Properties → Project (`WireframeSection.tsx`,
+  `setKitCommand`, one undo step). CLI: `wf components import` and `new --kit` share `loadComponentSource`
+  (`src/cli/wf.ts`: a project file, or `loadSampleDoc` for `sample:<id>`); `wf kit [--off]` sets the flag.
   The `adopt` step deep-copies the node it moves into a frame (it is the frozen input; later steps write into it):
   before, pasting an already laid-out stack over a frame threw.
 

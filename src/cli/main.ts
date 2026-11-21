@@ -23,8 +23,8 @@ import { aiPackageFiles, aiProjectSlug, aiZip } from '@/wireframe/aiExport';
 import { materializeDocument } from '@/wireframe/pipeline';
 import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
-import { wfMain } from './wf';
-import { kitIds, loadSampleDoc, newSampleProject, sampleIds } from './samples';
+import { loadComponentSource, wfMain, WfUsage } from './wf';
+import { kitIds, newSampleProject, sampleIds } from './samples';
 import { importSymbols } from '@/wireframe/symbolImport';
 import { AgentSetupError, runAgent } from './agent';
 import { cliPath, cliSvg, SANDBOX_COMMANDS, SandboxError, sandboxRoot } from './sandbox';
@@ -58,11 +58,12 @@ Usage: designer <command> [options]
   new --sample <id> [-o file] [--name N]      a copy of a sample project bundled with the app (id: ${sampleIds()}),
                                               new id, named "<Sample> (sample)" unless --name; Help → Open sample
                                               project… in the app
-  new --preset wireframe --kit <id> [-o file] [--name N] [--json]
-                                              empty wireframe project that starts with a component kit's shared
-                                              components (kits: ${kitIds()}); --kit implies --preset wireframe.
-                                              New document → "Start with components from" in the app. --json:
-                                              a report on stdout (needs -o)
+  new --preset wireframe --kit <file.designer.json|sample:<id>> [-o file] [--name N] [--json]
+                                              empty wireframe project that starts with the shared components of
+                                              a component kit: a project file (mark one with \`designer wf kit\`)
+                                              or a bundled kit sample (${kitIds()}); --kit implies --preset
+                                              wireframe. New document → "Start with components from" in the
+                                              app. --json: a report on stdout (needs -o)
   screen <project> [--name N] [--platform phone|tablet|desktop] [-o file]
                                               wireframe projects: add a screen (default phone; right of everything).
                                               When a screen called N exists, adds its --platform variant instead (a copy
@@ -712,14 +713,13 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           const doc = newWireframeProject(str(values, 'name') ?? (output ? nameFromPath(output) : 'Wireframe'));
           if (kit !== undefined) {
             if (values.json && (!output || output === '-')) throw new UsageError('--json writes the report to stdout: give the project a file with -o');
-            let src: Awaited<ReturnType<typeof loadSampleDoc>>;
+            let src: DesignDocument;
             try {
-              src = await loadSampleDoc(kit, { kit: true });
+              src = await loadComponentSource(kit, io, { kit: true });
             } catch (e) {
-              throw new UsageError(e instanceof Error ? e.message : String(e));
+              throw e instanceof WfUsage ? new UsageError(e.message) : e;
             }
-            for (const w of src.warnings) io.err(`warning: ${w}`);
-            const r = importSymbols(doc, src.doc);
+            const r = importSymbols(doc, src);
             const made = materializeDocument(doc);
             await emit(serializeProject(made), output, io, `wireframe project with ${r.added.length} shared component${r.added.length === 1 ? '' : 's'} from the ${kit} kit`);
             if (values.json) io.out(JSON.stringify({ project: output, kit, components: r.added.map((s) => s.name), droppedFlows: r.droppedFlows }, null, 2));

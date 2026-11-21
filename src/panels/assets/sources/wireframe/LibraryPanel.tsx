@@ -1,6 +1,7 @@
-// The wireframe component library (docs/wireframe-mode.md → Library): components by category, the
-// selected screen's platform first, a search box. Click inserts into the selected screen/stack; drag
-// drops at a point on the canvas (into the stack under it, at that point, with the insertion line).
+// The wireframe component library (docs/wireframe-mode.md → Library): a search box at the top (it filters My
+// components and the library), then My components, then components by category, the selected screen's platform
+// first. Click inserts into the selected screen/stack; drag drops at a point on the canvas (into the stack under
+// it, at that point, with the insertion line).
 import { useEffect, useMemo, useState } from 'react';
 import { CaretDownIcon, CaretRightIcon, DownloadSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -23,7 +24,7 @@ import { WF } from '@/wireframe/style';
 import { insertSymbol, startDeleteSymbol, startRenameSymbol } from '@/wireframe/symbolCommands';
 import { startImportComponents } from '@/wireframe/symbolImportCommands';
 import { symbolsOf } from '@/wireframe/symbols';
-import { SymbolPreview } from './SymbolPreview';
+import { SymbolName, SymbolPreview } from './SymbolPreview';
 import { cn } from '@/lib/utils';
 
 export const COMPONENT_DRAG_MIME = 'application/x-designer-component';
@@ -253,9 +254,10 @@ function SymbolItem({ symbol, symbols }: { symbol: WireframeSymbol; symbols: rea
         <div className="overflow-hidden rounded-sm border">
           <SymbolPreview symbol={symbol} symbols={symbols} />
         </div>
-        <span className="truncate px-0.5 pr-14 text-sm">{symbol.name}</span>
+        <SymbolName name={symbol.name} className="px-0.5" />
       </button>
-      <div className="absolute right-1.5 bottom-1 flex">
+      {/* Over the preview's corner, so the name below gets the card's whole width; shown on hover / focus (always on touch). */}
+      <div className="absolute top-2.5 right-2.5 flex rounded-md border bg-card/90 opacity-0 shadow-xs transition-opacity group-focus-within/item:opacity-100 group-hover/item:opacity-100 pointer-coarse:opacity-100">
         <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label={`Rename ${symbol.name}`} title="Rename" onClick={() => startRenameSymbol(symbol.id)}>
           <PencilSimpleIcon className="size-3.5" />
         </button>
@@ -321,12 +323,13 @@ export function LibraryPanel() {
 
   return (
     <div className="flex flex-col">
+      {/* Search first: it filters My components (hidden when none matches) and the library below. */}
+      <div className="relative border-b px-4 py-3" data-testid="library-search">
+        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-6.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search components…" aria-label="Search components" className="h-8 pl-8" />
+      </div>
       <MyComponents query={query} />
       <Section title={platform ? `Components · ${platformDef(platform).label}` : 'Components'} actions={<span className="text-xs text-muted-foreground">{count}</span>}>
-        <div className="relative">
-          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search components…" aria-label="Search components" className="h-8 pl-8" />
-        </div>
         {count ? <Groups groups={main} iconsReady={iconsReady} containers={containers} /> : <p className="text-sm text-muted-foreground">{query ? 'No components match your search.' : 'No components yet.'}</p>}
         <p className="text-xs text-muted-foreground">Click to add to the selected screen or stack, or drag onto a screen. Layout containers take what you drop into them.</p>
       </Section>

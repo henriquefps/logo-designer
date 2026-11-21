@@ -495,15 +495,21 @@ component.
 
 #### Kits, import and paste (2026-11-20)
 
-Shared components used to live in one project only. A **component kit** is a bundled sample whose masters are
-meant to be reused (`kit: true` in `src/samples/registry.ts`; `hfps-kit` today); any project with shared components
-can also be a source.
+Shared components used to live in one project only. A **component kit** is a project whose masters are meant to
+be reused: any wireframe becomes one with Properties → Project → **Use as component kit** (nothing selected; stored as
+`wireframe.kit: true`, docs/project-format.md; CLI `designer wf kit <file> [--off]`). A bundled sample can be one too
+(`kit: true` in `src/samples/registry.ts`; none ships today). Any project with shared components can also be a source
+for Import.
 
-- **Import from project…** (Library → My components): pick a source (component kits first, then your other projects
-  that have shared components), tick its components (all ticked, each with a preview), Import. One undo step; a toast
-  says how many came in, how many were already there, and how many master links were left out.
-- **New document → Wireframe → "Start with components from"**: None (default) or a kit. The project starts with the
-  kit's masters only (no screens, no notes), plus its usual first screen.
+- **Import from project…** (Library → My components): pick a source (component kits first: kit samples, then your
+  kit projects; then your other projects that have shared components), tick its components (all ticked, each with a
+  preview and its full name on up to two lines), Import. The button counts what will come in: the ticked ones plus
+  the ones they nest ("Import 12 (2 come along)"), and the toast's title says the same number; its description breaks
+  it down (came along, new vs. already there and reused, master links left out). One undo step.
+- **New document → Wireframe → "Start with components from"**: None (default) or a kit: every local project marked
+  as a kit (synced projects included: they are local copies; the open project with its unsaved state) and any kit
+  sample. Hidden, with a one-line hint about the toggle, when there is none. The project starts with the kit's
+  masters only (no screens, no notes, not a kit itself), plus its usual first screen.
 - **Paste between documents keeps instances**: the clipboard (in-app and the system clipboard's JSON) carries the
   masters of the instances it holds. Pasting into a document that lacks them imports them (same rules) in the paste's
   undo step, and a toast names them. Within the same document nothing changes. An old payload without masters still
@@ -515,10 +521,16 @@ can also be a source.
   importing the same kit twice changes nothing. **Master flows** (links defined on a shared component) follow a copied
   master when the target has a logical screen of the same name (case-insensitive); the others are dropped and counted.
 - **CLI**: `designer wf components import <project> --from <file.designer.json|sample:<id>> [--only "<name>,…"]
-  [-o file] [--json]` and `designer new --kit <id>` (implies `--preset wireframe`; `--json` with `-o`).
+  [-o file] [--json]`, `designer new --kit <file.designer.json|sample:<id>>` (implies `--preset wireframe`; `--json`
+  with `-o`) and `designer wf kit <file> [--off] [-o file]`. `wf build --into` keeps a kit a kit (the flag is not part
+  of the spec).
+- **Library cards** show a component's full name on up to two lines (kits often share a prefix, "Acme · Top bar",
+  "Acme · List row", so cutting at the end hid the distinctive part); the tooltip has the whole name.
 - Code map: `docs/architecture.md` → Shared components → Kits, import and paste. Screenshots:
   `docs/screenshots/kit-import/`. Checks: `src/wireframe/__tests__/symbolImport.test.ts`,
-  `src/cli/components-import.test.ts`, `bun run e2e:kit-import` (Playwright, the real hfps-kit).
+  `src/wireframe/__tests__/symbolImportCommands.test.ts`, `src/cli/components-import.test.ts`, `bun run
+  e2e:kit-import` (Playwright: a fictional "Acme" kit made in the app, marked as a kit, then used by New document,
+  Import and paste).
 
 ### Export additions
 
@@ -1000,21 +1012,11 @@ Settings story in a second, the Settings sub-screen "Trips" renamed "Trip settin
 Profile tab linked to "Settings (new)". Built by `scripts/samples/roam.ts` from the two recorded projects;
 architecture.md → Samples.
 
-### The hfps-kit sample
+### Building a component kit as shared components
 
-A second sample, `hfps-kit` (registry `kit: true`), is the wireframe base of the hfps design kit: every recurring
-pattern of the kit is a shared component named `hfps · <Pattern>`, so a project can start from them or import them
-(the kit feature). Built by `scripts/samples/hfps-kit.ts` (architecture.md → Samples).
+A kit built as a wireframe (a component sheet: one screen per group of patterns, each pattern a shared component
+with a note stating its rule) showed one bug and the gaps below.
 
-- **Layout.** A component sheet: five rows under canvas section titles (Shell and navigation; Rows and controls;
-  Lists and master-detail; Sheets, dialogs and feedback; Examples). Sheet screens list each component under a
-  caption with its name; shells, sheets and master-detail fill whole frames (phone 390, and desktop 1440 where the
-  pattern differs). Each component has a note beside its frame: the rule in a line or two and the code piece it
-  maps to (React `AppShell`, `ResponsiveDialog`, shadcn components; Compose `HfpsScaffold`, `HfpsListRow`…).
-- **Structure and sizes carry the kit** (greyscale, no colours or palettes): fixed 56 header, one card with an 8
-  margin filling the rest (fill height), the sidebar beside the card from desktop width, 44 buttons, icon buttons as
-  a 24 icon in a 48 target, one primary action per screen, eyebrows as the only uppercase text, the detail panel
-  only in the "selected" frame, a bottom drawer on phones and a centred dialog on desktop for the same form.
 - **Fix found building it:** an instance of one master inside another master did not get that master's own size
   and placement (a hug button nested in a sheet stretched to the full width): `wf build` now gives the placeholder
   masters their content's `width` / `height` / `position` / `bleed` while it builds them
@@ -1022,18 +1024,17 @@ pattern of the kit is a shared component named `hfps · <Pattern>`, so a project
 
 #### Gaps (what the library cannot say yet)
 
-- **Sizes the kit uses that the library draws differently:** a two-line list row is 72 (kit: 56 with `py-2`);
-  chips and toolbar buttons are 32 (kit: 36, `h-9`); the toolbar is 56 with a bottom divider. The notes state the
-  kit's numbers. A density prop on these components would close it.
-- **Top app bar always draws a bottom divider**; the kit's header has none (chrome on the background).
+- **Fixed sizes a kit may want denser:** a two-line list row is 72 (a dense kit uses 56); chips and toolbar buttons
+  are 32 (some kits use 36); the toolbar is 56 with a bottom divider. A note can state the kit's numbers; a density
+  prop on these components would close it.
+- **Top app bar always draws a bottom divider**; a header without one cannot be drawn with it.
 - **No per-instance text in shared components.** An instance cannot override a label, so masters carry neutral
-  text ("Item name", "Save") and screens with their own text use library rows or detached instances (the
-  Settings example does).
-- **No end alignment in a stack** (no `justify`): sheet footers and the checklist's Cancel / confirm sit at the
-  start instead of the end; a stack cannot centre a free overlay either (the desktop dialog is placed by `x` / `y`).
-- **No per-side padding:** the shell's 8 margin also adds 8 above the card (the kit has none under the header).
-- **No vertical divider, menu or grab-handle components:** the master-detail split is the detail panel's outline,
-  the theme menu is an outlined stack of two radio groups, the drawer's handle is only in its note.
+  text ("Item name", "Save") and screens with their own text use library rows or detached instances.
+- **No end alignment in a stack** (no `justify`): sheet footers and Cancel / confirm pairs sit at the start instead
+  of the end; a stack cannot centre a free overlay either (a desktop dialog is placed by `x` / `y`).
+- **No per-side padding:** a shell's margin around its card also adds space above the card, under the header.
+- **No vertical divider, menu or grab-handle components:** a master-detail split is the detail panel's outline, a
+  menu is an outlined stack of radio groups, a drawer's handle can only be stated in a note.
 - **Section titles are canvas headings**, so `wf sheet` and `to-png` (frames only) do not show them; the app does.
 
 ## Quality bar
