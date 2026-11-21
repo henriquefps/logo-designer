@@ -973,6 +973,42 @@ Settings story in a second, the Settings sub-screen "Trips" renamed "Trip settin
 Profile tab linked to "Settings (new)". Built by `scripts/samples/roam.ts` from the two recorded projects;
 architecture.md → Samples.
 
+### The hfps-kit sample
+
+A second sample, `hfps-kit` (registry `kit: true`), is the wireframe base of the hfps design kit: every recurring
+pattern of the kit is a shared component named `hfps · <Pattern>`, so a project can start from them or import them
+(the kit feature). Built by `scripts/samples/hfps-kit.ts` (architecture.md → Samples).
+
+- **Layout.** A component sheet: five rows under canvas section titles (Shell and navigation; Rows and controls;
+  Lists and master-detail; Sheets, dialogs and feedback; Examples). Sheet screens list each component under a
+  caption with its name; shells, sheets and master-detail fill whole frames (phone 390, and desktop 1440 where the
+  pattern differs). Each component has a note beside its frame: the rule in a line or two and the code piece it
+  maps to (React `AppShell`, `ResponsiveDialog`, shadcn components; Compose `HfpsScaffold`, `HfpsListRow`…).
+- **Structure and sizes carry the kit** (greyscale, no colours or palettes): fixed 56 header, one card with an 8
+  margin filling the rest (fill height), the sidebar beside the card from desktop width, 44 buttons, icon buttons as
+  a 24 icon in a 48 target, one primary action per screen, eyebrows as the only uppercase text, the detail panel
+  only in the "selected" frame, a bottom drawer on phones and a centred dialog on desktop for the same form.
+- **Fix found building it:** an instance of one master inside another master did not get that master's own size
+  and placement (a hug button nested in a sheet stretched to the full width): `wf build` now gives the placeholder
+  masters their content's `width` / `height` / `position` / `bleed` while it builds them
+  (`spec.test.ts` → "an instance inside another master starts with that master's own size").
+
+#### Gaps (what the library cannot say yet)
+
+- **Sizes the kit uses that the library draws differently:** a two-line list row is 72 (kit: 56 with `py-2`);
+  chips and toolbar buttons are 32 (kit: 36, `h-9`); the toolbar is 56 with a bottom divider. The notes state the
+  kit's numbers. A density prop on these components would close it.
+- **Top app bar always draws a bottom divider**; the kit's header has none (chrome on the background).
+- **No per-instance text in shared components.** An instance cannot override a label, so masters carry neutral
+  text ("Item name", "Save") and screens with their own text use library rows or detached instances (the
+  Settings example does).
+- **No end alignment in a stack** (no `justify`): sheet footers and the checklist's Cancel / confirm sit at the
+  start instead of the end; a stack cannot centre a free overlay either (the desktop dialog is placed by `x` / `y`).
+- **No per-side padding:** the shell's 8 margin also adds 8 above the card (the kit has none under the header).
+- **No vertical divider, menu or grab-handle components:** the master-detail split is the detail panel's outline,
+  the theme menu is an outlined stack of two radio groups, the drawer's handle is only in its note.
+- **Section titles are canvas headings**, so `wf sheet` and `to-png` (frames only) do not show them; the app does.
+
 ## Quality bar
 
 Everything in `docs/rebuild-spec.md` → Quality bar, plus: layout and every component's `build` have

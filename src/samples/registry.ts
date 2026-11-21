@@ -16,6 +16,8 @@ export interface SampleDef {
   file: string;
   /** A small preview image, relative to the site root (public/). */
   thumbnail: string;
+  /** Offered as a component kit: New document can start from its shared components, and Import components lists it. */
+  kit?: boolean;
 }
 
 export const SAMPLES: readonly SampleDef[] = [
@@ -26,6 +28,15 @@ export const SAMPLES: readonly SampleDef[] = [
     mode: 'wireframe',
     file: 'samples/roam.designer.json',
     thumbnail: 'samples/roam.thumb.png',
+  },
+  {
+    id: 'hfps-kit',
+    name: 'hfps-kit',
+    description: 'Wireframe base of the hfps design kit, as shared components',
+    mode: 'wireframe',
+    file: 'samples/hfps-kit.designer.json',
+    thumbnail: 'samples/hfps-kit.thumb.png',
+    kit: true,
   },
 ];
 

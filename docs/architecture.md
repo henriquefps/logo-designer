@@ -280,9 +280,21 @@ too). Adding one is two files and one entry (README → Samples).
   `scripts/samples/roam.spec.json`; without arguments it rebuilds from that spec (`wf build`, a fixed id and date
   so rebuilds are byte-identical), validates, and renders the thumbnail (`to-png --screen Explore`) and
   `docs/screenshots/sample-roam-sheet.png` (`wf sheet --notes`). 387 KB of compact JSON, 27 KB gzipped.
+- **hfps-kit** (`kit: true` in the registry: offered as a component kit) is built by `scripts/samples/hfps-kit.ts`,
+  whose spec is TypeScript data: 36 shared components named `hfps · <Pattern>` (nested where the kit nests them:
+  the shells hold the top bar and sidebar, sheets hold the buttons, the summary strips repeat `hfps · Metric`),
+  15 screens (20 frames) in five rows under canvas section titles, and a note per component with its rule and
+  the React / Compose piece. Two `wf build`s: the first measures frame heights, where each component lands and the
+  notes' heights; the second places the rows and puts each frame's notes in a column beside it, level with their
+  component and never overlapping. Every spec node gets an id from its place, so rebuilds are byte-identical.
+  Renders `docs/screenshots/sample-hfps-kit-sheet.png` and the thumbnail (`to-png --screen "Example · Settings"`);
+  and one PNG per frame in `docs/screenshots/hfps-kit/` (`<screen>.<platform>.png`, 900 wide). ~650 KB of compact JSON, 42 KB gzipped. Gaps the
+  library still has: wireframe-mode.md → The hfps-kit sample.
 - Tests: `src/samples/__tests__/samples.test.ts` (registry files, copy semantics, `openSample` against the
   projects store, the Roam file: names, statuses, renamed screen, tab bar links, no dangling flows/notes, known
-  component kinds, two rows without overlaps, spec round trip), `src/cli/main.test.ts` (`new --sample`), and
+  component kinds, two rows without overlaps, spec round trip; the hfps-kit file: kit flag, `hfps · ` names, nested
+  masters keep their size, every master placed with a note, no frame / note overlaps, round trip),
+  `src/cli/main.test.ts` (`new --sample`), and
   `bun run e2e:samples` (Playwright: open from New document and from Help, Present mode reaches a Settings
   sub-screen through the Profile tab; `SHOTS=<dir>` saves light/dark screenshots).
 

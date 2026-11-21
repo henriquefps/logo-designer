@@ -228,6 +228,21 @@ describe('short forms and defaults', () => {
     expect(nested.children.length).toBe(2);
   });
 
+  it('an instance inside another master starts with that master\'s own size, in any order', () => {
+    const { doc } = buildFromSpec({
+      components: [
+        { name: 'Footer', content: { hstack: [{ use: 'Save' }, { heading: 'Total' }] } },
+        { name: 'Save', content: { vstack: [{ button: 'Save' }], gap: 0, width: 'hug' } },
+      ],
+      screens: [{ name: 'Home', root: [{ use: 'Footer' }] }],
+    });
+    const footer = doc.wireframe!.symbols!.find((s) => s.name === 'Footer')!;
+    expect((footer.content.children[0] as GroupNode).layoutItem).toEqual({ width: 'hug' });
+    const save = (byName(doc, 'Home').children[0] as GroupNode).children[0] as GroupNode;
+    expect(save.layoutItem).toEqual({ width: 'hug' });
+    expect(save.layout!.size!.width).toBeLessThan(200);
+  });
+
   it('component kinds never collide with the spec\'s own keys', () => {
     for (const d of getComponents()) expect(RESERVED_KEYS.has(d.kind), d.kind).toBe(false);
   });
