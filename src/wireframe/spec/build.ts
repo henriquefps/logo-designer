@@ -545,7 +545,8 @@ export function buildFromNormSpec(spec: NormSpec, existing0: DesignDocument | nu
   const keptFlows = !spec.flows && existing ? structuredClone(existing.wireframe?.flows ?? []) : [];
   base.children = [...frameNodes.map((f) => f.node), ...canvas, ...keptNotes];
   buildComponents({ ...createGroup({}), children: base.children });
-  base.wireframe = { screens, ...(symbols.length ? { symbols } : {}), ...(keptFlows.length ? { flows: keptFlows } : {}) };
+  // The kit flag is a project setting, not part of the spec: building into a kit keeps it a kit.
+  base.wireframe = { screens, ...(symbols.length ? { symbols } : {}), ...(keptFlows.length ? { flows: keptFlows } : {}), ...(existing?.wireframe?.kit ? { kit: true } : {}) };
 
   // First pass: everything laid out, so paths resolve and notes can be placed next to their targets.
   let doc = structuredClone(materializeDocument(base));

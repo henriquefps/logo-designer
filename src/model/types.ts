@@ -317,6 +317,11 @@ export interface WireframeDocInfo {
   flows?: WireframeFlow[];
   /** Shared components (masters), phase 2. Absent = none. */
   symbols?: WireframeSymbol[];
+  /**
+   * The project is a component kit: New document → Wireframe offers it under "Start with components from", and
+   * Import components lists it first. Absent = not a kit.
+   */
+  kit?: boolean;
 }
 
 export interface DesignDocument {

@@ -4,10 +4,9 @@ import { isScreenNode, platformDef, type DesignDocument, type Id, type ScreenNod
 import { useDocStore } from '@/store/useDocStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useProjectsStore } from '@/store/useProjectsStore';
-import { loadSample } from '@/samples/open';
-import { kitSamples } from '@/samples/registry';
 import { addScreen, duplicateScreenAs, freePlatforms } from './screens';
 import { importSymbols } from './symbolImport';
+import { loadSourceByKey } from './symbolImportCommands';
 import { fitTarget } from './view';
 
 /** The empty wireframe document: no artboard in use, one phone screen. */
@@ -27,8 +26,9 @@ export function newWireframeDocument(base: DesignDocument, name = 'Wireframe', p
 
 /**
  * New document → Wireframe (or the still-empty first document, reused): one screen of `platform` (phone by
- * default). `kit`: a component kit sample whose shared components the project starts with (only its masters:
- * no screens, no notes).
+ * default). `kit`: the component kit whose shared components the project starts with, as a source key
+ * ("project:<id>" for a project marked as a kit, "sample:<id>" for a bundled kit sample); only its masters are
+ * copied (no screens, no notes, and the new project is not itself a kit).
  */
 export async function createWireframeDocument(options: { name?: string; platform?: ScreenPlatform; kit?: string } = {}) {
   const wanted = options.name?.trim();
@@ -50,10 +50,10 @@ export async function createWireframeDocument(options: { name?: string; platform
   await useProjectsStore.getState().flush();
 }
 
-async function loadKit(id: string): Promise<DesignDocument> {
-  const sample = kitSamples().find((s) => s.id === id);
-  if (!sample) throw new Error(`Unknown component kit “${id}”.`);
-  return loadSample(sample);
+async function loadKit(key: string): Promise<DesignDocument> {
+  const doc = await loadSourceByKey(key);
+  if (!doc?.wireframe?.symbols?.length) throw new Error('Could not read the component kit (it may have been deleted, or it has no shared components).');
+  return doc;
 }
 
 /** The selected screen frame (exactly one selected object that is a frame), or null. */

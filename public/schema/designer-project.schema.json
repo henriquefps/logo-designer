@@ -1249,6 +1249,10 @@
             "$ref": "#/definitions/WireframeSymbol"
           },
           "description": "Shared components (masters), phase 2. Absent = none."
+        },
+        "kit": {
+          "type": "boolean",
+          "description": "The project is a component kit: New document → Wireframe offers it under \"Start with components from\", and Import components lists it first. Absent = not a kit."
         }
       },
       "description": "Marks a wireframe document: infinite canvas (the artboard is unused), screens, components."

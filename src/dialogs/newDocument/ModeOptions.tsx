@@ -1,6 +1,6 @@
 // New document, step 2: the options of the chosen mode. Every choice is a native radio group
 // (Tab enters the group, arrows move and select), double-clicking a choice creates right away.
-import { useId, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { DesktopIcon, DeviceMobileIcon, DeviceTabletIcon, type Icon } from '@phosphor-icons/react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 import { SCREEN_PLATFORMS, type IconShapeSetting, type ScreenPlatform } from '@/model';
 import { ARTBOARD_PRESETS } from '@/panels/properties/sections/artboard/presets';
 import { NumberField } from '@/panels/shared/NumberField';
-import { kitSamples, samplesFor, type SampleDef } from '@/samples/registry';
+import { samplesFor, type SampleDef } from '@/samples/registry';
+import { componentSources, sourceKey, type ImportSourceRef } from '@/wireframe/symbolImportCommands';
 import { SampleCard } from '@/samples/SampleCard';
 import { defaultName, MAX_SIDE, type FreeOptions, type IconOptions, type ModeOptions, type WireframeOptions } from './modes';
 
@@ -213,11 +214,32 @@ function Samples({ mode, onOpenSample, disabled }: { mode: ModeOptions['mode']; 
 
 const NO_KIT = 'none';
 
-/** "Start with components from": None, or a component kit sample (its shared components, no screens). */
+/**
+ * "Start with components from": None, or a component kit (its shared components, no screens): every local project
+ * marked "Use as component kit" (synced ones included) and any bundled kit sample. Hidden when there is none.
+ */
 function KitField({ value, onChange, disabled }: { value?: string; onChange: (kit: string | undefined) => void; disabled?: boolean }) {
   const id = useId();
-  const kits = kitSamples();
-  if (!kits.length) return null;
+  const [kits, setKits] = useState<ImportSourceRef[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void componentSources({ kitsOnly: true }).then((list) => live && setKits(list));
+    return () => {
+      live = false;
+    };
+  }, []);
+  // A kit chosen earlier that is gone (deleted, unmarked): back to None.
+  useEffect(() => {
+    if (kits && value && !kits.some((k) => sourceKey(k) === value)) onChange(undefined);
+  }, [kits, value, onChange]);
+  if (!kits) return null;
+  if (!kits.length) {
+    return (
+      <p className="text-xs text-muted-foreground" data-testid="new-wireframe-kit-hint">
+        To start new wireframes with your shared components, open a project that has them and turn on Properties → Use as component kit.
+      </p>
+    );
+  }
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>Start with components from</Label>
@@ -228,7 +250,7 @@ function KitField({ value, onChange, disabled }: { value?: string; onChange: (ki
         <SelectContent>
           <SelectItem value={NO_KIT}>None</SelectItem>
           {kits.map((k) => (
-            <SelectItem key={k.id} value={k.id}>
+            <SelectItem key={sourceKey(k)} value={sourceKey(k)}>
               {k.name}
             </SelectItem>
           ))}

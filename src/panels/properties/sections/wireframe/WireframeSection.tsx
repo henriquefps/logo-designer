@@ -1,8 +1,12 @@
+import { useId } from 'react';
 import { PlusIcon } from '@phosphor-icons/react';
 import { platformDef, SCREEN_PLATFORMS, screenNodes } from '@/model';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useEditorStore } from '@/store/useEditorStore';
 import { addScreenCommand } from '@/wireframe/commands';
+import { setKitCommand } from '@/wireframe/symbolImportCommands';
 import { Section } from '../../../shared/Section';
 import { GridSection } from '../artboard/ArtboardSection';
 import type { SelectionContext } from '../../types';
@@ -46,7 +50,32 @@ export function WireframeSection({ ctx }: { ctx: SelectionContext }) {
           ))}
         </div>
       </Section>
+      <KitSection ctx={ctx} />
       <GridSection />
     </>
+  );
+}
+
+/** Project → "Use as component kit" (`wireframe.kit`): New document can start from this project's shared components. */
+function KitSection({ ctx }: { ctx: SelectionContext }) {
+  const id = useId();
+  const on = !!ctx.doc.wireframe?.kit;
+  const n = ctx.doc.wireframe?.symbols?.length ?? 0;
+  return (
+    <Section title="Project">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={id} className="font-normal">
+          Use as component kit
+        </Label>
+        <Switch id={id} checked={on} onCheckedChange={setKitCommand} data-testid="use-as-kit" />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {on
+          ? n
+            ? `New document → Wireframe can start with this project’s ${n} shared component${n === 1 ? '' : 's'}, and Import from project… lists it first.`
+            : 'A kit offers its shared components, and this project has none yet: make some with Make component.'
+          : 'Offer this project’s shared components when starting a new wireframe (New document → Start with components from).'}
+      </p>
+    </Section>
   );
 }

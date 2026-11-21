@@ -51,7 +51,7 @@ describe('designer CLI', () => {
     expect(named.id).not.toBe(doc.id);
     const unknown = await cli('new', '--sample', 'nope');
     expect(unknown.code).toBe(2);
-    expect(unknown.err).toMatch(/Unknown sample "nope" \(samples: roam \| hfps-kit\)/);
+    expect(unknown.err).toMatch(/Unknown sample "nope" \(samples: roam\)/);
     expect((await cli('new', '--sample', 'roam', '--preset', 'wireframe')).code).toBe(2);
   });
 

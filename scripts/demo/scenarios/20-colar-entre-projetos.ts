@@ -1,24 +1,23 @@
 // Video 20 (paste between projects keeps shared components): copy an instance of a shared component that nests
-// others (a sheet with buttons) in the hfps-kit sample, switch to Roam (which lacks it) and paste: it stays a shared
-// component (My components), and one undo removes everything.
+// others (Acme · Settings sheet: rows and buttons) in the fictional "Acme kit" project, switch to Roam (which lacks
+// it) and paste: it stays a shared component (My components), and one undo removes everything.
 import type { Scenario } from '../lib/scenario.ts';
 import { node, openTab, screenBlank, screenBox } from '../lib/designer.ts';
 import { newWireframe } from '../lib/designer.ts';
+import { openAcmeKit } from '../lib/acmeKit.ts';
 
 type Doc = { children: { id: string; symbol?: { id: string }; children?: unknown[] }[]; wireframe: { symbols: { id: string; name: string; content: unknown }[] } };
 
 export default {
   name: '20-colar-entre-projetos',
   steps: 5,
-  /** Cut from the video: Roam, then the hfps-kit sample (the current project). */
+  /** Cut from the video: Roam, then the Acme kit (the current project). */
   async setup(demo) {
     const { page } = demo;
     await newWireframe(demo);
     await demo.click(page.getByRole('dialog').locator('[data-sample="roam"]'));
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    await demo.menu('Help', 'Open sample project…');
-    await demo.click(page.getByRole('dialog').locator('[data-sample="hfps-kit"]'));
-    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await openAcmeKit(page);
     await demo.key('ControlOrMeta+0');
   },
   async run(demo) {
@@ -27,7 +26,7 @@ export default {
     const id = await page.evaluate(() => {
       const d = (window as unknown as { __designer: { useDocStore: { getState(): { doc: Doc } } } }).__designer.useDocStore.getState().doc;
       const nests = (s: { content: unknown }) => JSON.stringify(s.content).includes('"symbol":{"id"');
-      const names = new Set(d.wireframe.symbols.filter((s) => /sheet|dialog/i.test(s.name) && nests(s)).map((s) => s.id));
+      const names = new Set(d.wireframe.symbols.filter((s) => s.name === 'Acme · Settings sheet' && nests(s)).map((s) => s.id));
       let hit: string | null = null;
       const walk = (n: { id: string; symbol?: { id: string }; children?: unknown[] }) => {
         if (!hit && n.symbol && names.has(n.symbol.id)) hit = n.id;
@@ -36,9 +35,9 @@ export default {
       d.children.forEach(walk);
       return hit;
     });
-    if (!id) throw new Error('no instance of a sheet that nests buttons in the kit sample');
+    if (!id) throw new Error('no instance of Acme · Settings sheet in the Acme kit');
 
-    await demo.caption('No projeto hfps-kit: uma folha (Form sheet) é um componente compartilhado com botões dentro dela');
+    await demo.caption('No projeto Acme kit: a Settings sheet é um componente compartilhado com linhas e botões dentro dela');
     const first = node(page, id);
     const b0 = (await first.boundingBox())!;
     await demo.zoomAt({ x: b0.x + b0.width / 2, y: b0.y + b0.height / 2 }, 5);

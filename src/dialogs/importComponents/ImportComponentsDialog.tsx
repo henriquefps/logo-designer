@@ -1,5 +1,5 @@
-// Library → My components → Import from project…: pick a source (component kits first, then local projects
-// with shared components), tick its components (all by default) and import them into the open wireframe.
+// Library → My components → Import from project…: pick a source (component kits first: kit samples and projects
+// marked "Use as component kit"; then the other local projects with shared components), tick its components (all by default) and import them into the open wireframe.
 // Logic: src/wireframe/symbolImportCommands.ts (app) and src/wireframe/symbolImport.ts (pure).
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,10 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ResponsiveDialog';
 import type { DesignDocument, Id } from '@/model';
-import { SymbolPreview } from '@/panels/assets/sources/wireframe/SymbolPreview';
-import { importComponentsCommand, importSourceRefs, loadImportSource, projectsWithComponents, type ImportSourceRef } from '@/wireframe/symbolImportCommands';
+import { SymbolName, SymbolPreview } from '@/panels/assets/sources/wireframe/SymbolPreview';
+import { componentSources, importComponentsCommand, loadImportSource, sourceKey as key, type ImportSourceRef } from '@/wireframe/symbolImportCommands';
 import { withNested } from '@/wireframe/symbolImport';
 import { cn } from '@/lib/utils';
-
-const key = (r: ImportSourceRef) => `${r.kind}:${r.id}`;
 
 export function ImportComponentsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const [sources, setSources] = useState<ImportSourceRef[] | null>(null);
@@ -33,10 +31,8 @@ export function ImportComponentsDialog({ open, onOpenChange }: { open: boolean; 
   useEffect(() => {
     if (!open) return;
     let live = true;
-    const refs = importSourceRefs();
-    void projectsWithComponents(refs).then((withSymbols) => {
+    void componentSources({ excludeActive: true }).then((list) => {
       if (!live) return;
-      const list = refs.filter((r) => r.kind === 'kit' || withSymbols.has(r.id));
       setSources(list);
       setPicked((p) => (p && list.some((r) => key(r) === p) ? p : list[0] ? key(list[0]) : ''));
     });
@@ -62,10 +58,11 @@ export function ImportComponentsDialog({ open, onOpenChange }: { open: boolean; 
   const doc = loaded?.key === picked ? loaded.doc : null;
   const loading = !!picked && loaded?.key !== picked;
   const symbols = useMemo(() => doc?.wireframe?.symbols ?? [], [doc]);
-  // Masters a ticked one nests come along anyway.
+  // Masters a ticked one nests come along anyway: the import brings `implied` (ticked + nested), not just the ticked.
   const implied = useMemo(() => new Set(withNested(symbols, [...checked]).map((s) => s.id)), [symbols, checked]);
-  const kits = sources?.filter((r) => r.kind === 'kit') ?? [];
-  const projects = sources?.filter((r) => r.kind === 'project') ?? [];
+  const along = implied.size - checked.size;
+  const kits = sources?.filter((r) => r.kit) ?? [];
+  const projects = sources?.filter((r) => !r.kit) ?? [];
 
   const toggle = (id: Id) =>
     setChecked((prev) => {
@@ -146,16 +143,13 @@ export function ImportComponentsDialog({ open, onOpenChange }: { open: boolean; 
                     const along = !on && implied.has(s.id);
                     return (
                       <li key={s.id}>
-                        <label className={cn('flex h-full cursor-pointer flex-col gap-1.5 rounded-md border bg-card p-1.5 hover:border-ring', on && 'border-primary bg-primary/5')}>
+                        <label className={cn('relative flex h-full cursor-pointer flex-col gap-1.5 rounded-md border bg-card p-1.5 hover:border-ring', on && 'border-primary bg-primary/5')}>
                           <span className="flex h-20 items-center overflow-hidden rounded-sm border bg-white">
                             <SymbolPreview symbol={s} symbols={symbols} className="max-h-full" />
                           </span>
-                          <span className="flex items-center gap-1.5 px-0.5">
-                            <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="size-3.5 shrink-0 accent-primary" />
-                            <span className="truncate text-sm" title={s.name}>
-                              {s.name}
-                            </span>
-                          </span>
+                          {/* On the preview's corner: the name below gets the card's whole width. */}
+                          <input type="checkbox" checked={on} onChange={() => toggle(s.id)} aria-label={s.name} className="absolute top-2.5 left-2.5 size-3.5 accent-primary" />
+                          <SymbolName name={s.name} className="px-0.5" />
                           {along && <span className="px-0.5 text-xs text-muted-foreground">Comes along (used inside another)</span>}
                         </label>
                       </li>
@@ -171,7 +165,7 @@ export function ImportComponentsDialog({ open, onOpenChange }: { open: boolean; 
             Cancel
           </Button>
           <Button onClick={submit} disabled={!doc || !checked.size} data-testid="import-components-submit">
-            Import{checked.size ? ` ${checked.size}` : ''}
+            {checked.size ? `Import ${implied.size}${along ? ` (${along} come${along === 1 ? 's' : ''} along)` : ''}` : 'Import'}
           </Button>
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>

@@ -325,8 +325,11 @@ export class Demo {
     await this.click(this.page.getByRole('menubar').getByRole('menuitem', { name: top, exact: true }), {}, { pause: 400 });
     for (const [i, item] of rest.entries()) {
       const el = this.page.getByRole('menuitem', { name: item, exact: false }).filter({ visible: true }).first();
-      if (i < rest.length - 1) await this.hover(el, {}, 400);
-      else await this.click(el);
+      // Aimed near the item's left edge: a path to its centre would cross the next menubar entry, which opens that
+      // menu instead (File → New… then clicked Edit → Undo at the same place).
+      const aim = i === 0 ? { fx: 0.2 } : {};
+      if (i < rest.length - 1) await this.hover(el, aim, 400);
+      else await this.click(el, aim);
     }
   }
 }

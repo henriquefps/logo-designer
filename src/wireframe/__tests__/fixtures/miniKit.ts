@@ -51,3 +51,12 @@ export function miniKit(): { doc: DesignDocument; card: string; list: string } {
   ];
   return { doc: fresh(materializeDocument(doc)), card: cardId, list: listId };
 }
+
+/** The mini kit as a fictional component kit project: masters "Acme · Trip card" and "Acme · Trip list" (nesting it), `wireframe.kit` on. */
+export function acmeKit(): DesignDocument {
+  const { doc } = miniKit();
+  doc.name = 'Acme kit';
+  for (const s of doc.wireframe!.symbols!) s.name = `Acme · ${s.name}`;
+  doc.wireframe!.kit = true;
+  return doc;
+}

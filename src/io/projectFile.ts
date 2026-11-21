@@ -391,6 +391,11 @@ function wireframeInfo(v: unknown, path: string, warnings: string[]): { wirefram
     return out;
   });
   const info: WireframeDocInfo = { screens };
+  if (o.kit !== undefined && o.kit !== null) {
+    if (typeof o.kit === 'boolean') {
+      if (o.kit) info.kit = true;
+    } else warnings.push(`${at(path, 'kit')}: ignored, expected true or false, got ${show(o.kit)}`);
+  }
   if (o.flows !== undefined && o.flows !== null) {
     const fp = at(path, 'flows');
     const flowIds = new Set<string>();
