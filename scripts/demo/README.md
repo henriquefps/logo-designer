@@ -39,6 +39,8 @@ screens, each tab linked once from the master, each screen's own tab selected, t
 
 Scenarios `18`–`20` (component kits): `18-kit-proprio` (a project marked with Properties → Project → Use as component kit, then New document → "Start with components from" it, the library's search on top), `19-importar-componentes` (Library → Import from project… into Roam: two nested masters unticked, "Import 6 (2 come along)", then again) and `20-colar-entre-projetos` (copy an instance with nested masters in the kit project, paste into Roam, one undo). They use a fictional "Acme kit" (`lib/acmeKit.ts`) built with `designer wf build` and opened from a `designer link`, in the cut setup.
 
+Scenarios `21`–`23` (slots, text overrides, Layers): `21-conteudo-por-instancia` (a shared "Acme · App shell" made through the UI in the cut setup, its card marked "Content per instance", the shell on a second phone screen, different library components dragged into each card with the insertion line, then the top bar title with "Use everywhere"), `22-texto-por-instancia` (three "Acme · List row" instances: Overridden here, Reset to shared, Use everywhere) and `23-camadas-seguem-o-canvas` (Roam with every screen collapsed in Layers; clicks deep in the canvas open and scroll Layers). Helpers in `lib/acmeShell.ts`.
+
 Scenarios `11`–`15` (phase 4, AI through `designer agent`) run the real thing: a designer-sync with an API key,
 `designer agent` with **real Claude Code** (logged in on this machine) and the app with Sync on
 (`lib/agent.ts`). 11 pastes the Hoard Settings screenshot (Turn into a wireframe with AI), 12 drags a flow to empty
