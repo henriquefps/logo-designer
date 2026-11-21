@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DesignDocument } from '@/model';
 import { validateDocument } from '@/io/projectFile';
-import { SAMPLES, sampleById } from '@/samples/registry';
+import { SAMPLES, kitSamples, sampleById } from '@/samples/registry';
 import { sampleCopy } from '@/samples/copy';
 
 /** Where a sample's file is in this checkout (public/ is two levels above src/cli). */
@@ -25,3 +25,16 @@ export async function newSampleProject(id: string, name?: string): Promise<{ doc
 }
 
 export class SampleUsage extends Error {}
+
+export const kitIds = (): string => kitSamples().map((s) => s.id).join(' | ') || 'none in this build';
+
+/** A bundled sample's document as shipped (not a copy): the source of `--kit` and `--from sample:<id>`. */
+export async function loadSampleDoc(id: string, opts: { kit?: boolean } = {}): Promise<{ doc: DesignDocument; warnings: string[] }> {
+  const sample = sampleById(id);
+  if (!sample || (opts.kit && !sample.kit)) {
+    throw new SampleUsage(opts.kit ? `Unknown component kit "${id}" (kits: ${kitIds()})` : `Unknown sample "${id}" (samples: ${sampleIds()})`);
+  }
+  const warnings: string[] = [];
+  const doc = validateDocument(JSON.parse(await readFile(samplePath(sample.file), 'utf8')), { warnings });
+  return { doc, warnings };
+}

@@ -24,7 +24,8 @@ import { materializeDocument } from '@/wireframe/pipeline';
 import { connectionFrom, runLive, syncList, syncPull, syncPush, SyncUsage, type SyncEnv } from './sync';
 import { addScreenToProject, describeScreens, framesFor, newWireframeProject, parsePlatform, screenFile, WIREFRAME_PRESET } from './wireframe';
 import { wfMain } from './wf';
-import { newSampleProject, sampleIds } from './samples';
+import { kitIds, loadSampleDoc, newSampleProject, sampleIds } from './samples';
+import { importSymbols } from '@/wireframe/symbolImport';
 import { AgentSetupError, runAgent } from './agent';
 import { cliPath, cliSvg, SANDBOX_COMMANDS, SandboxError, sandboxRoot } from './sandbox';
 
@@ -57,6 +58,11 @@ Usage: designer <command> [options]
   new --sample <id> [-o file] [--name N]      a copy of a sample project bundled with the app (id: ${sampleIds()}),
                                               new id, named "<Sample> (sample)" unless --name; Help → Open sample
                                               project… in the app
+  new --preset wireframe --kit <id> [-o file] [--name N] [--json]
+                                              empty wireframe project that starts with a component kit's shared
+                                              components (kits: ${kitIds()}); --kit implies --preset wireframe.
+                                              New document → "Start with components from" in the app. --json:
+                                              a report on stdout (needs -o)
   screen <project> [--name N] [--platform phone|tablet|desktop] [-o file]
                                               wireframe projects: add a screen (default phone; right of everything).
                                               When a screen called N exists, adds its --platform variant instead (a copy
@@ -149,6 +155,7 @@ const COMMON: ParseArgsConfig['options'] = {
   name: { type: 'string' },
   preset: { type: 'string' },
   sample: { type: 'string' },
+  kit: { type: 'string' },
   icon: { type: 'string' },
   glyph: { type: 'boolean' },
   size: { type: 'string' },
@@ -698,9 +705,26 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
           await emit(serializeProject(made.doc), output, io, `sample project “${made.doc.name}”`);
           return 0;
         }
-        if (str(values, 'preset') === WIREFRAME_PRESET) {
+        const kit = str(values, 'kit');
+        if (kit !== undefined && str(values, 'preset') && str(values, 'preset') !== WIREFRAME_PRESET) throw new UsageError('--kit makes a wireframe project (--preset wireframe)');
+        if (str(values, 'preset') === WIREFRAME_PRESET || kit !== undefined) {
           if (str(values, 'tile') || str(values, 'colour') || str(values, 'glyph-colour')) throw new UsageError('--tile / --colour / --glyph are app icon settings');
           const doc = newWireframeProject(str(values, 'name') ?? (output ? nameFromPath(output) : 'Wireframe'));
+          if (kit !== undefined) {
+            if (values.json && (!output || output === '-')) throw new UsageError('--json writes the report to stdout: give the project a file with -o');
+            let src: Awaited<ReturnType<typeof loadSampleDoc>>;
+            try {
+              src = await loadSampleDoc(kit, { kit: true });
+            } catch (e) {
+              throw new UsageError(e instanceof Error ? e.message : String(e));
+            }
+            for (const w of src.warnings) io.err(`warning: ${w}`);
+            const r = importSymbols(doc, src.doc);
+            const made = materializeDocument(doc);
+            await emit(serializeProject(made), output, io, `wireframe project with ${r.added.length} shared component${r.added.length === 1 ? '' : 's'} from the ${kit} kit`);
+            if (values.json) io.out(JSON.stringify({ project: output, kit, components: r.added.map((s) => s.name), droppedFlows: r.droppedFlows }, null, 2));
+            return 0;
+          }
           await emit(serializeProject(doc), output, io, 'wireframe project (add screens with `designer screen`)');
           return 0;
         }

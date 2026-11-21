@@ -260,8 +260,8 @@ Tests: `newDocument.test.ts` (Vitest) and `bun run e2e:new-document` (Playwright
 ## Samples (`src/samples/`)
 
 Finished projects bundled with the app (`public/samples/<id>.designer.json` + a thumbnail), listed in
-`registry.ts` (`SampleDef`: id, name, one-line description, mode, file, thumbnail; pure data, the CLI imports it
-too). Adding one is two files and one entry (README → Samples).
+`registry.ts` (`SampleDef`: id, name, one-line description, mode, file, thumbnail, `kit` = offered as a component
+kit, `kitSamples()`; pure data, the CLI imports it too). Adding one is two files and one entry (README → Samples).
 
 - **Opening always copies** (`copy.ts`, pure): `sampleCopy` gives the document a new id, fresh timestamps, no
   `live` mark, and a name no project has (`uniqueName`: "Roam (sample)", "Roam (sample) 2", …).
@@ -686,6 +686,25 @@ a group (double-click enters it), so every editing tool works inside it.
   it with their source, notes attached inside it too; a repeat template that is one gives `List of 3 × (Shared: Trip
   card)`); the README's **Shared components** section describes each master once (its tree, nested ones by name) with
   the screens it is used on.
+
+- **Kits, import and paste** (`symbolImport.ts` pure, `symbolImportCommands.ts` app; docs/wireframe-mode.md → Kits,
+  import and paste): `planSymbolImport(target, source, { ids?, sameIds? })` → `{ map, added, reused, flows,
+  droppedFlows }` and `importSymbols` (plan + `applySymbolImport` on a document or draft). `withNested` orders the
+  chosen masters and everything they nest, dependencies first; dedup compares a canonical `masterShape` (node ids
+  replaced by their order, nested master ids passed through the import's map) against target masters named `name`
+  or `name N`; copies get `newId('sym')`, nested references rewritten, node ids kept, so master flows keep their
+  `from`; master flows are retargeted by screen name. Paste: `copyNodes` stores `symbolSourceFor(doc, nodes)` (masters,
+  their master flows and the screens those target) next to the nodes and in the system clipboard JSON (`symbols`);
+  `pasteNodes` runs `importForPaste` (only masters whose id the target lacks, `sameIds` so a nested master the target
+  has by id stays itself), `remapInstances`, `detachUnknownInstances` and the insert in **one** `apply`.
+  `lastPasteImport()` feeds the toast (`notifyPasteImport`). App: Library → My components → **Import from project…**
+  (`dialogs/importComponents`, `importSourceRefs`: `kitSamples()` then the other local projects, read with
+  `loadDocument` and kept when they have masters; previews by `SymbolPreview.tsx`, shared with My components), New
+  document → Wireframe → "Start with components from" (`WireframeOptions.kit` → `createWireframeDocument({ kit })`,
+  `loadSample` + `importSymbols` on the new document before it loads). CLI: `wf components import` (`src/cli/wf.ts`,
+  `loadSampleDoc` for `sample:<id>`), `new --kit` (`src/cli/main.ts`).
+  The `adopt` step deep-copies the node it moves into a frame (it is the frozen input; later steps write into it):
+  before, pasting an already laid-out stack over a frame threw.
 
 ### Components (`src/wireframe/library/`)
 

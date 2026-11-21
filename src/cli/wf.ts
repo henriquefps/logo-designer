@@ -13,6 +13,8 @@ import { materializeDocument } from '@/wireframe/pipeline';
 import type { CliIO } from './main';
 import { WfUsageError, wfViewCommand } from './wfView';
 import { cliPath, SandboxError } from './sandbox';
+import { loadSampleDoc, SampleUsage } from './samples';
+import { importSymbols } from '@/wireframe/symbolImport';
 
 export const WF_USAGE = `designer wf — wireframe projects from a spec (docs/wireframe-spec.md)
 
@@ -34,6 +36,12 @@ Usage: designer wf <command> [options]
                      the component catalog: kind, label, platforms, category, props (type,
                      default, options, visibleWhen, help), sizing, placement and an example;
                      Markdown, or JSON with --json. Kinds filter it
+  components import <project> --from <other.designer.json|sample:<id>> [--only "<name>,…"] [-o file] [--json]
+                     copies shared components (masters) from another project or a bundled
+                     sample / component kit, with every master they nest. One with the same
+                     name and content is reused (importing twice changes nothing); same name,
+                     other content: "<name> 2". Master links whose screen this project lacks
+                     (by name) are left out. In place unless -o; --json: a report on stdout
 
   sheet <project> [-o sheet.png] [--platform P] [--notes] [--scale S] [--max N]
                      one image of every frame as on the canvas: names, platform, status badges
@@ -64,6 +72,8 @@ const OPTIONS = {
   max: { type: 'string' },
   grid: { type: 'string' },
   overlay: { type: 'string' },
+  from: { type: 'string' },
+  only: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const;
 
@@ -153,6 +163,61 @@ function summaryLine(r: SpecBuildResult, into: boolean): string {
   return into ? `${base}: ${s.added} added, ${s.removed} removed, ${s.kept} kept` : base;
 }
 
+/** `wf components import <project> --from <file|sample:id> [--only names]`. */
+async function importComponents(pos: string[], values: { [k: string]: string | boolean | undefined }, io: CliIO): Promise<number> {
+  if (pos.length !== 1) throw new WfUsage('wf components import takes one project file (the one to import into)');
+  const from = typeof values.from === 'string' ? values.from : '';
+  if (!from) throw new WfUsage('wf components import needs --from <file.designer.json|sample:<id>>');
+  if (values.into || values['no-geometry']) throw new WfUsage('--into / --no-geometry are not import options');
+  const dest = typeof values.output === 'string' ? values.output : pos[0];
+  if (values.json && (!dest || dest === '-')) throw new WfUsage('--json writes the report to stdout: the project needs a file (-o, or not from stdin)');
+  const target = await loadProject(pos[0], io);
+  let source: DesignDocument;
+  if (from.startsWith('sample:')) {
+    try {
+      const r = await loadSampleDoc(from.slice('sample:'.length));
+      for (const w of r.warnings) io.err(`warning: ${w}`);
+      source = r.doc;
+    } catch (e) {
+      if (e instanceof SampleUsage) throw new WfUsage(e.message);
+      throw e;
+    }
+  } else source = await loadProject(from, io);
+  const masters = source.wireframe?.symbols ?? [];
+  if (!masters.length) throw new Error(`${from} has no shared components`);
+  let ids: string[] | undefined;
+  if (typeof values.only === 'string') {
+    const names = values.only.split(',').map((n) => n.trim()).filter(Boolean);
+    const missing = names.filter((n) => !masters.some((m) => m.name === n));
+    if (missing.length) throw new Error(`no shared component ${missing.map((n) => `“${n}”`).join(', ')} in ${from} (it has: ${masters.map((m) => `“${m.name}”`).join(', ')})`);
+    ids = masters.filter((m) => names.includes(m.name)).map((m) => m.id);
+  }
+  const r = importSymbols(target, source, { ids });
+  const out = materializeDocument(target);
+  const parts = [`${r.added.length} component${r.added.length === 1 ? '' : 's'} added`];
+  if (r.reused.length) parts.push(`${r.reused.length} already there`);
+  if (r.droppedFlows) parts.push(`${r.droppedFlows} master link${r.droppedFlows === 1 ? '' : 's'} left out (no screen of that name)`);
+  io.err(`Imported from ${from}: ${parts.join(', ')}`);
+  if (r.added.length || r.flows.length || typeof values.output === 'string') await write(serializeProject(out), dest, io, 'wireframe project');
+  if (values.json) {
+    io.out(
+      JSON.stringify(
+        {
+          project: dest,
+          from,
+          added: r.added.map((s) => ({ id: s.id, name: s.name })),
+          reused: r.reused.map((s) => ({ id: s.target, name: s.name })),
+          flows: r.flows.length,
+          droppedFlows: r.droppedFlows,
+        },
+        null,
+        2,
+      ),
+    );
+  }
+  return 0;
+}
+
 /** Runs `designer wf <args>`; returns the exit code. */
 export async function wfMain(argv: string[], io: CliIO): Promise<number> {
   const [cmd, ...rest] = argv;
@@ -197,6 +262,8 @@ export async function wfMain(argv: string[], io: CliIO): Promise<number> {
         return 0;
       }
       case 'components': {
+        if (pos[0] === 'import') return await importComponents(pos.slice(1), values, io);
+        if (values.from || values.only) throw new WfUsage('--from / --only are options of `wf components import`');
         if (values.into || values['no-geometry']) throw new WfUsage('--into / --no-geometry are not components options');
         const cat = componentCatalog();
         if (pos.length) {

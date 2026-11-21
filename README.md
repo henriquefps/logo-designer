@@ -49,6 +49,12 @@ sample itself never changes. Samples are bundled with the app and work offline.
 
 From the CLI: `designer new --sample roam -o roam.designer.json` (or `--sample hfps-kit`).
 
+**Component kits.** A sample marked `kit` (hfps-kit) is also a source of shared components: start a wireframe with
+them (New document → Wireframe → **Start with components from**, or `designer new --kit hfps-kit`), or bring them
+into an existing one (Library → My components → **Import from project…**, which also lists your other projects with
+shared components; `designer wf components import app.designer.json --from sample:hfps-kit`). Importing twice adds
+nothing, and pasting an instance into another wireframe brings its component along.
+
 **Adding a sample** (an app icon, a free project, …): put `<id>.designer.json` and a small thumbnail (≈ 200 px
 wide PNG, e.g. `designer to-png … --size 192`) in `public/samples/`, and add one entry to
 [`src/samples/registry.ts`](src/samples/registry.ts) (id, name, one-line description, mode, file, thumbnail). The

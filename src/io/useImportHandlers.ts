@@ -3,6 +3,7 @@ import { isEditableTarget } from '@/app/useKeyboard';
 import { getImporters, importerForFile } from '@/io/importers/registry';
 import { isMac } from '@/actions/registry';
 import { hasClipboard, parseClipboardPayload, pasteNodes } from '@/store/clipboard';
+import { notifyPasteImport } from '@/wireframe/symbolImportCommands';
 import { isFontFile } from '@/fonts/store';
 import { useEditorStore } from '@/store/useEditorStore';
 import type { Vec } from '@/model';
@@ -56,7 +57,8 @@ export function useImportHandlers() {
       const text = svgData || data.getData('text/plain');
       const payload = text ? parseClipboardPayload(text) : null;
       if (payload) {
-        useEditorStore.getState().setSelection(pasteNodes(payload.nodes, payload.flows));
+        useEditorStore.getState().setSelection(pasteNodes(payload.nodes, payload.flows, payload.symbols ?? null));
+        notifyPasteImport();
         return;
       }
       void (async () => {
@@ -64,7 +66,10 @@ export function useImportHandlers() {
           for (const imp of getImporters()) if (await imp.importText?.(text)) return;
         }
         // Not SVG: paste the in-app clipboard (what Edit → Paste does).
-        if (hasClipboard()) useEditorStore.getState().setSelection(pasteNodes());
+        if (hasClipboard()) {
+          useEditorStore.getState().setSelection(pasteNodes());
+          notifyPasteImport();
+        }
       })();
     };
 

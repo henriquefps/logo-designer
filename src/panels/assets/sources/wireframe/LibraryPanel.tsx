@@ -2,9 +2,9 @@
 // selected screen's platform first, a search box. Click inserts into the selected screen/stack; drag
 // drops at a point on the canvas (into the stack under it, at that point, with the insertion line).
 import { useEffect, useMemo, useState } from 'react';
-import { CaretDownIcon, CaretRightIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, DownloadSimpleIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
-import { localBounds, platformDef, type ScreenPlatform, type SceneNode, type WireframeSymbol } from '@/model';
+import { platformDef, type ScreenPlatform, type SceneNode, type WireframeSymbol } from '@/model';
 import { Input } from '@/components/ui/input';
 import { NodeRenderer } from '@/canvas/renderers/NodeRenderer';
 import { Section } from '@/panels/shared/Section';
@@ -21,7 +21,9 @@ import { libraryFor, type LibraryGroup } from '@/wireframe/libraryIndex';
 import { frameOf, frames } from '@/wireframe/screens';
 import { WF } from '@/wireframe/style';
 import { insertSymbol, startDeleteSymbol, startRenameSymbol } from '@/wireframe/symbolCommands';
-import { newSymbolInstance, symbolsOf } from '@/wireframe/symbols';
+import { startImportComponents } from '@/wireframe/symbolImportCommands';
+import { symbolsOf } from '@/wireframe/symbols';
+import { SymbolPreview } from './SymbolPreview';
 import { cn } from '@/lib/utils';
 
 export const COMPONENT_DRAG_MIME = 'application/x-designer-component';
@@ -234,26 +236,6 @@ function Groups({ groups, iconsReady, containers = [] }: { groups: LibraryGroup[
 
 const LAYOUT = 'Layout';
 
-/** A shared component drawn small, as an instance shows it. */
-function SymbolPreview({ symbol, symbols }: { symbol: WireframeSymbol; symbols: readonly WireframeSymbol[] }) {
-  const node = useMemo(() => newSymbolInstance(symbol, symbols, { x: 0, y: 0 }), [symbol, symbols]);
-  const size = node.layout?.size;
-  const b = size ? { x: 0, y: 0, ...size } : localBounds(node);
-  if (!b || !b.width || !b.height) return <div className="h-12" />;
-  const pad = 8;
-  return (
-    <svg
-      aria-hidden
-      viewBox={`${b.x - pad} ${b.y - pad} ${b.width + pad * 2} ${b.height + pad * 2}`}
-      className="mx-auto block h-auto max-h-24 w-full"
-      preserveAspectRatio="xMidYMid meet"
-      style={{ background: WF.paper }}
-    >
-      <NodeRenderer node={node} />
-    </svg>
-  );
-}
-
 function SymbolItem({ symbol, symbols }: { symbol: WireframeSymbol; symbols: readonly WireframeSymbol[] }) {
   return (
     <div className="group/item relative flex flex-col gap-1.5 rounded-md border bg-card p-1.5 hover:border-ring">
@@ -292,7 +274,18 @@ function MyComponents({ query }: { query: string }) {
   const shown = q ? symbols.filter((x) => x.name.toLowerCase().includes(q)) : symbols;
   if (q && !shown.length) return null;
   return (
-    <Section title="My components" actions={<span className="text-xs text-muted-foreground">{shown.length}</span>}>
+    <Section
+      title="My components"
+      actions={
+        <span className="flex items-center gap-2">
+          <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={startImportComponents} title="Copy shared components from another project or a component kit" data-testid="import-components">
+            <DownloadSimpleIcon className="size-3.5" />
+            Import from project…
+          </button>
+          <span className="text-xs text-muted-foreground">{shown.length}</span>
+        </span>
+      }
+    >
       {shown.length ? (
         <div className="grid grid-cols-1 gap-2 min-[340px]:grid-cols-2">
           {shown.map((x) => (
