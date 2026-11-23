@@ -372,6 +372,10 @@
           "$ref": "#/definitions/LayoutAlign",
           "description": "Cross-axis alignment of the children."
         },
+        "justify": {
+          "$ref": "#/definitions/LayoutJustify",
+          "description": "Stacks only: where the children sit along the main axis when there is room left (hstack: the row's free width; vstack: the free height of a screen or a fixed-height stack). `space-between` spreads them with the gap as the minimum. Omitted = `start`. No effect while a child fills the main axis; grids ignore it."
+        },
         "columns": {
           "type": "number",
           "description": "Grid only: number of columns."
@@ -439,6 +443,16 @@
         "stretch"
       ]
     },
+    "LayoutJustify": {
+      "type": "string",
+      "enum": [
+        "start",
+        "center",
+        "end",
+        "space-between"
+      ],
+      "description": "Main-axis distribution of a stack's children (horizontal in an hstack, vertical in a vstack)."
+    },
     "ContainerStyle": {
       "type": "string",
       "enum": [
@@ -475,6 +489,10 @@
             "free"
           ],
           "description": "`flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack."
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/LayoutAlign",
+          "description": "This child's own cross-axis alignment, overriding the container's `align` (a hug child among siblings). Omitted = the container's."
         },
         "bleed": {
           "type": "boolean",

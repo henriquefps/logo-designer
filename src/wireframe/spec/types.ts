@@ -5,7 +5,7 @@
 //
 // These types describe what a hand-written spec may contain (short forms included). The parser
 // (./parse.ts) normalizes it into the `Norm*` types below, which build.ts consumes.
-import type { ContainerRadius, ContainerStyle, LayoutAlign, LayoutKind, LayoutSize, SceneNode, ScreenPlatform, ScreenStatus } from '@/model';
+import type { ContainerRadius, ContainerStyle, LayoutAlign, LayoutJustify, LayoutKind, LayoutSize, SceneNode, ScreenPlatform, ScreenStatus } from '@/model';
 
 export const SPEC_VERSION = 1;
 export const SPEC_SCHEMA_URL = 'https://designer.hfps.dev/schema/wireframe-spec.schema.json';
@@ -37,7 +37,7 @@ export interface SpecComponent {
 }
 
 /** Root layout of a frame: a vertical stack by default (platform padding / gap); `"free"` = no stack. */
-export type SpecFrameLayout = 'free' | { kind?: LayoutKind; gap?: number; padding?: number; align?: LayoutAlign; columns?: number };
+export type SpecFrameLayout = 'free' | { kind?: LayoutKind; gap?: number; padding?: number; align?: LayoutAlign; justify?: LayoutJustify; columns?: number };
 
 /** One frame (platform variant) of a logical screen. */
 export interface SpecVariant {
@@ -98,7 +98,7 @@ export interface SpecNote {
  * A node of a screen tree. Exactly one form key:
  * - a library component: `{ "<kind>": { ...props } }`, `{ "<kind>": "text" }` (the first text prop),
  *   `{ "<kind>": ["a", "b"] }` (the first list prop), or `{ "kind": "<kind>", "props": { … } }`;
- * - a container: `{ "vstack" | "hstack" | "grid": [ ...children ], gap, padding, align, columns, style, radius, repeat, slot }`
+ * - a container: `{ "vstack" | "hstack" | "grid": [ ...children ], gap, padding, align, justify, columns, style, radius, repeat, slot }`
  *   (`slot: true` in a shared component's content: "Content per instance");
  * - a shared component instance: `{ "use": "<component name or id>" }`, with what this instance puts in the master's
  *   slot (`content: [ … ]`; several slots: `slots: { "<slot name>": [ … ] }`) and its own text
@@ -110,12 +110,12 @@ export interface SpecNote {
 export type SpecNode = Record<string, unknown>;
 
 /** Keys every node form accepts. */
-export const COMMON_KEYS = ['id', 'name', 'hidden', 'locked', 'opacity', 'width', 'height', 'position', 'bleed', 'x', 'y', 'rotation', 'scale', 'size', 'opens', 'note'] as const;
+export const COMMON_KEYS = ['id', 'name', 'hidden', 'locked', 'opacity', 'width', 'height', 'position', 'bleed', 'alignSelf', 'x', 'y', 'rotation', 'scale', 'size', 'opens', 'note'] as const;
 /** Form keys that are not component kinds. */
 export const CONTAINER_KINDS = ['vstack', 'hstack', 'grid'] as const;
 export const FORM_KEYS = ['kind', 'use', 'group', 'node', ...CONTAINER_KINDS] as const;
 /** Keys only containers take. */
-export const CONTAINER_KEYS = ['gap', 'padding', 'align', 'columns', 'style', 'radius', 'repeat', 'slot'] as const;
+export const CONTAINER_KEYS = ['gap', 'padding', 'align', 'justify', 'columns', 'style', 'radius', 'repeat', 'slot'] as const;
 /** Keys only shared component instances (`use`) take. */
 export const USE_KEYS = ['content', 'slots', 'text'] as const;
 /** Names a component kind can never take (they mean something else in a node). */
@@ -124,6 +124,7 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set<string>([...COMMON_KEY
 
 export const POSITIONS = ['flow', 'pinned-bottom', 'free'] as const;
 export const ALIGNS: readonly LayoutAlign[] = ['start', 'center', 'end', 'stretch'];
+export const JUSTIFIES: readonly LayoutJustify[] = ['start', 'center', 'end', 'space-between'];
 export const STYLES: readonly ContainerStyle[] = ['none', 'outline', 'filled', 'outline-filled'];
 export const RADII: readonly ContainerRadius[] = ['none', 'small', 'large'];
 
@@ -141,6 +142,7 @@ export interface NormCommon {
   height?: LayoutSize;
   position?: 'flow' | 'pinned-bottom' | 'free';
   bleed?: boolean;
+  alignSelf?: LayoutAlign;
   x?: number;
   y?: number;
   rotation?: number;
@@ -159,6 +161,7 @@ export type NormNode =
       gap?: number;
       padding?: number;
       align?: LayoutAlign;
+      justify?: LayoutJustify;
       columns?: number;
       style?: ContainerStyle;
       radius?: ContainerRadius;
@@ -185,7 +188,7 @@ export interface NormVariant {
   y?: number;
   width?: number;
   /** null = free content (no stack); undefined = the platform default. */
-  layout?: null | { kind?: LayoutKind; gap?: number; padding?: number; align?: LayoutAlign; columns?: number };
+  layout?: null | { kind?: LayoutKind; gap?: number; padding?: number; align?: LayoutAlign; justify?: LayoutJustify; columns?: number };
   root: NormNode[];
 }
 

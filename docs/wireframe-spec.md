@@ -51,7 +51,7 @@ Several platforms:
 | `status` | not stated | `current`, `changed` or `new`. |
 | `platform` | `phone` | Short form only; variants always say it. |
 | `root` | `[]` | The frame's content, in stack order (nodes, below). |
-| `layout` | vertical stack, phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align start | `{ "kind", "gap", "padding", "align", "columns" }` to change it, or `"free"` for no stack (children placed by `x` / `y`). |
+| `layout` | vertical stack, phone padding 16 / gap 12, tablet 24 / 16, desktop 32 / 24, align start | `{ "kind", "gap", "padding", "align", "justify", "columns" }` to change it, or `"free"` for no stack (children placed by `x` / `y`). |
 | `x`, `y` | right of everything (a variant: next to its screen's other frame) | The frame's top-left on the canvas. |
 | `width` | the platform's | An odd width. |
 | `id`, `frameId` (variant: `id`) | generated | The logical screen's id and the frame's node id; `dump` writes them. |
@@ -85,6 +85,7 @@ options, when a prop applies (`visibleWhen`) and an example. Plain text is the T
 | `width`, `height` | Size in the stack: `"fill"`, `"hug"` or px. Default: the component's sizing (rows fill, buttons hug); containers fill × hug. `height` only for components that can be taller (cards, images, sheets…: see `Resizable` in the catalog). |
 | `position` | `"flow"` (default), `"pinned-bottom"` (direct children of a screen: bottom bars, at the bottom of the screen, full width) or `"free"` (absolute: `x` / `y`). |
 | `bleed` | Edge to edge: ignore the stack's side padding (default from the component: rows, bars and headers bleed). |
+| `alignSelf` | This child's own cross-axis alignment, overriding the stack's `align`: `start`, `center`, `end`, `stretch`. |
 | `x`, `y`, `size`, `rotation`, `scale` | Only for nodes no layout places (free, in a free screen, in a group, on the canvas): position in the parent, box `{ "width", "height" }`. |
 | `hidden`, `locked`, `opacity` | As in the app. |
 | `opens` | Sugar for flows: `"opens": "Language"` (or a list) adds a flow from this node; `"opens": { "Files": "Files" }` links **parts** of a component (a tab, an item, a back button: by label or key, see [Links from parts](#links-from-parts)). |
@@ -104,6 +105,7 @@ the bottom, a `dialog` centred. `"position": "flow"` keeps one in the stack; `"p
 | `gap` | 12 / 8 / 12 | Space between children (and between repeated items). |
 | `padding` | 0 | Inner padding, every side. |
 | `align` | stretch / center / stretch | Cross axis: `start`, `center`, `end`, `stretch`. |
+| `justify` | start | Main axis (vstack / hstack): `start`, `center`, `end`, `space-between`; where the room left goes (a row of hug buttons centred, end-aligned or spread). No effect while a child fills; not for grids. |
 | `columns` | — / — / 2 | Grids only. |
 | `style` | `none` | `outline`, `filled`, `outline-filled`: a lo-fi card look. |
 | `radius` | `none` | `small` (8), `large` (16): corners of a styled container. |

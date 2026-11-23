@@ -1,4 +1,4 @@
-import type { LayoutSize, SceneNode } from '@/model';
+import type { LayoutAlign, LayoutSize, SceneNode } from '@/model';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { itemSizing, type Position } from '@/wireframe/layout';
@@ -68,6 +68,7 @@ export function LayoutItemSection({ ctx }: { ctx: SelectionContext }) {
   const kinds = new Set(ctx.ids.map((id) => layoutParent(ctx.doc, id)?.layout.kind));
   const crossBleed = !kinds.has('grid') && position !== 'free' && position !== 'pinned-bottom';
   const bleed = common(ctx.nodes, (n) => itemSizing(n).bleed);
+  const alignSelf = common(ctx.nodes, (n) => n.layoutItem?.alignSelf ?? 'default');
   return (
     <Section title="In stack">
       <SizeRow ctx={ctx} dim="width" />
@@ -82,6 +83,22 @@ export function LayoutItemSection({ ctx }: { ctx: SelectionContext }) {
             />
             <span className="text-xs text-muted-foreground">{bleed === null ? 'Mixed' : `Ignores the stack's ${kinds.has('hstack') && !kinds.has('vstack') ? 'top and bottom' : 'side'} padding`}</span>
           </div>
+        </FieldRow>
+      )}
+      {position !== 'free' && position !== 'pinned-bottom' && (
+        <FieldRow label="Align self">
+          <Select value={alignSelf ?? ''} onValueChange={(a) => setLayoutItem(ctx.ids, { alignSelf: a === 'default' ? undefined : (a as LayoutAlign) }, 'Align in stack')}>
+            <SelectTrigger size="sm" className="w-full" aria-label="Align in stack">
+              <SelectValue placeholder="Mixed" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Like the stack</SelectItem>
+              <SelectItem value="start">Start</SelectItem>
+              <SelectItem value="center">Center</SelectItem>
+              <SelectItem value="end">End</SelectItem>
+              <SelectItem value="stretch">Stretch</SelectItem>
+            </SelectContent>
+          </Select>
         </FieldRow>
       )}
       <FieldRow label="Position">

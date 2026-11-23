@@ -72,6 +72,7 @@ export function setLayout(ids: Id[], patch: Partial<LayoutInfo>, label = 'Layout
       const next = { ...n.layout, ...patch };
       if (next.kind === 'grid') next.columns = Math.max(1, Math.round(next.columns ?? 2));
       else delete next.columns;
+      if (next.justify === 'start' || next.kind === 'grid') delete next.justify;
       n.layout = next;
     },
     { label },

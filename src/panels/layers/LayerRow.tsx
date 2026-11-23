@@ -61,7 +61,7 @@ export function LayerRow(p: LayerRowProps) {
       onMouseLeave={() => p.onHover(false)}
       className={cn(
         'group/row relative flex h-9 cursor-default items-center gap-1 pr-2 text-sm select-none hover:bg-muted/50',
-        selected && 'bg-muted font-medium hover:bg-muted',
+        selected && 'bg-primary/15 font-medium text-foreground hover:bg-primary/20',
         p.dimmed && 'text-muted-foreground',
         p.drop === 'inside' && 'ring-2 ring-primary ring-inset',
       )}

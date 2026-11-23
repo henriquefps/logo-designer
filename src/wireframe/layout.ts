@@ -84,9 +84,12 @@ function childAxes(n: SceneNode): { width: boolean; height: boolean } {
   return def ? resizableAxes(def) : { width: true, height: true };
 }
 
+/** The cross-axis alignment of a child: its own `alignSelf`, else the container's `align`. */
+export const alignOf = (n: SceneNode, align: LayoutInfo['align']): LayoutInfo['align'] => n.layoutItem?.alignSelf ?? align;
+
 /** Whether the child takes the row's / cell's height (fill, or hug under `stretch`): never for one whose height follows its content. */
 const takesRowHeight = (n: SceneNode, s: { height: LayoutSize }, align: LayoutInfo['align']) =>
-  !isPlain(n) && childAxes(n).height && (s.height === 'fill' || (s.height === 'hug' && align === 'stretch'));
+  !isPlain(n) && childAxes(n).height && (s.height === 'fill' || (s.height === 'hug' && alignOf(n, align) === 'stretch'));
 
 /** Height of a child with a fixed height: a component never gets shorter than its content (its `minHeight`, else its hug height). */
 const fixedHeight = (n: SceneNode, h: number, w: number) => (n.type === 'group' && n.component ? Math.max(h, minComponentHeight(n as Parameters<typeof componentHeight>[0], w)) : h);
@@ -239,6 +242,15 @@ interface Measured {
   plain: boolean;
 }
 
+/** Where the first child starts and the distance from one child's start to the next's end (the gap, or more for `space-between`). */
+function distribute(justify: LayoutInfo['justify'], free: number, n: number, gap: number): { start: number; step: number } {
+  if (free <= EPS || n === 0) return { start: 0, step: gap };
+  if (justify === 'center') return { start: free / 2, step: gap };
+  if (justify === 'end') return { start: free, step: gap };
+  if (justify === 'space-between' && n > 1) return { start: 0, step: gap + free / (n - 1) };
+  return { start: 0, step: gap };
+}
+
 function crossOffset(align: LayoutInfo['align'], space: number, size: number): number {
   if (align === 'center') return (space - size) / 2;
   if (align === 'end') return space - size;
@@ -300,14 +312,17 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
     }
     let ih = box.height !== undefined ? Math.max(0, box.height - 2 * p) : Math.max(0, ...ms.map((m) => m.h));
     if (box.height === undefined && box.minHeight !== undefined) ih = Math.max(ih, box.minHeight - 2 * p - pinnedTotal);
-    let x = p;
+    // Main axis: the room left in the row is placed by `justify` (none while a child fills).
+    const free = Math.max(0, iw - ms.reduce((a, m) => a + m.w, 0) - g * Math.max(0, ms.length - 1));
+    const { start, step } = distribute(L.justify, free, ms.length, g);
+    let x = p + start;
     for (const m of ms) {
       // Edge to edge: the cross axis is the full height (no vertical padding).
       const bleed = itemSizing(m.node).bleed;
       const space = bleed ? ih + 2 * p : ih;
       const h = m.fillH ? space : m.h;
-      items.push({ index: m.index, x, y: (bleed ? 0 : p) + crossOffset(L.align, space, h), width: m.w, height: h });
-      x += m.w + g;
+      items.push({ index: m.index, x, y: (bleed ? 0 : p) + crossOffset(alignOf(m.node, L.align), space, h), width: m.w, height: h });
+      x += m.w + step;
     }
     const H = box.height ?? Math.max(box.minHeight ?? 0, ih + 2 * p + pinnedTotal);
     placePinned(H);
@@ -325,7 +340,7 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
       row.forEach((m, col) => {
         const s = itemSizing(m.node);
         const h = takesRowHeight(m.node, s, L.align) ? rowH : m.h;
-        items.push({ index: m.index, x: p + col * (cellW + g) + crossOffset(L.align, cellW, m.w), y, width: m.w, height: h });
+        items.push({ index: m.index, x: p + col * (cellW + g) + crossOffset(alignOf(m.node, L.align), cellW, m.w), y, width: m.w, height: h });
       });
       y += rowH + g;
     }
@@ -346,11 +361,15 @@ function computePlan(c: ContainerNode, box: LayoutBox): Plan {
   const fills = ms.filter((m) => m.fillH);
   const extra = H - pinnedTotal - 2 * p - content;
   if (fills.length && extra > EPS) for (const m of fills) m.h += extra / fills.length;
-  let y = p;
+  // Main axis: the height left (a screen's minimum height, a fixed height) is placed by `justify`.
+  const left = Math.max(0, H - pinnedTotal - 2 * p - ms.reduce((a, m) => a + m.h, 0) - g * Math.max(0, ms.length - 1));
+  const { start, step } = distribute(L.justify, left, ms.length, g);
+  let y = p + start;
   for (const m of ms) {
-    const x = itemSizing(m.node).bleed ? crossOffset(L.align, W, m.w) : p + crossOffset(L.align, iw, m.w);
+    const a = alignOf(m.node, L.align);
+    const x = itemSizing(m.node).bleed ? crossOffset(a, W, m.w) : p + crossOffset(a, iw, m.w);
     items.push({ index: m.index, x, y, width: m.w, height: m.h });
-    y += m.h + g;
+    y += m.h + step;
   }
   placePinned(H);
   return { width: W, height: H, items: sortItems(items) };
@@ -366,7 +385,7 @@ function measure(n: SceneNode, space: number, fillTo: number, align: LayoutInfo[
     const b = childBox(n);
     return { index: -1, node: n, w: b.width, h: b.height, fillW: false, fillH: false, plain };
   }
-  const w = typeof s.width === 'number' ? s.width : s.width === 'fill' || (align === 'stretch' && childAxes(n).width) ? fillTo : Math.min(hugWidth(n), space);
+  const w = typeof s.width === 'number' ? s.width : s.width === 'fill' || (alignOf(n, align) === 'stretch' && childAxes(n).width) ? fillTo : Math.min(hugWidth(n), space);
   const h = typeof s.height === 'number' ? fixedHeight(n, s.height, w) : hugHeight(n, w);
   return { index: -1, node: n, w, h, fillW: s.width === 'fill', fillH: s.height === 'fill', plain };
 }

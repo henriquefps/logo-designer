@@ -691,7 +691,9 @@ a group (double-click enters it), so every editing tool works inside it.
   searches instances with a `shared` flag (only slots are targets). App: `containerCommands.setSlot`, Properties
   Layout ("Content" switch), Component section ("Overridden here", Reset to shared, Use everywhere),
   `symbolCommands.notifySharedChange` (Layers drop into a shared part → toast), `clipboard.pasteSlot`, Layers
-  (`data-layer-id` rows; `useEditorStore.subscribe` opens ancestors and scrolls nearest unless the panel selected).
+  (`data-layer-id` rows; `useEditorStore.subscribe` opens ancestors and scrolls nearest unless the panel selected;
+  the tab is unmounted while closed, so on mount the panel reveals the current selection, centred; a node inside a
+  component instance reveals the instance's row; the selected row is `bg-primary/15`, background only).
   Spec: `slot` (containers), `content` / `slots` / `text` on `use` (`USE_KEYS`; `text` next to `use` is not the text
   kind), `fillSlots` / `instanceText` in build, `instanceOwn` in dump. File: `projectFile` validates both fields.
 - **Kits, import and paste** (`symbolImport.ts` pure, `symbolImportCommands.ts` app; docs/wireframe-mode.md → Kits,
@@ -889,3 +891,13 @@ UI: File → Export for AI… and Copy for AI (`src/io/aiExportActions.ts`), wir
   hidden in other documents). Properties: `wireframe` section (nothing selected: logical screens, add buttons, grid)
   and `screen` section (name, platform, width, height, Duplicate as). Export dialog: Area = Screen (default) / All /
   Selection; `exportSvg({ scope: 'screen', screenId })` writes the frame (white paper, content clipped, no border).
+
+## Aligning in a stack (justify, alignSelf, the align buttons)
+
+`LayoutInfo.justify` (stacks: main axis; `distribute()` in `wireframe/layout.ts` places the free width / height) and
+`LayoutItemInfo.alignSelf` (`alignOf(node, parentAlign)`, used wherever the cross axis or `stretch` is decided).
+`wireframe/alignInFlow.ts` is the pure plan of the align / distribute buttons for nodes a stack places (ops: a
+component's `align` prop, `alignSelf`, a container's `align` / `justify`; `legacy` = nodes still moved by
+`alignDeltas`; `notes` = the toast); `wireframe/alignCommands.ts` runs it in one undo step. Spec: `justify` (container
+keys, frame layout), `alignSelf` (common keys); file: `projectFile.layoutInfo` / `layoutItemInfo`; Export for AI:
+`alignWords`. Tests: `wireframe/__tests__/alignInFlow.test.ts`, `scripts/align-stacks-e2e.ts` (`bun run e2e:align`).

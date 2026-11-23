@@ -79,7 +79,7 @@ export function containersProject(): DesignDocument {
       stack('card', { kind: 'vstack', gap: 8, padding: 16, style: 'outline', radius: 'small' }, [inst('card-img', 'image', { ratio: '4:3' }), inst('card-title', 'heading', { text: 'Lisbon', level: 'subheading' })], undefined, 'Card container'),
     ]),
     stack('gallery', { kind: 'grid', columns: 3, gap: 4, style: 'filled', radius: 'large', padding: 8 }, [inst('g1', 'image', { ratio: '1:1' }), inst('g2', 'image', { ratio: '1:1' })], { width: 300 }),
-    stack('nested', { kind: 'vstack', padding: 12, align: 'center' }, [stack('inner', { kind: 'hstack', align: 'end' }, [inst('ok', 'button', { label: 'OK' }), inst('cancel', 'button', { label: 'Cancel', variant: 'text' })])], undefined, 'Actions'),
+    stack('nested', { kind: 'vstack', padding: 12, align: 'center' }, [stack('inner', { kind: 'hstack', align: 'end', justify: 'space-between' }, [inst('ok', 'button', { label: 'OK' }, { alignSelf: 'start' }), inst('cancel', 'button', { label: 'Cancel', variant: 'text' })])], undefined, 'Actions'),
     inst('fixed', 'text', { text: 'Fixed width text' }, { width: 200, bleed: true }),
     inst('hidden-row', 'list-row', { title: 'Hidden' }),
     inst('fab', 'fab', { label: 'New trip' }),

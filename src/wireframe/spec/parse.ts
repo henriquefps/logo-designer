@@ -10,6 +10,7 @@ import { MAX_REPEAT } from '../repeat';
 import { SCREEN_STATUSES } from '../flows';
 import {
   ALIGNS,
+  JUSTIFIES,
   COMMON_KEYS,
   CONTAINER_KEYS,
   USE_KEYS,
@@ -160,6 +161,7 @@ class Parser {
       height: this.layoutSize(o, 'height', path),
       position: this.choice(o, 'position', path, POSITIONS),
       bleed: this.bool(o, 'bleed', path),
+      alignSelf: this.choice(o, 'alignSelf', path, ALIGNS),
       x: this.num(o, 'x', path),
       y: this.num(o, 'y', path),
       rotation: this.num(o, 'rotation', path),
@@ -213,6 +215,7 @@ class Parser {
         gap: this.num(v, 'gap', path, 0),
         padding: this.num(v, 'padding', path, 0),
         align: this.choice(v, 'align', path, ALIGNS),
+        justify: this.choice(v, 'justify', path, JUSTIFIES),
         columns,
         style: this.choice(v, 'style', path, STYLES),
         radius: this.choice(v, 'radius', path, RADII),
@@ -361,13 +364,14 @@ class Parser {
   frameLayout(v: unknown, path: string): NormVariant['layout'] {
     if (v === undefined) return undefined;
     if (v === 'free' || v === null) return null;
-    if (!isObj(v)) return void this.fail(path, `expected "free" or { kind, gap, padding, align, columns }, got ${show(v)}`);
-    this.unknownKeys(v, path, ['kind', 'gap', 'padding', 'align', 'columns']);
+    if (!isObj(v)) return void this.fail(path, `expected "free" or { kind, gap, padding, align, justify, columns }, got ${show(v)}`);
+    this.unknownKeys(v, path, ['kind', 'gap', 'padding', 'align', 'justify', 'columns']);
     return {
       kind: this.choice(v, 'kind', path, CONTAINER_KINDS),
       gap: this.num(v, 'gap', path, 0),
       padding: this.num(v, 'padding', path, 0),
       align: this.choice(v, 'align', path, ALIGNS),
+      justify: this.choice(v, 'justify', path, JUSTIFIES),
       columns: this.num(v, 'columns', path, 1, 12),
     };
   }
