@@ -140,6 +140,8 @@ function layoutItemOf(n: NormNode, prev: SceneNode | undefined, base?: LayoutIte
   const bleed = n.bleed ?? prev?.layoutItem?.bleed;
   if (position !== undefined) item.position = position;
   if (bleed !== undefined) item.bleed = bleed;
+  const alignSelf = n.alignSelf ?? prev?.layoutItem?.alignSelf;
+  if (alignSelf !== undefined) item.alignSelf = alignSelf;
   return Object.keys(item).length ? item : undefined;
 }
 
@@ -198,6 +200,7 @@ function buildNode(n: NormNode, place: Place, ctx: Ctx): SceneNode | null {
     if (n.gap !== undefined) layout.gap = n.gap;
     if (n.padding !== undefined) layout.padding = n.padding;
     if (n.align !== undefined) layout.align = n.align;
+    if (n.justify !== undefined && n.justify !== 'start') layout.justify = n.justify;
     if (n.kind === 'grid' && n.columns !== undefined) layout.columns = n.columns;
     if (n.style !== undefined) layout.style = n.style;
     if (n.radius !== undefined) layout.radius = n.radius;
@@ -422,6 +425,7 @@ function frameLayout(v: NormVariant): LayoutInfo | null {
   if (v.layout.gap !== undefined) out.gap = v.layout.gap;
   if (v.layout.padding !== undefined) out.padding = v.layout.padding;
   if (v.layout.align !== undefined) out.align = v.layout.align;
+  if (v.layout.justify !== undefined && v.layout.justify !== 'start') out.justify = v.layout.justify;
   if (out.kind === 'grid') out.columns = v.layout.columns ?? 2;
   return out;
 }

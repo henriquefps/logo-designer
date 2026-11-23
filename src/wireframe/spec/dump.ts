@@ -66,6 +66,7 @@ function commonKeys(n: SceneNode, ctx: DumpCtx, parentLays: boolean, frameChild:
   if (it?.position !== undefined) o.position = it.position;
   else if (frameChild && parentLays && hasDefaultPlacement(n)) o.position = 'flow'; // else the build would pin / float it
   if (it?.bleed !== undefined) o.bleed = it.bleed;
+  if (it?.alignSelf !== undefined) o.alignSelf = it.alignSelf;
   if (!placedByLayout(n, parentLays) && ctx.geometry) {
     o.x = r2(n.transform.x);
     o.y = r2(n.transform.y);
@@ -84,6 +85,7 @@ function layoutDiff(l: LayoutInfo): Record<string, unknown> {
   if (l.gap !== d.gap) out.gap = l.gap;
   if (l.padding !== d.padding) out.padding = l.padding;
   if (l.align !== d.align) out.align = l.align;
+  if (l.justify && l.justify !== 'start') out.justify = l.justify;
   if (l.kind === 'grid' && l.columns !== d.columns) out.columns = l.columns;
   if (l.style !== undefined) out.style = l.style;
   if (l.radius !== undefined) out.radius = l.radius;
@@ -212,6 +214,7 @@ function frameLayout(f: ScreenNode): SpecFrameLayout | undefined {
   if (l.gap !== d.gap) out.gap = l.gap;
   if (l.padding !== d.padding) out.padding = l.padding;
   if (l.align !== d.align) out.align = l.align;
+  if (l.justify && l.justify !== 'start') out.justify = l.justify;
   if (l.kind === 'grid' && l.columns !== 2) out.columns = l.columns;
   return out;
 }

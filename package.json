@@ -22,6 +22,7 @@
     "e2e:kit-import": "node scripts/kit-import-e2e.ts",
     "e2e:slots": "node scripts/slots-e2e.ts",
     "e2e:dup-make": "node scripts/dup-make-e2e.ts",
+    "e2e:align": "node scripts/align-stacks-e2e.ts",
     "e2e:agent-offline": "bun scripts/agent-offline-e2e.ts"
   },
   "dependencies": {

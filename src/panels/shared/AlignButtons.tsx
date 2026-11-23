@@ -9,11 +9,11 @@ import {
   RowsIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { alignDeltas, distributeDeltas, type AlignMode, type DistributeMode, type Id } from '@/model';
+import type { AlignMode, DistributeMode, Id } from '@/model';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { translateNodes } from '@/actions/selection';
+import { alignNodes, distributeNodes } from '@/wireframe/alignCommands';
 import { useDocStore } from '@/store/useDocStore';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +51,7 @@ export function AlignButtons({ ids, compact = false }: { ids: Id[]; compact?: bo
   return (
     <div className={cn('flex flex-wrap items-center gap-1', compact && 'flex-nowrap')}>
       {ALIGN.map((a) => (
-        <IconAction key={a.mode} label={a.label} icon={a.icon} onClick={() => translateNodes(alignDeltas(doc(), ids, a.mode, toArtboard), a.label)} />
+        <IconAction key={a.mode} label={a.label} icon={a.icon} onClick={() => alignNodes(ids, a.mode, toArtboard)} />
       ))}
       {DIST.map((d) => (
         <IconAction
@@ -59,7 +59,7 @@ export function AlignButtons({ ids, compact = false }: { ids: Id[]; compact?: bo
           label={d.label}
           icon={d.icon}
           disabled={ids.length < (toArtboard ? 2 : 3)}
-          onClick={() => translateNodes(distributeDeltas(doc(), ids, d.mode, toArtboard), d.label)}
+          onClick={() => distributeNodes(ids, d.mode, toArtboard)}
         />
       ))}
       <Select value={ids.length < 2 ? 'artboard' : target} onValueChange={(v) => setTarget(v as typeof target)} disabled={ids.length < 2}>

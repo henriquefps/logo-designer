@@ -12,6 +12,15 @@ interface DropTarget {
   pos: DropPosition;
 }
 
+/** The row to show when the panel opens: the last selected node (or the instance it is inside, whose inside is not listed). */
+function initialReveal(): Id | null {
+  const sel = useEditorStore.getState().selection;
+  const id = sel[sel.length - 1];
+  const loc = id ? locate(useDocStore.getState().doc, id) : null;
+  if (!loc) return null;
+  return loc.ancestors.find((a) => !!a.component)?.id ?? id;
+}
+
 /** Layer tree: top of the list = top of the stack. Drag rows to reorder or drop onto a group. */
 export function LayersPanel() {
   const doc = useDocStore((s) => s.doc);
@@ -25,11 +34,25 @@ export function LayersPanel() {
   // Set while the panel itself changes the selection: then it does not scroll.
   const fromPanel = useRef(false);
   // The row to bring into view once it is rendered (a selection made on the canvas).
+  // The tab is mounted only while it is open: a selection made while it was closed is shown when it opens (centred:
+  // the list starts from the top).
+  const [opened] = useState(initialReveal);
   const reveal = useRef<Id | null>(null);
   const [revealTick, setRevealTick] = useState(0);
+  const centre = useRef(false);
 
   // Follows the canvas: a selection made there (click, marquee, keyboard) opens the selected node's ancestors
   // and scrolls its row into view (nearest: no jump when it is already visible).
+  const follow = (id: Id) => {
+    const loc = locate(useDocStore.getState().doc, id);
+    if (!loc) return;
+    // A component instance's inside is not listed: its row is the one to show.
+    const at = loc.ancestors.findIndex((a) => !!a.component);
+    const ancestors = (at >= 0 ? loc.ancestors.slice(0, at) : loc.ancestors).map((a) => a.id);
+    setCollapsed((c) => (ancestors.some((a) => c.has(a)) ? new Set([...c].filter((x) => !ancestors.includes(x))) : c));
+    reveal.current = at >= 0 ? loc.ancestors[at].id : id;
+    setRevealTick((t) => t + 1);
+  };
   useEffect(
     () =>
       useEditorStore.subscribe((st, prev) => {
@@ -39,22 +62,23 @@ export function LayersPanel() {
           return;
         }
         const id = st.selection[st.selection.length - 1];
-        if (!id) return;
-        const loc = locate(useDocStore.getState().doc, id);
-        if (!loc) return;
-        const ancestors = loc.ancestors.map((a) => a.id);
-        setCollapsed((c) => (ancestors.some((a) => c.has(a)) ? new Set([...c].filter((x) => !ancestors.includes(x))) : c));
-        reveal.current = id;
-        setRevealTick((t) => t + 1);
+        if (id) follow(id);
       }),
     [],
   );
+  useLayoutEffect(() => {
+    if (opened) {
+      reveal.current = opened;
+      centre.current = true;
+    }
+  }, [opened]);
   useLayoutEffect(() => {
     const id = reveal.current;
     if (!id) return;
     const row = rootRef.current?.querySelector(`[data-layer-id="${CSS.escape(id)}"]`);
     if (row) {
-      row.scrollIntoView({ block: 'nearest' });
+      row.scrollIntoView({ block: centre.current ? 'center' : 'nearest' });
+      centre.current = false;
       reveal.current = null;
     }
   }, [revealTick, collapsed, doc]);

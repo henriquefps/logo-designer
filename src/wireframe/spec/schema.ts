@@ -8,7 +8,7 @@ import type { AnyComponentDef, PropSpec } from '../library/types';
 import { MAX_REPEAT } from '../repeat';
 import { SCREEN_STATUSES } from '../flows';
 import { primaryListProp, primaryTextProp } from './parse';
-import { ALIGNS, CONTAINER_KINDS, POSITIONS, RADII, SPEC_SCHEMA_URL, STYLES } from './types';
+import { ALIGNS, CONTAINER_KINDS, JUSTIFIES, POSITIONS, RADII, SPEC_SCHEMA_URL, STYLES } from './types';
 
 type Schema = Record<string, unknown>;
 
@@ -25,6 +25,7 @@ const COMMON: Record<string, Schema> = {
   height: { ...layoutSize, description: 'Height in its stack: "fill", "hug" or px (only for components with a resizable height).' },
   position: { enum: [...POSITIONS], description: '"flow" (default), "pinned-bottom" (screen children: bottom bars) or "free" (absolute, x / y).' },
   bleed: { type: 'boolean', description: 'Edge to edge: ignore the stack\'s side padding.' },
+  alignSelf: { enum: [...ALIGNS], description: 'Cross-axis alignment of this child, overriding the stack\'s align (a hug child among siblings).' },
   x: { type: 'number', description: 'Free / unstacked nodes: left in the parent.' },
   y: { type: 'number', description: 'Free / unstacked nodes: top in the parent.' },
   rotation: { type: 'number' },
@@ -45,6 +46,7 @@ const CONTAINER: Record<string, Schema> = {
   gap: { type: 'number', minimum: 0 },
   padding: { type: 'number', minimum: 0 },
   align: { enum: [...ALIGNS] },
+  justify: { enum: [...JUSTIFIES], description: 'Main axis of a stack: where the children sit when there is room left, or spread (space-between). Default start.' },
   columns: { type: 'integer', minimum: 1, maximum: 12, description: 'Grids only.' },
   style: { enum: [...STYLES] },
   radius: { enum: [...RADII] },
@@ -134,7 +136,7 @@ export function wireframeSpecSchema(): Schema {
     FrameLayout: {
       anyOf: [
         { const: 'free', description: 'No stack: content placed freely (x / y).' },
-        { type: 'object', properties: { kind: { enum: [...CONTAINER_KINDS] }, gap: CONTAINER.gap, padding: CONTAINER.padding, align: CONTAINER.align, columns: CONTAINER.columns }, additionalProperties: false },
+        { type: 'object', properties: { kind: { enum: [...CONTAINER_KINDS] }, gap: CONTAINER.gap, padding: CONTAINER.padding, align: CONTAINER.align, justify: CONTAINER.justify, columns: CONTAINER.columns }, additionalProperties: false },
       ],
       description: 'Root layout of a frame (default: a vertical stack with the platform\'s padding and gap).',
     },

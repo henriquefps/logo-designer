@@ -96,13 +96,35 @@ export function aiScreens(doc: DesignDocument): AiScreen[] {
 
 const stackName = (l: LayoutInfo) => (l.kind === 'vstack' ? 'Vertical stack' : l.kind === 'hstack' ? 'Horizontal stack' : `Grid (${l.columns ?? 2} columns)`);
 
+/**
+ * How a stack places its children when it is not the default: "centered", "right-aligned" (the cross axis of a
+ * vertical stack, the main axis of a horizontal one), "spread apart", "top-aligned"… Empty = the default placement.
+ */
+export function alignWords(l: LayoutInfo): string {
+  const out: string[] = [];
+  if (l.kind === 'vstack') {
+    if (l.align === 'center') out.push('children centered');
+    else if (l.align === 'end') out.push('children right-aligned');
+    if (l.justify === 'center') out.push('vertically centered');
+    else if (l.justify === 'end') out.push('at the bottom');
+    else if (l.justify === 'space-between') out.push('spread over the height');
+  } else if (l.kind === 'hstack') {
+    if (l.justify === 'center') out.push('centered');
+    else if (l.justify === 'end') out.push('right-aligned');
+    else if (l.justify === 'space-between') out.push('spread apart');
+    if (l.align === 'start') out.push('top-aligned');
+    else if (l.align === 'end') out.push('bottom-aligned');
+  } else if (l.align === 'center') out.push('items centered in their cells');
+  else if (l.align === 'end') out.push('items right-aligned in their cells');
+  return out.join(', ');
+}
+
 /** A container's line: its kind, and its look when styled ("Card container (outlined)", "Grid (2 columns, filled)"). */
 function containerName(l: LayoutInfo): string {
   const look = styleWords(l);
-  if (!look) return stackName(l);
-  if (l.kind === 'vstack') return `Card container (${look})`;
-  if (l.kind === 'hstack') return `Horizontal stack (${look})`;
-  return `Grid (${l.columns ?? 2} columns, ${look})`;
+  const place = alignWords(l);
+  const base = !look ? stackName(l) : l.kind === 'vstack' ? `Card container (${look})` : l.kind === 'hstack' ? `Horizontal stack (${look})` : `Grid (${l.columns ?? 2} columns, ${look})`;
+  return place ? `${base}, ${place}` : base;
 }
 
 /** "List of 6 × (…)", by the container's kind: vertical = list, horizontal = carousel, grid = gallery. */
@@ -253,6 +275,9 @@ class TreeWriter {
   private position(n: SceneNode, parentIsFrame: boolean): string {
     const p = n.layoutItem?.position;
     if (p === 'pinned-bottom') return 'pinned to bottom';
+    const self = n.layoutItem?.alignSelf;
+    if (self === 'center' && p !== 'free') return 'centered';
+    if (self === 'end' && p !== 'free') return 'aligned to the end';
     if (p === 'free') {
       const where = parentIsFrame ? cornerOf(n, this.frame) : '';
       return where ? `floating, ${where}` : 'floating';
@@ -316,7 +341,7 @@ class TreeWriter {
       const template = repeatTemplate(n);
       if (template && kids.includes(template)) return this.repeat(n as GroupNode & { layout: LayoutInfo }, template, kids, depth, withPos, carried);
       // A single child in a plain stack adds nothing: list the child directly.
-      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos && !styleWords(n.layout) && !slot) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
+      if (kids.length === 1 && n.layout.kind !== 'grid' && !pos && !styleWords(n.layout) && !alignWords(n.layout) && !slot) return this.node(kids[0], depth, parentIsFrame, [n.id, ...carried]);
       this.line(depth, withPos(`${containerName(n.layout)}${slot}${slot ? ', by default:' : ''}`), [n.id, ...carried]);
     } else this.line(depth, withPos('Group'), [n.id, ...carried]);
     this.write(n, depth + 1, false);
@@ -402,7 +427,7 @@ function variantMarkdown(doc: DesignDocument, v: AiVariant, notes: NoteForExport
   const w = new TreeWriter(f, notes, flows, { shared: sharedNames(doc), sourceText: (id, part) => flowSourceText(doc, id, part) });
   const l = f.layout;
   if (!l) out.push('Elements are placed freely (no stack); listed top to bottom.', '');
-  else if (l.kind !== 'vstack') out.push(`Layout: ${stackName(l)}.`, '');
+  else if (l.kind !== 'vstack' || alignWords(l)) out.push(`Layout: ${[stackName(l), alignWords(l)].filter(Boolean).join(', ')}.`, '');
   for (const n of notes.filter((x) => x.targetId === f.id)) {
     out.push(`Note on the whole screen: ${n.text.replace(/\s*\n\s*/g, ' ').trim()}`, '');
     w.markUsed(n);

@@ -185,6 +185,8 @@ export interface ComponentInfo {
 
 export type LayoutKind = 'vstack' | 'hstack' | 'grid';
 export type LayoutAlign = 'start' | 'center' | 'end' | 'stretch';
+/** Main-axis distribution of a stack's children (horizontal in an hstack, vertical in a vstack). */
+export type LayoutJustify = 'start' | 'center' | 'end' | 'space-between';
 
 /** Container layout (src/wireframe/layout.ts). The container's local origin is its top-left corner. */
 export interface LayoutInfo {
@@ -195,6 +197,12 @@ export interface LayoutInfo {
   padding: number;
   /** Cross-axis alignment of the children. */
   align: LayoutAlign;
+  /**
+   * Stacks only: where the children sit along the main axis when there is room left (hstack: the row's free
+   * width; vstack: the free height of a screen or a fixed-height stack). `space-between` spreads them with the
+   * gap as the minimum. Omitted = `start`. No effect while a child fills the main axis; grids ignore it.
+   */
+  justify?: LayoutJustify;
   /** Grid only: number of columns. */
   columns?: number;
   /**
@@ -241,6 +249,8 @@ export interface LayoutItemInfo {
   height?: LayoutSize;
   /** `flow` (default): placed by the stack. `pinned-bottom`: at the bottom of the screen. `free`: absolute, ignored by the stack. */
   position?: 'flow' | 'pinned-bottom' | 'free';
+  /** This child's own cross-axis alignment, overriding the container's `align` (a hug child among siblings). Omitted = the container's. */
+  alignSelf?: LayoutAlign;
   /**
    * Edge to edge: the child ignores the parent's padding on the cross axis (horizontal padding in a
    * vertical stack, vertical in a horizontal one; no effect in a grid). Default: the component's `sizing.bleed`.

@@ -1,9 +1,10 @@
 import { RowsIcon, SelectionSlashIcon } from '@phosphor-icons/react';
-import type { ContainerRadius, ContainerStyle, LayoutAlign, LayoutKind } from '@/model';
+import type { ContainerRadius, ContainerStyle, LayoutAlign, LayoutJustify, LayoutKind } from '@/model';
 import { isMac } from '@/actions/registry';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { locate } from '@/model';
 import { DEFAULT_REPEAT, MAX_REPEAT, setContainerRadius, setContainerStyle, setRepeat, setSlot } from '@/wireframe/containerCommands';
 import { getSymbol, isSymbolInstance, sharedOwner } from '@/wireframe/symbols';
@@ -28,6 +29,13 @@ const ALIGN: { id: LayoutAlign; label: string }[] = [
   { id: 'center', label: 'Center' },
   { id: 'end', label: 'End' },
   { id: 'stretch', label: 'Stretch' },
+];
+
+const JUSTIFY: { id: LayoutJustify; label: string }[] = [
+  { id: 'start', label: 'Start' },
+  { id: 'center', label: 'Center' },
+  { id: 'end', label: 'End' },
+  { id: 'space-between', label: 'Spread' },
 ];
 
 export function LayoutSection({ ctx }: { ctx: SelectionContext }) {
@@ -99,6 +107,25 @@ export function LayoutSection({ ctx }: { ctx: SelectionContext }) {
           </SelectContent>
         </Select>
       </FieldRow>
+      {layout.kind !== 'grid' && (
+        <FieldRow label="Justify">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={layout.justify ?? 'start'}
+            onValueChange={(j) => j && setLayout(ids, { justify: j as LayoutJustify }, 'Justify')}
+            aria-label={layout.kind === 'hstack' ? 'Justify children (along the row)' : 'Justify children (down the column)'}
+            className="w-full"
+          >
+            {JUSTIFY.map((j) => (
+              <ToggleGroupItem key={j.id} value={j.id} aria-label={j.id === 'space-between' ? 'Space between' : j.label} className="flex-1 px-1 text-xs data-[state=on]:bg-primary/10 data-[state=on]:text-primary">
+                {j.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </FieldRow>
+      )}
       {!isFrame && (
         <>
           <FieldRow label="Style">

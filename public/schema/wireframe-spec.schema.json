@@ -278,6 +278,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -373,6 +376,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -435,6 +441,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -516,6 +525,15 @@
                 "end",
                 "stretch"
               ]
+            },
+            "justify": {
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "space-between"
+              ],
+              "description": "Main axis of a stack: where the children sit when there is room left, or spread (space-between). Default start."
             },
             "columns": {
               "type": "integer",
@@ -730,6 +748,15 @@
             "stretch"
           ]
         },
+        "justify": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "space-between"
+          ],
+          "description": "Main axis of a stack: where the children sit when there is room left, or spread (space-between). Default start."
+        },
         "columns": {
           "type": "integer",
           "minimum": 1,
@@ -787,6 +814,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -840,6 +870,15 @@
             "stretch"
           ]
         },
+        "justify": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "space-between"
+          ],
+          "description": "Main axis of a stack: where the children sit when there is room left, or spread (space-between). Default start."
+        },
         "columns": {
           "type": "integer",
           "minimum": 1,
@@ -897,6 +936,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -950,6 +992,15 @@
             "stretch"
           ]
         },
+        "justify": {
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "space-between"
+          ],
+          "description": "Main axis of a stack: where the children sit when there is room left, or spread (space-between). Default start."
+        },
         "columns": {
           "type": "integer",
           "minimum": 1,
@@ -1007,6 +1058,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -1102,6 +1156,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1186,6 +1243,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -1301,6 +1361,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1413,6 +1476,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1492,6 +1558,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -1609,6 +1678,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1704,6 +1776,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1795,6 +1870,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -1904,6 +1982,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -1988,6 +2069,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2083,6 +2167,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2199,6 +2286,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -2288,6 +2378,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2426,6 +2519,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -2517,6 +2613,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2633,6 +2732,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2760,6 +2862,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -2849,6 +2954,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -2943,6 +3051,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -3059,6 +3170,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -3185,6 +3299,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -3269,6 +3386,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -3368,6 +3488,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -3458,6 +3581,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -3555,6 +3681,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -3646,6 +3775,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -3786,6 +3918,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -3884,6 +4019,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -4021,6 +4159,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4114,6 +4255,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -4245,6 +4389,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4358,6 +4505,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -4479,6 +4629,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4596,6 +4749,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4704,6 +4860,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4798,6 +4957,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -4901,6 +5063,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -4985,6 +5150,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -5084,6 +5252,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -5169,6 +5340,9 @@
         },
         "bleed": {
           "$ref": "#/definitions/common.bleed"
+        },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
         },
         "x": {
           "$ref": "#/definitions/common.x"
@@ -5276,6 +5450,9 @@
         "bleed": {
           "$ref": "#/definitions/common.bleed"
         },
+        "alignSelf": {
+          "$ref": "#/definitions/common.alignSelf"
+        },
         "x": {
           "$ref": "#/definitions/common.x"
         },
@@ -5363,6 +5540,15 @@
     "common.bleed": {
       "type": "boolean",
       "description": "Edge to edge: ignore the stack's side padding."
+    },
+    "common.alignSelf": {
+      "enum": [
+        "start",
+        "center",
+        "end",
+        "stretch"
+      ],
+      "description": "Cross-axis alignment of this child, overriding the stack's align (a hug child among siblings)."
     },
     "common.x": {
       "type": "number",

@@ -200,6 +200,7 @@ function noteInfo(v: unknown, path: string): NoteInfo {
 
 const LAYOUT_KINDS = ['vstack', 'hstack', 'grid'] as const;
 const LAYOUT_ALIGN = ['start', 'center', 'end', 'stretch'] as const;
+const LAYOUT_JUSTIFY = ['start', 'center', 'end', 'space-between'] as const;
 
 function layoutInfo(v: unknown, path: string): LayoutInfo {
   const o = obj(v, path);
@@ -212,6 +213,10 @@ function layoutInfo(v: unknown, path: string): LayoutInfo {
     padding: nonNegative(o.padding, 0, at(path, 'padding')),
     align: oneOf(o.align, LAYOUT_ALIGN, 'stretch', at(path, 'align')),
   };
+  if (o.justify !== undefined && o.justify !== null) {
+    const justify = oneOf(o.justify, LAYOUT_JUSTIFY, 'start', at(path, 'justify'));
+    if (justify !== 'start') out.justify = justify;
+  }
   if (kind === 'grid' || o.columns !== undefined) {
     const c = o.columns === undefined ? 2 : finite(o.columns, at(path, 'columns'));
     if (!Number.isInteger(c) || c < 1) fail(at(path, 'columns'), `expected a whole number ≥ 1, got ${show(o.columns)}`);
@@ -269,6 +274,7 @@ function layoutItemInfo(v: unknown, path: string): LayoutItemInfo {
   if (o.width !== undefined) out.width = layoutSize(o.width, at(path, 'width'));
   if (o.height !== undefined) out.height = layoutSize(o.height, at(path, 'height'));
   if (o.position !== undefined) out.position = oneOf(o.position, ['flow', 'pinned-bottom', 'free'] as const, 'flow', at(path, 'position'));
+  if (o.alignSelf !== undefined) out.alignSelf = oneOf(o.alignSelf, LAYOUT_ALIGN, 'start', at(path, 'alignSelf'));
   if (o.bleed !== undefined) {
     if (typeof o.bleed !== 'boolean') fail(at(path, 'bleed'), `expected true or false, got ${show(o.bleed)}`);
     out.bleed = o.bleed as boolean;

@@ -284,6 +284,36 @@ content vstack (`fill` × `fill`, padding 24); see `library/__tests__/desktopScr
 - Stacks are not painted, rotated or flipped by the user (like instances); children in a stack's flow are not
   rotated either (free children can be).
 
+### Aligning in a stack
+
+A child of a stack cannot be moved by dragging a number: the layout puts it back. Two things place children, and the
+align buttons (select tool options bar, Properties → Align) set them:
+
+- **`layout.justify`** (`start` default, `center`, `end`, `space-between`; Properties → Layout → Justify): the main
+  axis of a stack, where the room left goes. In an hstack: the free width of the row (a row of hug buttons can be
+  centred, end-aligned or spread; `space-between` keeps `gap` as the minimum). In a vstack: the free height (a
+  screen's minimum height, a fixed-height stack). No effect while a child fills that axis, and grids ignore it.
+- **`layoutItem.alignSelf`** (`start`, `center`, `end`, `stretch`; Properties → In stack → Align self): the cross
+  axis of one child, overriding the stack's `align`.
+
+What each button does (always one undo step; where nothing applies, a toast says why, e.g. "Placed by the grid: use
+Layout → Gap and Columns"):
+
+| Selected | Left / centre / right | Top / middle / bottom |
+| --- | --- | --- |
+| Text with an `align` prop (heading, text) that fills the width | its `align` prop | the stack's `justify` / its `alignSelf`, as below |
+| A stack that fills the width | its own content: `align` (vstack, grid) or `justify` (hstack) | as a child of its parent |
+| Child of an hstack | the row's `justify` | its `alignSelf` (every child selected, or the only one: the row's `align`) |
+| Child of a vstack | its `alignSelf` (every child selected, or the only one: the stack's `align`) | the stack's `justify` |
+| Child of a grid | its `alignSelf` | nothing: the grid places it |
+| Pinned to the bottom | nothing: the bar spans the screen | nothing |
+| Free (`position: free`), a screen frame, documents that are not wireframes | moves it, as always | moves it |
+
+Distribute horizontally / vertically on two or more children of a row / column sets `justify: space-between`.
+"Align to screen" and "Align to selection" give the same result for a node a stack places: alignment is always inside
+its stack (select the stack, or one that fills the width, to place it as a whole). A fill-width heading keeps its
+own `align` (default left) whatever its stack's `align` is: saved documents do not change.
+
 ### Mobile layout
 
 Desktop-first, like the rest of Designer. On a phone a wireframe can be viewed, moved around and
@@ -686,7 +716,7 @@ A compact JSON an agent writes and reads, describing screens the way a person th
 coordinates: logical screens and their variants (platform), each frame's root layout, a tree of
 nodes where each node is a library component (`{ "list-row": { "title": "Language", "trailing":
 "value", "value": "English" } }` or an explicit `{ "kind": …, "props": … }`), a container (`vstack`,
-`hstack`, `grid` with gap/padding/align/columns/style/radius/repeat), a shared component instance
+`hstack`, `grid` with gap/padding/align/justify/columns/style/radius/repeat), a shared component instance
 (`{ "use": "Trip card" }`), plain text, or a free/pinned placement; shared component masters; flows
 (`"from": "Settings/Language row"` → `"to": "Language"`, by path or by an `id` the agent assigns);
 notes (attached by path/id); screen status.
@@ -1072,8 +1102,8 @@ with a note stating its rule) showed one bug and the gaps below.
   are 32 (some kits use 36); the toolbar is 56 with a bottom divider. A note can state the kit's numbers; a density
   prop on these components would close it.
 - **Top app bar always draws a bottom divider**; a header without one cannot be drawn with it.
-- **No end alignment in a stack** (no `justify`): sheet footers and Cancel / confirm pairs sit at the start instead
-  of the end; a stack cannot centre a free overlay either (a desktop dialog is placed by `x` / `y`).
+- **Sheet footers and Cancel / confirm pairs** end-align with `justify: end` on their row; a stack still cannot
+  centre a free overlay (a desktop dialog is placed by `x` / `y`).
 - **No per-side padding:** a shell's margin around its card also adds space above the card, under the header.
 - **No vertical divider, menu or grab-handle components:** a master-detail split is the detail panel's outline, a
   menu is an outlined stack of radio groups, a drawer's handle can only be stated in a note.

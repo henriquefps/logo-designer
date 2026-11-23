@@ -117,7 +117,7 @@ export function componentCatalog(): Catalog {
     });
   const containers = (['vstack', 'hstack', 'grid'] as const).map((key): CatalogContainer => {
     const d = defaultLayout(key);
-    const defaults: Record<string, unknown> = { gap: d.gap, padding: d.padding, align: d.align, ...(key === 'grid' ? { columns: d.columns } : {}) };
+    const defaults: Record<string, unknown> = { gap: d.gap, padding: d.padding, align: d.align, ...(key !== 'grid' ? { justify: 'start' } : {}), ...(key === 'grid' ? { columns: d.columns } : {}) };
     const label = CONTAINER_PRESETS.find((p) => p.id === key)!.label;
     const example = key === 'grid' ? { grid: [{ image: {} }, { image: {} }, { image: {} }], columns: 3 } : key === 'hstack' ? { hstack: [{ button: 'Cancel' }, { button: 'Save' }], gap: 8 } : { vstack: [{ heading: 'Title' }, { text: 'Body' }], gap: 8 };
     return { key, label, defaults, example };
@@ -145,7 +145,7 @@ export function catalogMarkdown(c: Catalog = componentCatalog()): string {
     '',
     '## Containers',
     '',
-    'Keys next to the children: `gap`, `padding`, `align` (start, center, end, stretch), `columns` (grid), `style`',
+    'Keys next to the children: `gap`, `padding`, `align` (start, center, end, stretch), `justify` (start, center, end, space-between: the main axis), `columns` (grid), `style`',
     '(none, outline, filled, outline-filled), `radius` (none, small, large), `repeat` (repeat the first child N times).',
     '',
   ];
