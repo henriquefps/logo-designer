@@ -693,7 +693,7 @@ a group (double-click enters it), so every editing tool works inside it.
   `symbolCommands.notifySharedChange` (Layers drop into a shared part → toast), `clipboard.pasteSlot`, Layers
   (`data-layer-id` rows; `useEditorStore.subscribe` opens ancestors and scrolls nearest unless the panel selected;
   the tab is unmounted while closed, so on mount the panel reveals the current selection, centred; a node inside a
-  component instance reveals the instance's row; the selected row is `bg-primary/15` with an inset accent bar).
+  component instance reveals the instance's row; the selected row is `bg-primary/15`, background only).
   Spec: `slot` (containers), `content` / `slots` / `text` on `use` (`USE_KEYS`; `text` next to `use` is not the text
   kind), `fillSlots` / `instanceText` in build, `instanceOwn` in dump. File: `projectFile` validates both fields.
 - **Kits, import and paste** (`symbolImport.ts` pure, `symbolImportCommands.ts` app; docs/wireframe-mode.md → Kits,

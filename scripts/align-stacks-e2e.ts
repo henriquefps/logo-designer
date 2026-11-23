@@ -256,14 +256,22 @@ try {
   await page.waitForTimeout(250);
   check(await inView(ids.labelB), 'the selection made while Layers was closed is in view when it opens');
   check((await rowOf(ids.labelB).getAttribute('aria-selected')) === 'true', 'and selected');
-  // Clearly highlighted: not the faint grey of a hovered row, and an accent bar on the left.
+  // Clearly highlighted: a tinted background (selection is background only, no bar).
   const look = await rowOf(ids.labelB).evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, shadow: cs.boxShadow };
   });
   const other = await rowOf(ids.labelA).evaluate((el) => getComputedStyle(el).backgroundColor);
-  check(look.bg !== other && look.shadow !== 'none', `the selected row is clearly highlighted (${look.bg}, ${look.shadow})`);
+  check(look.bg !== other && look.bg !== 'rgba(0, 0, 0, 0)' && look.shadow === 'none', `the selected row is clearly highlighted (${look.bg}, ${look.shadow})`);
   await shot(page, 'layers-selected.png');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.waitForTimeout(200);
+  const darkOther = await rowOf(ids.labelA).evaluate((el) => getComputedStyle(el).backgroundColor);
+  check((await rowOf(ids.labelB).evaluate((el) => getComputedStyle(el).backgroundColor)) !== darkOther, 'and in dark');
+  await shot(page, 'layers-selected-dark.png');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
   // While the tab is open: collapse the screen, select a deeper node on the canvas, the row comes back.
   await t.select([]);
   const frameRow = rowOf(tablet.id);
